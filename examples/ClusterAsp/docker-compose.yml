@@ -1,0 +1,17 @@
+version: "3.7"
+
+services:
+  node1:
+    build: ./Node1
+    depends_on:
+      - consul
+  # node2:
+  #   build: ./Node2
+  #   depends_on:
+  #     - consul
+  consul:
+    logging:
+      driver: none
+    image: consul
+    ports:
+      - "8500:8500"
