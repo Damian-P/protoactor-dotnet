@@ -22,7 +22,7 @@ namespace Proto
             _process = process;
         }
 
-        internal Process? Ref(ActorSystem system)
+        internal Process? Ref(IActorSystem system)
         {
 
             var p = _process;
@@ -46,13 +46,13 @@ namespace Proto
 
         }
 
-        internal void SendUserMessage(ActorSystem system, object message)
+        internal void SendUserMessage(IActorSystem system, object message)
         {
             var reff = Ref(system) ?? system.ProcessRegistry.Get(this);
             reff.SendUserMessage(this, message);
         }
 
-        public void SendSystemMessage(ActorSystem system,object sys)
+        public void SendSystemMessage(IActorSystem system, object sys)
         {
             var reff = Ref(system) ?? system.ProcessRegistry.Get(this);
             reff.SendSystemMessage(this, sys);

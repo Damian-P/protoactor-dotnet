@@ -1,6 +1,15 @@
 namespace Proto
 {
-    public class ActorSystem
+    public interface IActorSystem
+    {
+        ProcessRegistry ProcessRegistry { get; }
+        RootContext Root { get; }
+        Guardians Guardians { get; }
+        DeadLetterProcess DeadLetter { get; }
+        EventStream EventStream { get; }
+    }
+
+    public class ActorSystem : IActorSystem
     {
         public ProcessRegistry ProcessRegistry { get; }
         public RootContext Root { get; }

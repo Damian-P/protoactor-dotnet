@@ -15,22 +15,22 @@ namespace Proto
         private readonly CancellationTokenSource _cts;
         private readonly TaskCompletionSource<T> _tcs;
 
-        internal FutureProcess(ActorSystem system, TimeSpan timeout) : this(system,new CancellationTokenSource(timeout))
+        internal FutureProcess(IActorSystem system, TimeSpan timeout) : this(system, new CancellationTokenSource(timeout))
         {
-      
+
         }
 
-        internal FutureProcess(ActorSystem system, CancellationToken cancellationToken) : this(system,
+        internal FutureProcess(IActorSystem system, CancellationToken cancellationToken) : this(system,
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)
         )
         {
         }
 
-        internal FutureProcess(ActorSystem system) : this(system, null)
+        internal FutureProcess(IActorSystem system) : this(system, null)
         {
         }
 
-        private FutureProcess(ActorSystem system, CancellationTokenSource? cts) : base(system)
+        private FutureProcess(IActorSystem system, CancellationTokenSource? cts) : base(system)
         {
             _tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
             _cts = cts;
@@ -81,7 +81,7 @@ namespace Proto
             {
                 if (msg is T || msg == null)
                 {
-                    _tcs.TrySetResult((T) msg);
+                    _tcs.TrySetResult((T)msg);
                 }
                 else
                 {

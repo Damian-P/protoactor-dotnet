@@ -17,16 +17,16 @@ namespace Proto
 
     public class RootContext : IRootContext
     {
-        public ActorSystem System { get; }
+        public IActorSystem System { get; }
 
-        public RootContext(ActorSystem system)
+        public RootContext(IActorSystem system)
         {
             System = system;
             SenderMiddleware = null;
             Headers = MessageHeader.Empty;
         }
 
-        public RootContext(ActorSystem system, MessageHeader messageHeader, params Func<Sender, Sender>[] middleware)
+        public RootContext(IActorSystem system, MessageHeader messageHeader, params Func<Sender, Sender>[] middleware)
         {
             System = system;
             SenderMiddleware = middleware.Reverse()

@@ -10,11 +10,25 @@ using Grpc.Core;
 
 namespace Proto.Remote
 {
-    public class RemoteConfig
+    public interface IRemoteConfig
     {
-       
-        
+        /// <summary>
+        /// Gets the advertised hostname for the remote system.
+        /// If the remote system is behind e.g. a NAT or reverse proxy, this needs to be set to
+        /// the external hostname in order for other systems to be able to connect to it.
+        /// </summary>
+        string AdvertisedHostname { get; }
+        /// <summary>
+        /// Gets the advertised port for the remote system.
+        /// If the remote system is behind e.g. a NAT or reverse proxy, this needs to be set to
+        /// the external port in order for other systems to be able to connect to it.
+        /// </summary>
+        int? AdvertisedPort { get; }
+        EndpointWriterOptions EndpointWriterOptions { get; }
+    }
 
+    public class RemoteConfig : IRemoteConfig
+    {
         /// <summary>
         /// Gets or sets the ChannelOptions for the gRPC channel.
         /// </summary>
@@ -49,7 +63,7 @@ namespace Proto.Remote
         /// </summary>
         public int? AdvertisedPort { get; set; }
 
-        public EndpointWriterOptions EndpointWriterOptions { get; set;} = new EndpointWriterOptions();
+        public EndpointWriterOptions EndpointWriterOptions { get; set; } = new EndpointWriterOptions();
     }
 
     public class EndpointWriterOptions
@@ -59,12 +73,12 @@ namespace Proto.Remote
         /// The endpoint writer will send up to this number of messages in a batch.
         /// </summary>
         public int EndpointWriterBatchSize { get; set; } = 1000;
-        
+
         /// <summary>
         /// the number of times to retry the connection within the RetryTimeSpan
         /// </summary>
-        public int MaxRetries {get; set; } = 8;
-        
+        public int MaxRetries { get; set; } = 8;
+
         public TimeSpan RetryTimeSpan { get; set; } = TimeSpan.FromMinutes(3);
 
         /// <summary>

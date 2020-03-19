@@ -76,9 +76,9 @@ namespace Proto
         private object? _messageOrEnvelope;
         private ContextState _state;
 
-        public ActorSystem System { get; }
+        public IActorSystem System { get; }
 
-        public ActorContext(ActorSystem system, Props props, PID parent, PID self)
+        public ActorContext(IActorSystem system, Props props, PID parent, PID self)
         {
             System = system;
             _props = props;

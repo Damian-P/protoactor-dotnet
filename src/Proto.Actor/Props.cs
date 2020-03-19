@@ -42,7 +42,7 @@ namespace Proto
 
         private static IMailbox ProduceDefaultMailbox() => UnboundedMailbox.Create();
 
-        public PID DefaultSpawner(ActorSystem system, string name, Props props, PID parent)
+        public PID DefaultSpawner(IActorSystem system, string name, Props props, PID parent)
         {
             var mailbox = props.MailboxProducer();
             var dispatcher = props.Dispatcher;
@@ -123,10 +123,10 @@ namespace Proto
             return props;
         }
 
-        internal PID Spawn(ActorSystem system, string name, PID parent) => Spawner(system, name, this, parent);
+        internal PID Spawn(IActorSystem system, string name, PID parent) => Spawner(system, name, this, parent);
         public static Props FromProducer(Func<IActor> producer) => new Props().WithProducer(producer);
         public static Props FromFunc(Receive receive) => FromProducer(() => new EmptyActor(receive));
     }
 
-    public delegate PID Spawner(ActorSystem system, string id, Props props, PID parent);
+    public delegate PID Spawner(IActorSystem system, string id, Props props, PID parent);
 }

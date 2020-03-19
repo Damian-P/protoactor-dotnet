@@ -31,6 +31,6 @@ namespace Proto
         /// <summary>
         ///     Gets the actor system this actor was spawned in.
         /// </summary>
-        ActorSystem System { get; }
+        IActorSystem System { get; }
     }
 }
