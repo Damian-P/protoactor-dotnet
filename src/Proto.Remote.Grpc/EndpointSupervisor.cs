@@ -14,20 +14,20 @@ namespace Proto.Remote.Grpc
 {
     public class EndpointSupervisor : Proto.Remote.EndpointSupervisor
     {
-        private readonly RemoteActorSystem remote;
+        private readonly RemoteActorSystem _remoteActorSystem;
 
         public EndpointSupervisor(RemoteActorSystem remote) : base(remote)
         {
-            this.remote = remote;
+            _remoteActorSystem = remote;
         }
 
         public override PID SpawnWriter(string address, ISpawnerContext context)
         {
             var writerProps =
                 Props.FromProducer(
-                        () => new EndpointWriter(remote, address, remote.RemoteConfig.ChannelOptions, remote.RemoteConfig.CallOptions, remote.RemoteConfig.ChannelCredentials)
+                        () => new EndpointWriter(_remoteActorSystem, address, _remoteActorSystem.RemoteConfig.ChannelOptions, _remoteActorSystem.RemoteConfig.CallOptions, _remoteActorSystem.RemoteConfig.ChannelCredentials)
                     )
-                    .WithMailbox(() => new EndpointWriterMailbox(remote, remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize));
+                    .WithMailbox(() => new EndpointWriterMailbox(_remoteActorSystem, _remoteActorSystem.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize));
             var writer = context.Spawn(writerProps);
             return writer;
         }

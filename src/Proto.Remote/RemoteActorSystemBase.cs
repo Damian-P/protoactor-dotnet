@@ -29,14 +29,16 @@ namespace Proto.Remote
             Serialization = new Serialization();
             EndpointReader = new EndpointReader(this);
             ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(this, pid));
-            ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? hostname, RemoteConfig.AdvertisedPort ?? port);
+            ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? hostname, RemoteConfig.AdvertisedPort ?? port
+            );
             Hostname = hostname;
             Port = port;
         }
 
         private PID ActivatorForAddress(string address) => new PID(address, "activator");
 
-        public Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout) => SpawnNamedAsync(address, "", kind, timeout);
+        public Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout) =>
+            SpawnNamedAsync(address, "", kind, timeout);
 
         public async Task<ActorPidResponse> SpawnNamedAsync(string address, string name, string kind, TimeSpan timeout)
         {
@@ -52,13 +54,17 @@ namespace Proto.Remote
 
             return res;
         }
+
         public virtual Task StartAsync(CancellationToken cancellationToken = default)
         {
             EndpointManager.Start();
             SpawnActivator();
-            Logger.LogDebug("Starting Proto.Actor server on {Host}:{Port} ({Address})", Hostname, Port, ProcessRegistry.Address);
+            Logger.LogDebug("Starting Proto.Actor server on {Host}:{Port} ({Address})", Hostname, Port,
+                ProcessRegistry.Address
+            );
             return Task.CompletedTask;
         }
+
         public virtual Task StopAsync(CancellationToken cancellationToken = default)
         {
             EndpointReader.Suspend(true);
@@ -77,7 +83,8 @@ namespace Proto.Remote
 
         private void SpawnActivator()
         {
-            var props = Props.FromProducer(() => new Activator(this)).WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
+            var props = Props.FromProducer(() => new Activator(this))
+                .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
             _activatorPid = Root.SpawnNamed(props, "activator");
         }
 

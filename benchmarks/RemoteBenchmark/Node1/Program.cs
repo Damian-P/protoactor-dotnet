@@ -19,7 +19,7 @@ class Program
     static async Task Main(string[] args)
     {
         Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
-        var system = new Proto.Remote.Grpc.RemoteActorSystem("127.0.0.1", 12001);
+        var system = new RemoteActorSystem("127.0.0.1", 12001);
         var context = system.Root;
         system.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         await system.StartAsync();
@@ -30,7 +30,7 @@ class Program
 
         var pid = context.Spawn(props);
         var remote = new PID("127.0.0.1:12000", "remote");
-        context.RequestAsync<Start>(remote, new StartRemote { Sender = pid }).Wait();
+        context.RequestAsync<Start>(remote, new StartRemote {Sender = pid}).Wait();
 
         var start = DateTime.Now;
         Console.WriteLine("Starting to send");
@@ -39,6 +39,7 @@ class Program
         {
             context.Send(remote, msg);
         }
+
         wg.WaitOne();
         var elapsed = DateTime.Now - start;
         Console.WriteLine("Elapsed {0}", elapsed);
@@ -75,12 +76,15 @@ class Program
                     {
                         Console.WriteLine(_count);
                     }
+
                     if (_count == _messageCount)
                     {
                         _wg.Set();
                     }
+
                     break;
             }
+
             return Actor.Done;
         }
     }

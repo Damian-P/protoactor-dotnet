@@ -18,12 +18,14 @@ namespace Proto.Remote
         /// the external hostname in order for other systems to be able to connect to it.
         /// </summary>
         string AdvertisedHostname { get; }
+
         /// <summary>
         /// Gets the advertised port for the remote system.
         /// If the remote system is behind e.g. a NAT or reverse proxy, this needs to be set to
         /// the external port in order for other systems to be able to connect to it.
         /// </summary>
         int? AdvertisedPort { get; }
+
         EndpointWriterOptions EndpointWriterOptions { get; }
     }
 

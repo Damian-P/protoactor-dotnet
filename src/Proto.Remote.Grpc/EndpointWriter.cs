@@ -11,7 +11,7 @@ using Grpc.Core;
 using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
 
-namespace Proto.Remote
+namespace Proto.Remote.Grpc
 {
     public class EndpointWriter : IActor
     {
@@ -52,7 +52,8 @@ namespace Proto.Remote
                     Logger.LogDebug("Starting Endpoint Writer");
                     return StartedAsync();
                 case Stopped _:
-                    return StoppedAsync().ContinueWith(_ => Logger.LogDebug("Stopped EndpointWriter at {Address}", _address));
+                    return StoppedAsync()
+                        .ContinueWith(_ => Logger.LogDebug("Stopped EndpointWriter at {Address}", _address));
                 case Restarting _:
                     return RestartingAsync();
                 case EndpointTerminatedEvent _:
@@ -190,22 +191,26 @@ namespace Proto.Remote
                     try
                     {
                         await _stream.ResponseStream.ForEachAsync(server =>
-                        {
-                            if (!server.Alive)
                             {
-                                Logger.LogInformation($"Lost connection to address {_address}");
-                                var terminated = new EndpointTerminatedEvent
+                                if (!server.Alive)
                                 {
-                                    Address = _address
-                                };
-                                _system.EventStream.Publish(terminated);
+                                    Logger.LogInformation($"Lost connection to address {_address}");
+                                    var terminated = new EndpointTerminatedEvent
+                                    {
+                                        Address = _address
+                                    };
+                                    _system.EventStream.Publish(terminated);
+                                }
+
+                                return Actor.Done;
                             }
-                            return Actor.Done;
-                        });
+                        );
                     }
                     catch (Exception x)
                     {
-                        Logger.LogInformation("Lost connection to address {Address}, reason {Message}", _address, x.Message);
+                        Logger.LogInformation("Lost connection to address {Address}, reason {Message}", _address,
+                            x.Message
+                        );
 
                         var terminated = new EndpointTerminatedEvent
                         {
@@ -230,6 +235,8 @@ namespace Proto.Remote
 
     class EndpointWriterException : Exception
     {
-        public EndpointWriterException(string message) : base(message) { }
+        public EndpointWriterException(string message) : base(message)
+        {
+        }
     }
 }

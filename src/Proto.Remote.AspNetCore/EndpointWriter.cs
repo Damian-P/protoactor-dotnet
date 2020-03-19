@@ -41,7 +41,8 @@ namespace Proto.Remote.AspNetCore
                     Logger.LogDebug("Starting Endpoint Writer");
                     return StartedAsync();
                 case Stopped _:
-                    return StoppedAsync().ContinueWith(_ => Logger.LogDebug("Stopped EndpointWriter at {Address}", _address));
+                    return StoppedAsync()
+                        .ContinueWith(_ => Logger.LogDebug("Stopped EndpointWriter at {Address}", _address));
                 case Restarting _:
                     return RestartingAsync();
                 case EndpointTerminatedEvent _:
@@ -116,6 +117,7 @@ namespace Proto.Remote.AspNetCore
                 Logger.LogError($"gRPC Failed to send to address {_address}, reason No Connection available");
                 return;
             }
+
             try
             {
                 Logger.LogTrace($"Writing batch to {_address}");
@@ -141,6 +143,7 @@ namespace Proto.Remote.AspNetCore
             await _channel.ShutdownAsync();
             _channel?.Dispose();
         }
+
         private async Task StartedAsync()
         {
             //TODO Remove this code for Production
@@ -148,13 +151,13 @@ namespace Proto.Remote.AspNetCore
             {
                 // Return `true` to allow certificates that are untrusted/invalid
                 ServerCertificateCustomValidationCallback =
-                                                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
             };
             var httpClient = new HttpClient(httpClientHandler);
             var address = $"{_address}";
             Logger.LogInformation($"Connecting to address {address}");
 
-            _channel = GrpcChannel.ForAddress(address, new GrpcChannelOptions { HttpClient = httpClient });
+            _channel = GrpcChannel.ForAddress(address, new GrpcChannelOptions {HttpClient = httpClient});
             _client = new Remoting.RemotingClient(_channel);
 
             Logger.LogDebug($"Created channel and client for address {_address}");
@@ -169,32 +172,35 @@ namespace Proto.Remote.AspNetCore
             Logger.LogInformation($"Connected client for address {_address}");
 
             _ = Task.Factory.StartNew(async () =>
-            {
-                try
                 {
-                    await foreach (var server in _stream.ResponseStream.ReadAllAsync())
+                    try
                     {
-                        if (!server.Alive)
+                        await foreach (var server in _stream.ResponseStream.ReadAllAsync())
                         {
-                            Logger.LogInformation($"Lost connection to address {_address}");
-                            var terminated = new EndpointTerminatedEvent
+                            if (!server.Alive)
                             {
-                                Address = _address
-                            };
-                            RemoteActorSystem.EventStream.Publish(terminated);
+                                Logger.LogInformation($"Lost connection to address {_address}");
+                                var terminated = new EndpointTerminatedEvent
+                                {
+                                    Address = _address
+                                };
+                                RemoteActorSystem.EventStream.Publish(terminated);
+                            }
                         }
-                    };
-                }
-                catch (Exception)
-                {
-                    Logger.LogInformation($"Lost connection to address {_address}");
-                    var terminated = new EndpointTerminatedEvent
+
+                        ;
+                    }
+                    catch (Exception)
                     {
-                        Address = _address
-                    };
-                    RemoteActorSystem.EventStream.Publish(terminated);
+                        Logger.LogInformation($"Lost connection to address {_address}");
+                        var terminated = new EndpointTerminatedEvent
+                        {
+                            Address = _address
+                        };
+                        RemoteActorSystem.EventStream.Publish(terminated);
+                    }
                 }
-            });
+            );
 
             var connected = new EndpointConnectedEvent
             {

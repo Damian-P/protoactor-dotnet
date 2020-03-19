@@ -26,17 +26,17 @@ namespace Proto.Remote
             switch (msg)
             {
                 case Watch w:
-                    {
-                        var rw = new RemoteWatch(w.Watcher, _pid);
-                        _remoteActorSystem.EndpointManager.RemoteWatch(rw);
-                        break;
-                    }
+                {
+                    var rw = new RemoteWatch(w.Watcher, _pid);
+                    _remoteActorSystem.EndpointManager.RemoteWatch(rw);
+                    break;
+                }
                 case Unwatch uw:
-                    {
-                        var ruw = new RemoteUnwatch(uw.Watcher, _pid);
-                        _remoteActorSystem.EndpointManager.RemoteUnwatch(ruw);
-                        break;
-                    }
+                {
+                    var ruw = new RemoteUnwatch(uw.Watcher, _pid);
+                    _remoteActorSystem.EndpointManager.RemoteUnwatch(ruw);
+                    break;
+                }
                 default:
                     _remoteActorSystem.SendMessage(_pid, msg, -1);
                     break;

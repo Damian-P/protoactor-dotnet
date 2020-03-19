@@ -42,7 +42,7 @@ namespace Node2
         static async Task Main(string[] args)
         {
             Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
-            var system = new Proto.Remote.Grpc.RemoteActorSystem("127.0.0.1", 12000);
+            var system = new RemoteActorSystem("127.0.0.1", 12000);
             var context = system.Root;
             system.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             await system.StartAsync();

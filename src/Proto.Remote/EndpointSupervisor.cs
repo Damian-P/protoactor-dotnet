@@ -14,11 +14,11 @@ namespace Proto.Remote
 {
     public abstract class EndpointSupervisor : IActor, ISupervisorStrategy
     {
-        protected static readonly ILogger Logger = Log.CreateLogger<EndpointSupervisor>();
+        private static readonly ILogger Logger = Log.CreateLogger<EndpointSupervisor>();
 
         private readonly int _maxNrOfRetries;
         private readonly Random _random = new Random();
-        protected readonly RemoteActorSystemBase Remote;
+        private readonly RemoteActorSystemBase _remote;
         private readonly TimeSpan? _withinTimeSpan;
         private CancellationTokenSource _cancelFutureRetries;
 
@@ -27,7 +27,7 @@ namespace Proto.Remote
 
         public EndpointSupervisor(RemoteActorSystemBase remote)
         {
-            Remote = remote;
+            _remote = remote;
             _maxNrOfRetries = remote.RemoteConfig.EndpointWriterOptions.MaxRetries;
             _withinTimeSpan = remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan;
             _backoff = remote.RemoteConfig.EndpointWriterOptions.RetryBackOffms;
@@ -61,10 +61,10 @@ namespace Proto.Remote
 
                 _cancelFutureRetries.Cancel();
                 supervisor.StopChildren(child);
-                Remote.ProcessRegistry.Remove(child); //TODO: work out why this hangs around in the process registry
+                _remote.ProcessRegistry.Remove(child); //TODO: work out why this hangs around in the process registry
 
-                var terminated = new EndpointTerminatedEvent { Address = _address };
-                Remote.EventStream.Publish(terminated);
+                var terminated = new EndpointTerminatedEvent {Address = _address};
+                _remote.EventStream.Publish(terminated);
             }
             else
             {
@@ -106,7 +106,7 @@ namespace Proto.Remote
 
         private PID SpawnWatcher(string address, ISpawnerContext context)
         {
-            var watcherProps = Props.FromProducer(() => new EndpointWatcher(Remote, address));
+            var watcherProps = Props.FromProducer(() => new EndpointWatcher(_remote, address));
             var watcher = context.Spawn(watcherProps);
             return watcher;
         }

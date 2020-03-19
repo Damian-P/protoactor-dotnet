@@ -24,7 +24,9 @@ namespace Proto.Remote
 
     public abstract class EndpointManager
     {
-        private class ConnectionRegistry : ConcurrentDictionary<string, Lazy<Endpoint>> { }
+        private class ConnectionRegistry : ConcurrentDictionary<string, Lazy<Endpoint>>
+        {
+        }
 
         private static readonly ILogger Logger = Log.CreateLogger(typeof(EndpointManager).FullName);
 
@@ -37,9 +39,10 @@ namespace Proto.Remote
         public EndpointManager(RemoteActorSystemBase remoteActorSystem)
         {
             Remote = remoteActorSystem;
-
         }
+
         public abstract EndpointSupervisor GetEndpointSupervisor();
+
         public void Start()
         {
             Logger.LogDebug("Started EndpointManager");

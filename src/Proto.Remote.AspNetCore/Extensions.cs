@@ -1,5 +1,5 @@
 ﻿// -----------------------------------------------------------------------
-//   <copyright file="EndpointWriter.cs" company="Asynkron HB">
+//   <copyright file="Extensions.cs" company="Asynkron HB">
 //       Copyright (C) 2015-2018 Asynkron HB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
@@ -15,7 +15,9 @@ namespace Proto.Remote.AspNetCore
 {
     internal static class FakeApp
     {
-        internal static void Main(string[] args) { }
+        internal static void Main(string[] args)
+        {
+        }
     }
 
     public static class Extensions
@@ -29,13 +31,14 @@ namespace Proto.Remote.AspNetCore
             Action<Serialization> configureSerialization = null)
         {
             services.AddSingleton<IRemoteActorSystem>(sp =>
-            {
-                var remoteActorSystem = new RemoteActorSystem(hostname, port, remoteConfig);
-                var remoteKindRegistry = new RemoteKindRegistry();
-                configureRemoteKindRegistry?.Invoke(remoteActorSystem.RemoteKindRegistry);
-                configureSerialization?.Invoke(remoteActorSystem.Serialization);
-                return remoteActorSystem;
-            });
+                {
+                    var remoteActorSystem = new RemoteActorSystem(hostname, port, remoteConfig);
+                    var remoteKindRegistry = new RemoteKindRegistry();
+                    configureRemoteKindRegistry?.Invoke(remoteActorSystem.RemoteKindRegistry);
+                    configureSerialization?.Invoke(remoteActorSystem.Serialization);
+                    return remoteActorSystem;
+                }
+            );
             services.AddSingleton<EndpointReader>();
             return services;
         }

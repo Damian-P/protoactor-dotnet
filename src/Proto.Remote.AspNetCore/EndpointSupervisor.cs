@@ -14,20 +14,20 @@ namespace Proto.Remote.AspNetCore
 {
     public class EndpointSupervisor : Proto.Remote.EndpointSupervisor
     {
-        private readonly Remote.RemoteActorSystemBase remote;
+        private readonly Remote.RemoteActorSystemBase _remoteActorSystem;
 
         public EndpointSupervisor(Remote.RemoteActorSystemBase remote) : base(remote)
         {
-            this.remote = remote;
+            _remoteActorSystem = remote;
         }
 
         public override PID SpawnWriter(string address, ISpawnerContext context)
         {
             var writerProps =
                 Props.FromProducer(
-                        () => new EndpointWriter(remote, address)
+                        () => new EndpointWriter(_remoteActorSystem, address)
                     )
-                    .WithMailbox(() => new EndpointWriterMailbox(remote, remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize));
+                    .WithMailbox(() => new EndpointWriterMailbox(_remoteActorSystem, _remoteActorSystem.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize));
             var writer = context.Spawn(writerProps);
             return writer;
         }

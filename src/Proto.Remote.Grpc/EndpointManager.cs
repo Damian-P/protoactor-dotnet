@@ -8,15 +8,16 @@ namespace Proto.Remote.Grpc
 {
     public class EndpointManager : Proto.Remote.EndpointManager
     {
-        private readonly RemoteActorSystem remoteActorSystem;
+        private readonly RemoteActorSystem _remoteActorSystem;
 
         public override Proto.Remote.EndpointSupervisor GetEndpointSupervisor()
         {
-            return new EndpointSupervisor(remoteActorSystem);
+            return new EndpointSupervisor(_remoteActorSystem);
         }
+
         public EndpointManager(RemoteActorSystem remoteActorSystem) : base(remoteActorSystem)
         {
-            this.remoteActorSystem = remoteActorSystem;
+            this._remoteActorSystem = remoteActorSystem;
         }
     }
 }

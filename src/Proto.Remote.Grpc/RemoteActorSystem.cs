@@ -16,9 +16,10 @@ namespace Proto.Remote.Grpc
     public class RemoteActorSystem : RemoteActorSystemBase
     {
         private static readonly ILogger Logger = Log.CreateLogger(typeof(RemoteActorSystem).FullName);
-        private Server server;
+        private Server _server;
 
         public new RemoteConfig RemoteConfig { get; }
+
         public RemoteActorSystem(string hostname, int port, RemoteConfig config = null) : base(hostname, port, config)
         {
             RemoteConfig = config ?? new RemoteConfig();
@@ -28,15 +29,17 @@ namespace Proto.Remote.Grpc
         public override async Task StartAsync(CancellationToken cancellationToken = default)
         {
             await base.StartAsync(cancellationToken);
-            server = new Server
+            _server = new Server
             {
-                Services = { Remoting.BindService(EndpointReader) },
-                Ports = { new ServerPort(Hostname, Port, RemoteConfig.ServerCredentials) }
+                Services = {Remoting.BindService(EndpointReader)},
+                Ports = {new ServerPort(Hostname, Port, RemoteConfig.ServerCredentials)}
             };
-            server.Start();
+            _server.Start();
 
-            var boundPort = server.Ports.Single().BoundPort;
-            ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? Hostname, RemoteConfig.AdvertisedPort ?? boundPort);
+            var boundPort = _server.Ports.Single().BoundPort;
+            ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? Hostname,
+                RemoteConfig.AdvertisedPort ?? boundPort
+            );
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken = default)
@@ -44,7 +47,7 @@ namespace Proto.Remote.Grpc
             Logger.LogInformation("Stopping base");
             await base.StopAsync(cancellationToken);
             Logger.LogInformation("Stopping server");
-            await server.KillAsync();
+            await _server.KillAsync();
         }
     }
 }

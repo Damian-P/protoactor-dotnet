@@ -22,7 +22,7 @@ namespace Proto.Remote.AspNetCore
     public class RemoteActorSystem : RemoteActorSystemBase
     {
         private static readonly ILogger Logger = Log.CreateLogger(typeof(RemoteActorSystem).FullName);
-        private IHost host;
+        private IHost _host;
         public new RemoteConfigBase RemoteConfig { get; }
 
         public RemoteActorSystem(string hostname, int port, RemoteConfig config = null) : base(hostname, port, config)
@@ -32,63 +32,60 @@ namespace Proto.Remote.AspNetCore
             AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
             EndpointManager = new EndpointManager(this);
         }
+
         public override async Task StartAsync(CancellationToken cancellationToken = default)
         {
             await base.StartAsync(cancellationToken);
-            if (host != null) throw new InvalidOperationException("Already started");
-            host = Host.CreateDefaultBuilder().UseConsoleLifetime().ConfigureWebHostDefaults(webBuilder =>
-            {
-                webBuilder.ConfigureKestrel(serverOptions =>
-                {
-                    serverOptions.Listen(IPAddress.Any, Port, listenOptions =>
+            if (_host != null) throw new InvalidOperationException("Already started");
+            _host = Host.CreateDefaultBuilder().UseConsoleLifetime().ConfigureWebHostDefaults(webBuilder =>
                     {
-                        listenOptions.Protocols = HttpProtocols.Http2;
-                    });
-                });
-                webBuilder.ConfigureLogging(builder =>
-                {
-                    builder
-                        .SetMinimumLevel(LogLevel.Information)
-                        .AddConsole()
-                        .AddFilter("Grpc.AspNetCore.Server", LogLevel.Critical)
-                        .AddFilter("Microsoft", LogLevel.Critical);
-                });
-                webBuilder.ConfigureServices(serviceCollection =>
-                {
-                    serviceCollection.AddGrpc();
-                    serviceCollection.AddSingleton<IInternalRemoteActorAsystem>(sp =>
-                    {
-                        return this;
-                    });
-                    serviceCollection.AddSingleton<IActorSystem>(sp =>
-                    {
-                        return this;
-                    });
-                    serviceCollection.AddSingleton<EndpointReader>(sp => this.EndpointReader);
-                });
-                webBuilder.Configure((context, app) =>
-                {
-                    Log.SetLoggerFactory(app.ApplicationServices.GetRequiredService<ILoggerFactory>());
-                    var serverAddressesFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
-                    var address = serverAddressesFeature.Addresses.FirstOrDefault();
+                        webBuilder.ConfigureKestrel(serverOptions =>
+                            {
+                                serverOptions.Listen(IPAddress.Any, Port,
+                                    listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; }
+                                );
+                            }
+                        );
+                        webBuilder.ConfigureLogging(builder =>
+                            {
+                                builder
+                                    .SetMinimumLevel(LogLevel.Information)
+                                    .AddConsole()
+                                    .AddFilter("Grpc.AspNetCore.Server", LogLevel.Critical)
+                                    .AddFilter("Microsoft", LogLevel.Critical);
+                            }
+                        );
+                        webBuilder.ConfigureServices(serviceCollection =>
+                            {
+                                serviceCollection.AddGrpc();
+                                serviceCollection.AddSingleton<IInternalRemoteActorAsystem>(sp => { return this; });
+                                serviceCollection.AddSingleton<IActorSystem>(sp => { return this; });
+                                serviceCollection.AddSingleton<EndpointReader>(sp => this.EndpointReader);
+                            }
+                        );
+                        webBuilder.Configure((context, app) =>
+                            {
+                                Log.SetLoggerFactory(app.ApplicationServices.GetRequiredService<ILoggerFactory>());
+                                var serverAddressesFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
+                                var address = serverAddressesFeature.Addresses.FirstOrDefault();
 
-                    app.UseRouting();
+                                app.UseRouting();
 
-                    Console.WriteLine(string.Join(", ", serverAddressesFeature.Addresses));
-                    app.UseEndpoints(endpoints =>
-                    {
-                        endpoints.MapGrpcService<EndpointReader>();
-                    });
-                });
-            })
-            .Build();
-            await host.StartAsync(cancellationToken);
+                                Console.WriteLine(string.Join(", ", serverAddressesFeature.Addresses));
+                                app.UseEndpoints(endpoints => { endpoints.MapGrpcService<EndpointReader>(); });
+                            }
+                        );
+                    }
+                )
+                .Build();
+            await _host.StartAsync(cancellationToken);
         }
+
         public override async Task StopAsync(CancellationToken cancellationToken = default)
         {
             await base.StopAsync(cancellationToken);
-            await host.StopAsync(cancellationToken);
-            host.Dispose();
+            await _host.StopAsync(cancellationToken);
+            _host.Dispose();
         }
     }
 }
