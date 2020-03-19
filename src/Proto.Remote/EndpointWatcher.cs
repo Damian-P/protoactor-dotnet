@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 //   <copyright file="EndpointWatcher.cs" company="Asynkron HB">
 //       Copyright (C) 2015-2018 Asynkron HB All rights reserved
 //   </copyright>
@@ -18,13 +18,11 @@ namespace Proto.Remote
         private readonly Behavior _behavior;
         private readonly Dictionary<string, HashSet<PID>> _watched = new Dictionary<string, HashSet<PID>>();
         private readonly string _address; //for logging
-        private readonly ActorSystem _system;
-        private readonly Remote _remote;
+        private readonly IInternalRemoteActorAsystem RemoteActorSystem;
 
-        public EndpointWatcher(Remote remote, ActorSystem system, string address)
+        public EndpointWatcher(IInternalRemoteActorAsystem remoteActorSystem, string address)
         {
-            _remote = remote;
-            _system = system;
+            RemoteActorSystem = remoteActorSystem;
             _address = address;
             _behavior = new Behavior(ConnectedAsync);
         }
@@ -51,7 +49,7 @@ namespace Proto.Remote
                         var t = new Terminated { Who = msg.Watchee };
 
                         //send the address Terminated event to the Watcher
-                        msg.Watcher.SendSystemMessage(_system, t);
+                        msg.Watcher.SendSystemMessage(RemoteActorSystem, t);
                         break;
                     }
                 case EndpointTerminatedEvent _:
@@ -60,10 +58,10 @@ namespace Proto.Remote
 
                         foreach (var (id, pidSet) in _watched)
                         {
-                            var watcherPid = new PID(_system.ProcessRegistry.Address, id);
-                            var watcherRef = _system.ProcessRegistry.Get(watcherPid);
+                            var watcherPid = new PID(RemoteActorSystem.ProcessRegistry.Address, id);
+                            var watcherRef = RemoteActorSystem.ProcessRegistry.Get(watcherPid);
 
-                            if (watcherRef == _system.DeadLetter) continue;
+                            if (watcherRef == RemoteActorSystem.DeadLetter) continue;
 
                             foreach (var t in pidSet.Select(
                                 pid => new Terminated
@@ -74,7 +72,7 @@ namespace Proto.Remote
                             ))
                             {
                                 //send the address Terminated event to the Watcher
-                                watcherPid.SendSystemMessage(_system, t);
+                                watcherPid.SendSystemMessage(RemoteActorSystem, t);
                             }
                         }
 
@@ -96,7 +94,7 @@ namespace Proto.Remote
                         }
 
                         var w = new Unwatch(msg.Watcher);
-                        _remote.SendMessage(msg.Watchee, w, -1);
+                        RemoteActorSystem.SendMessage(msg.Watchee, w, -1);
                         break;
                     }
                 case RemoteWatch msg:
@@ -111,7 +109,7 @@ namespace Proto.Remote
                         }
 
                         var w = new Watch(msg.Watcher);
-                        _remote.SendMessage(msg.Watchee, w, -1);
+                        RemoteActorSystem.SendMessage(msg.Watchee, w, -1);
                         break;
                     }
                 case Stopped _:
@@ -131,7 +129,7 @@ namespace Proto.Remote
                 case RemoteWatch msg:
                     {
                         msg.Watcher.SendSystemMessage(
-                            _system,
+                            RemoteActorSystem,
                             new Terminated
                             {
                                 AddressTerminated = true,

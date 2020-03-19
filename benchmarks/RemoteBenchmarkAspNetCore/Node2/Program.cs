@@ -41,12 +41,12 @@ namespace Node2
         static async Task Main(string[] args)
         {
 
-            var system = new SelfHostedRemoteActorSystem("http://localhost", 12000);
+            var system = new RemoteActorSystem("http://localhost", 12000);
             system.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            await system.StartAsync(default);
+            await system.StartAsync();
             system.Root.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
-            await system.StopAsync(new CancellationTokenSource(5000).Token);
+            await system.StopAsync();
         }
     }
 }

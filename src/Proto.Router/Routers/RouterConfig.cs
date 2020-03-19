@@ -15,7 +15,7 @@ namespace Proto.Router.Routers
 
         public Props Props()
         {
-            PID SpawnRouterProcess(ActorSystem system, string name, Props props, PID parent)
+            PID SpawnRouterProcess(IActorSystem system, string name, Props props, PID parent)
             {
                 var routerState = CreateRouterState();
                 var wg = new AutoResetEvent(false);

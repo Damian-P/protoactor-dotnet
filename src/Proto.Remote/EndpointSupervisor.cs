@@ -1,34 +1,33 @@
 // -----------------------------------------------------------------------
-//   <copyright file="EndpointManager.cs" company="Asynkron HB">
+//   <copyright file="EndpointSupervisor.cs" company="Asynkron HB">
 //       Copyright (C) 2015-2018 Asynkron HB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class EndpointSupervisor : IActor, ISupervisorStrategy
+    public abstract class EndpointSupervisor : IActor, ISupervisorStrategy
     {
-        private static readonly ILogger Logger = Log.CreateLogger<EndpointSupervisor>();
+        protected static readonly ILogger Logger = Log.CreateLogger<EndpointSupervisor>();
 
         private readonly int _maxNrOfRetries;
         private readonly Random _random = new Random();
-        private readonly ActorSystem _system;
-        private readonly Remote _remote;
+        protected readonly RemoteActorSystemBase Remote;
         private readonly TimeSpan? _withinTimeSpan;
         private CancellationTokenSource _cancelFutureRetries;
 
         private int _backoff;
-        private string _address;
+        protected string _address;
 
-        public EndpointSupervisor(Remote remote, ActorSystem system)
+        public EndpointSupervisor(RemoteActorSystemBase remote)
         {
-            _system = system;
-            _remote = remote;
+            Remote = remote;
             _maxNrOfRetries = remote.RemoteConfig.EndpointWriterOptions.MaxRetries;
             _withinTimeSpan = remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan;
             _backoff = remote.RemoteConfig.EndpointWriterOptions.RetryBackOffms;
@@ -39,8 +38,8 @@ namespace Proto.Remote
             if (context.Message is string address)
             {
                 _address = address;
-                var watcher = SpawnWatcher(address, context, _system, _remote);
-                var writer = SpawnWriter(address, context, _system, _remote);
+                var watcher = SpawnWatcher(address, context);
+                var writer = SpawnWriter(address, context);
                 _cancelFutureRetries = new CancellationTokenSource();
                 context.Respond(new Endpoint(writer, watcher));
             }
@@ -62,10 +61,10 @@ namespace Proto.Remote
 
                 _cancelFutureRetries.Cancel();
                 supervisor.StopChildren(child);
-                _system.ProcessRegistry.Remove(child); //TODO: work out why this hangs around in the process registry
+                Remote.ProcessRegistry.Remove(child); //TODO: work out why this hangs around in the process registry
 
                 var terminated = new EndpointTerminatedEvent { Address = _address };
-                _system.EventStream.Publish(terminated);
+                Remote.EventStream.Publish(terminated);
             }
             else
             {
@@ -105,24 +104,13 @@ namespace Proto.Remote
             return false;
         }
 
-        private static PID SpawnWatcher(string address, ISpawnerContext context, ActorSystem system, Remote remote)
+        private PID SpawnWatcher(string address, ISpawnerContext context)
         {
-            var watcherProps = Props.FromProducer(() => new EndpointWatcher(remote, system, address));
+            var watcherProps = Props.FromProducer(() => new EndpointWatcher(Remote, address));
             var watcher = context.Spawn(watcherProps);
             return watcher;
         }
 
-        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, Remote remote)
-        {
-            var writerProps =
-                Props.FromProducer(
-                        () => new EndpointWriter(system, remote.Serialization,
-                            address, remote.RemoteConfig.ChannelOptions, remote.RemoteConfig.CallOptions, remote.RemoteConfig.ChannelCredentials
-                        )
-                    )
-                    .WithMailbox(() => new EndpointWriterMailbox(system, remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize));
-            var writer = context.Spawn(writerProps);
-            return writer;
-        }
+        public abstract PID SpawnWriter(string address, ISpawnerContext context);
     }
 }

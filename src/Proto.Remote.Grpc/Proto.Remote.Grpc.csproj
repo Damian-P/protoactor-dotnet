@@ -7,5 +7,10 @@
   <ItemGroup>
     <PackageReference Include="Grpc" Version="2.27.0" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Proto.Actor\Proto.Actor.csproj" />
+    <ProjectReference Include="..\Proto.Mailbox\Proto.Mailbox.csproj" />
+    <ProjectReference Include="..\Proto.Remote\Proto.Remote.csproj" />
+  </ItemGroup>
 
 </Project>

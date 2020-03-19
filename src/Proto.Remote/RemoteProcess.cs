@@ -1,21 +1,19 @@
 // -----------------------------------------------------------------------
-//   <copyright file="RemoteProcess.cs" company="Asynkron HB">
+//   <copyright file="EndpointWriter.cs" company="Asynkron HB">
 //       Copyright (C) 2015-2018 Asynkron HB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
 
 namespace Proto.Remote
 {
-    public class RemoteProcess : Process
+    internal class RemoteProcess : Process
     {
         private readonly PID _pid;
-        private readonly EndpointManager _endpointManager;
-        private readonly Remote _remote;
+        private readonly IInternalRemoteActorAsystem _remoteActorSystem;
 
-        public RemoteProcess(Remote remote, ActorSystem system, EndpointManager endpointManager, PID pid) : base(system)
+        public RemoteProcess(IInternalRemoteActorAsystem remoteActorSystem, PID pid) : base(remoteActorSystem)
         {
-            _remote = remote;
-            _endpointManager = endpointManager;
+            _remoteActorSystem = remoteActorSystem;
             _pid = pid;
         }
 
@@ -30,17 +28,17 @@ namespace Proto.Remote
                 case Watch w:
                     {
                         var rw = new RemoteWatch(w.Watcher, _pid);
-                        _endpointManager.RemoteWatch(rw);
+                        _remoteActorSystem.EndpointManager.RemoteWatch(rw);
                         break;
                     }
                 case Unwatch uw:
                     {
                         var ruw = new RemoteUnwatch(uw.Watcher, _pid);
-                        _endpointManager.RemoteUnwatch(ruw);
+                        _remoteActorSystem.EndpointManager.RemoteUnwatch(ruw);
                         break;
                     }
                 default:
-                    _remote.SendMessage(_pid, msg, -1);
+                    _remoteActorSystem.SendMessage(_pid, msg, -1);
                     break;
             }
         }

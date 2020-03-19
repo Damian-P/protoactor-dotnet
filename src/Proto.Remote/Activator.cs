@@ -1,4 +1,4 @@
-﻿// -----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 //   <copyright file="Activator.cs" company="Asynkron HB">
 //       Copyright (C) 2015-2018 Asynkron HB All rights reserved
 //   </copyright>
@@ -11,28 +11,26 @@ namespace Proto.Remote
 {
     public class Activator : IActor
     {
-        private readonly ActorSystem _system;
-        private readonly Remote _remote;
-        public Activator(Remote remote, ActorSystem system)
+        private readonly IRemoteActorSystem _remoteActorSystem;
+        public Activator(IRemoteActorSystem remoteActorSystem)
         {
-            _remote = remote;
-            _system = system;
+            _remoteActorSystem = remoteActorSystem;
         }
         public Task ReceiveAsync(IContext context)
         {
             switch (context.Message)
             {
                 case ActorPidRequest msg:
-                    var props = _remote.GetKnownKind(msg.Kind);
+                    var props = _remoteActorSystem.RemoteKindRegistry.GetKnownKind(msg.Kind);
                     var name = msg.Name;
                     if (string.IsNullOrEmpty(name))
                     {
-                        name = _system.ProcessRegistry.NextId();
+                        name = _remoteActorSystem.ProcessRegistry.NextId();
                     }
 
                     try
                     {
-                        var pid = _system.Root.SpawnNamed(props, name);
+                        var pid = _remoteActorSystem.Root.SpawnNamed(props, name);
                         var response = new ActorPidResponse { Pid = pid };
                         context.Respond(response);
                     }

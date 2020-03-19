@@ -27,12 +27,10 @@ namespace Proto.Remote
         private Remoting.RemotingClient _client;
         private AsyncDuplexStreamingCall<MessageBatch, Unit> _stream;
         private IClientStreamWriter<MessageBatch> _streamWriter;
-        private readonly ActorSystem _system;
-        private readonly Serialization _serialization;
+        private readonly IRemoteActorSystem _system;
 
         public EndpointWriter(
-            ActorSystem system,
-            Serialization serialization,
+            IRemoteActorSystem system,
             string address,
             IEnumerable<ChannelOption> channelOptions,
             CallOptions callOptions,
@@ -40,7 +38,6 @@ namespace Proto.Remote
         )
         {
             _system = system;
-            _serialization = serialization;
             _address = address;
             _channelOptions = channelOptions;
             _callOptions = callOptions;
@@ -86,7 +83,7 @@ namespace Proto.Remote
                         targetNameList.Add(targetName);
                     }
 
-                    var typeName = _serialization.GetTypeName(rd.Message, serializerId);
+                    var typeName = _system.Serialization.GetTypeName(rd.Message, serializerId);
 
                     if (!typeNames.TryGetValue(typeName, out var typeId))
                     {
@@ -102,7 +99,7 @@ namespace Proto.Remote
                         header.HeaderData.Add(rd.Header.ToDictionary());
                     }
 
-                    var bytes = _serialization.Serialize(rd.Message, serializerId);
+                    var bytes = _system.Serialization.Serialize(rd.Message, serializerId);
 
                     var envelope = new MessageEnvelope
                     {
@@ -192,11 +189,23 @@ namespace Proto.Remote
                 {
                     try
                     {
-                        await _stream.ResponseStream.ForEachAsync(i => Actor.Done);
+                        await _stream.ResponseStream.ForEachAsync(server =>
+                        {
+                            if (!server.Alive)
+                            {
+                                Logger.LogInformation($"Lost connection to address {_address}");
+                                var terminated = new EndpointTerminatedEvent
+                                {
+                                    Address = _address
+                                };
+                                _system.EventStream.Publish(terminated);
+                            }
+                            return Actor.Done;
+                        });
                     }
                     catch (Exception x)
                     {
-                        Logger.LogError("Lost connection to address {Address}, reason {Message}", _address, x.Message);
+                        Logger.LogInformation("Lost connection to address {Address}, reason {Message}", _address, x.Message);
 
                         var terminated = new EndpointTerminatedEvent
                         {

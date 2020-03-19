@@ -18,15 +18,11 @@ namespace Proto.Remote
         private static readonly ILogger Logger = Log.CreateLogger<EndpointReader>();
 
         private bool _suspended;
-        private readonly ActorSystem _system;
-        private readonly EndpointManager _endpointManager;
-        private readonly Serialization _serialization;
+        private readonly IInternalRemoteActorAsystem RemoteActorAsystem;
 
-        public EndpointReader(ActorSystem system, EndpointManager endpointManager, Serialization serialization)
+        public EndpointReader(IInternalRemoteActorAsystem system)
         {
-            _system = system;
-            _endpointManager = endpointManager;
-            _serialization = serialization;
+            RemoteActorAsystem = system;
         }
 
         public override Task<ConnectResponse> Connect(ConnectRequest request, ServerCallContext context)
@@ -43,7 +39,7 @@ namespace Proto.Remote
             return Task.FromResult(
                 new ConnectResponse
                 {
-                    DefaultSerializerId = Serialization.DefaultSerializerId
+                    DefaultSerializerId = RemoteActorAsystem.Serialization.DefaultSerializerId
                 }
             );
         }
@@ -53,6 +49,23 @@ namespace Proto.Remote
             IServerStreamWriter<Unit> responseStream, ServerCallContext context
         )
         {
+            var keepAliveTask = Task.Run(async () =>
+                {
+                    while (true)
+                    {
+                        if (_suspended)
+                        {
+                            Logger.LogDebug($"Notifies {context.Peer} endpoint termination");
+                            await responseStream.WriteAsync(new Unit() { Alive = false });
+                            break;
+                        }
+                        else
+                            await responseStream.WriteAsync(new Unit() { Alive = true });
+                        await Task.Delay(100);
+                    }
+
+                });
+
             var targets = new PID[100];
 
             return requestStream.ForEachAsync(
@@ -71,7 +84,7 @@ namespace Proto.Remote
 
                     for (var i = 0; i < batch.TargetNames.Count; i++)
                     {
-                        targets[i] = new PID(_system.ProcessRegistry.Address, batch.TargetNames[i]);
+                        targets[i] = new PID(RemoteActorAsystem.ProcessRegistry.Address, batch.TargetNames[i]);
                     }
 
                     var typeNames = batch.TypeNames.ToArray();
@@ -80,7 +93,7 @@ namespace Proto.Remote
                     {
                         var target = targets[envelope.Target];
                         var typeName = typeNames[envelope.TypeId];
-                        var message = _serialization.Deserialize(typeName, envelope.MessageData, envelope.SerializerId);
+                        var message = RemoteActorAsystem.Serialization.Deserialize(typeName, envelope.MessageData, envelope.SerializerId);
 
                         switch (message)
                         {
@@ -89,14 +102,14 @@ namespace Proto.Remote
                                     Logger.LogDebug("Forwarding remote endpoint termination request for {Who}", msg.Who);
 
                                     var rt = new RemoteTerminate(target, msg.Who);
-                                    _endpointManager.RemoteTerminate(rt);
+                                    RemoteActorAsystem.EndpointManager.RemoteTerminate(rt);
 
                                     break;
                                 }
                             case SystemMessage sys:
                                 Logger.LogDebug("Forwarding remote system message {@Message}", sys);
 
-                                target.SendSystemMessage(_system, sys);
+                                target.SendSystemMessage(RemoteActorAsystem, sys);
                                 break;
                             default:
                                 {
@@ -109,7 +122,7 @@ namespace Proto.Remote
 
                                     Logger.LogDebug("Forwarding remote user message {@Message}", message);
                                     var localEnvelope = new Proto.MessageEnvelope(message, envelope.Sender, header);
-                                    _system.Root.Send(target, localEnvelope);
+                                    RemoteActorAsystem.Root.Send(target, localEnvelope);
                                     break;
                                 }
                         }

@@ -14,7 +14,7 @@ namespace Proto.Router
     {
         private readonly RouterState _state;
 
-        public RouterProcess(ActorSystem system, RouterState state, IMailbox mailbox) : base(system, mailbox)
+        public RouterProcess(IActorSystem system, RouterState state, IMailbox mailbox) : base(system, mailbox)
         {
             _state = state;
         }

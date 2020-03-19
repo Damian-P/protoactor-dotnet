@@ -8,20 +8,21 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Messages;
+using Microsoft.Extensions.Logging;
 using Proto;
 using Proto.Remote;
+using Proto.Remote.Grpc;
 using ProtosReflection = Messages.ProtosReflection;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
-        var system = new ActorSystem();
-        var context = new RootContext(system);
-        var serialization = new Serialization();
-        serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-        var Remote = new Remote(system, serialization);
-        Remote.Start("127.0.0.1", 12001);
+        Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
+        var system = new Proto.Remote.Grpc.RemoteActorSystem("127.0.0.1", 12001);
+        var context = system.Root;
+        system.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+        await system.StartAsync();
 
         var messageCount = 1000000;
         var wg = new AutoResetEvent(false);
@@ -46,6 +47,8 @@ class Program
         Console.WriteLine("Throughput {0} msg / sec", t);
 
         Console.ReadLine();
+        await system.StopAsync();
+        Console.WriteLine("Stopped");
     }
 
     public class LocalActor : IActor

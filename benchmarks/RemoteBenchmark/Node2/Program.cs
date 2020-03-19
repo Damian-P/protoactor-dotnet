@@ -7,8 +7,10 @@
 using System;
 using System.Threading.Tasks;
 using Messages;
+using Microsoft.Extensions.Logging;
 using Proto;
 using Proto.Remote;
+using Proto.Remote.Grpc;
 using ProtosReflection = Messages.ProtosReflection;
 
 namespace Node2
@@ -37,16 +39,17 @@ namespace Node2
 
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-            var system = new ActorSystem();
-            var context = new RootContext(system);
-            var serialization = new Serialization();
-            serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            var Remote = new Remote(system, serialization);
-            Remote.Start("127.0.0.1", 12000);
+            Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
+            var system = new Proto.Remote.Grpc.RemoteActorSystem("127.0.0.1", 12000);
+            var context = system.Root;
+            system.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+            await system.StartAsync();
             context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
+            await system.StopAsync();
+            Console.WriteLine("Stopped");
         }
     }
 }

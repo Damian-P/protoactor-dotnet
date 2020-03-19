@@ -17,10 +17,10 @@ class Program
     static async Task Main(string[] args)
     {
         Console.WriteLine("Starting App");
-        var system = new SelfHostedRemoteActorSystem("http://localhost", 12001);
+        var system = new RemoteActorSystem("http://localhost", 12001);
         system.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-        await system.StartAsync(default);
-        var messageCount = 5000000;
+        await system.StartAsync();
+        var messageCount = 1000000;
         var wg = new AutoResetEvent(false);
         var props = Props.FromProducer(() => new LocalActor(0, messageCount, wg));
 
@@ -43,7 +43,7 @@ class Program
         Console.WriteLine("Throughput {0} msg / sec", t);
 
         Console.ReadLine();
-        await system.StopAsync(new CancellationTokenSource(5000).Token);
+        await system.StopAsync();
     }
 
     public class LocalActor : IActor
