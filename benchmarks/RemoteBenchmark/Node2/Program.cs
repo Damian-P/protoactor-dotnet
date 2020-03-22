@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Messages;
 using Proto;
 using Proto.Remote;
+using Microsoft.Extensions.Logging;
 using ProtosReflection = Messages.ProtosReflection;
 
 namespace Node2
@@ -35,17 +36,18 @@ namespace Node2
         }
     }
 
-    class Program
+    static class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
+            // Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
             var system = new ActorSystem();
             var context = new RootContext(system);
             var serialization = new Serialization();
             serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             var Remote = new Remote(system, serialization);
             Remote.Start("127.0.0.1", 12000);
-            context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
+            context.SpawnNamed(Props.FromProducer(() => new EchoActor()).WithGuardianSupervisorStrategy(new AlwaysRestartStrategy()), "ponger");
             Console.ReadLine();
         }
     }

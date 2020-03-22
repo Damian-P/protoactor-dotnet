@@ -53,17 +53,17 @@ namespace TestApp
             Console.ReadLine();
 
             var policy = Policy.Handle<TaskCanceledException>().RetryForeverAsync();
-
-            for (var i = 0; i < 100000; i++)
+            var n = 100000;
+            var tasks = new Task[n];
+            for (var i = 0; i < n; i++)
             {
                 var client = grains.HelloGrain("name" + i % 200);
 
-                await policy.ExecuteAsync(
+                tasks[i] = policy.ExecuteAsync(
                     () => client.SayHello(new HelloRequest(), CancellationToken.None, options)
-                );
-                Console.Write(".");
+                ).ContinueWith((result) => Console.Write("."));
             }
-
+            Task.WaitAll(tasks);
             Console.WriteLine("Done!");
             Console.ReadLine();
             await cluster.Shutdown();

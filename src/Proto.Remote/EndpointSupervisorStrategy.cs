@@ -1,51 +1,39 @@
 // -----------------------------------------------------------------------
-//   <copyright file="EndpointManager.cs" company="Asynkron HB">
+//   <copyright file="EndpointSupervisorStrategy.cs" company="Asynkron HB">
 //       Copyright (C) 2015-2018 Asynkron HB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class EndpointSupervisor : IActor, ISupervisorStrategy
+    public class EndpointSupervisorStrategy : ISupervisorStrategy
     {
-        private static readonly ILogger Logger = Log.CreateLogger<EndpointSupervisor>();
+        private readonly ILogger _logger;
 
         private readonly int _maxNrOfRetries;
         private readonly Random _random = new Random();
-        private readonly ActorSystem _system;
         private readonly Remote _remote;
         private readonly TimeSpan? _withinTimeSpan;
-        private CancellationTokenSource _cancelFutureRetries;
+        private readonly CancellationTokenSource _cancelFutureRetries;
 
         private int _backoff;
-        private string _address;
+        private readonly string _address;
 
-        public EndpointSupervisor(Remote remote, ActorSystem system)
+        public EndpointSupervisorStrategy(string address, Remote remote)
         {
-            _system = system;
+            _logger = Log.CreateLogger<EndpointSupervisorStrategy>();
+            _address = address;
             _remote = remote;
+            _cancelFutureRetries = new CancellationTokenSource();
             _maxNrOfRetries = remote.RemoteConfig.EndpointWriterOptions.MaxRetries;
             _withinTimeSpan = remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan;
             _backoff = remote.RemoteConfig.EndpointWriterOptions.RetryBackOffms;
-        }
-
-        public Task ReceiveAsync(IContext context)
-        {
-            if (context.Message is string address)
-            {
-                _address = address;
-                var watcher = SpawnWatcher(address, context, _system, _remote);
-                var writer = SpawnWriter(address, context, _system, _remote);
-                _cancelFutureRetries = new CancellationTokenSource();
-                context.Respond(new Endpoint(writer, watcher));
-            }
-
-            return Actor.Done;
         }
 
         public void HandleFailure(
@@ -55,17 +43,18 @@ namespace Proto.Remote
         {
             if (ShouldStop(rs))
             {
-                Logger.LogWarning(
+                _logger.LogWarning(
                     "Stopping connection to address {Address} after retries expired because of {Reason}",
                     _address, reason
                 );
 
                 _cancelFutureRetries.Cancel();
                 supervisor.StopChildren(child);
-                _system.ProcessRegistry.Remove(child); //TODO: work out why this hangs around in the process registry
+                _remote.System.ProcessRegistry
+                    .Remove(child); //TODO: work out why this hangs around in the process registry
 
-                var terminated = new EndpointTerminatedEvent { Address = _address };
-                _system.EventStream.Publish(terminated);
+                var terminated = new EndpointTerminatedEvent {Address = _address};
+                _remote.System.EventStream.Publish(terminated);
             }
             else
             {
@@ -77,7 +66,7 @@ namespace Proto.Remote
                     .ContinueWith(
                         t =>
                         {
-                            Logger.LogWarning(
+                            _logger.LogWarning(
                                 "Restarting {Actor} after {Duration} because of {Reason}",
                                 child.ToShortString(), duration, reason
                             );
@@ -103,26 +92,6 @@ namespace Proto.Remote
             }
 
             return false;
-        }
-
-        private static PID SpawnWatcher(string address, ISpawnerContext context, ActorSystem system, Remote remote)
-        {
-            var watcherProps = Props.FromProducer(() => new EndpointWatcher(remote, system, address));
-            var watcher = context.Spawn(watcherProps);
-            return watcher;
-        }
-
-        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, Remote remote)
-        {
-            var writerProps =
-                Props.FromProducer(
-                        () => new EndpointWriter(system, remote.Serialization,
-                            address, remote.RemoteConfig.ChannelOptions, remote.RemoteConfig.CallOptions, remote.RemoteConfig.ChannelCredentials
-                        )
-                    )
-                    .WithMailbox(() => new EndpointWriterMailbox(system, remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize));
-            var writer = context.Spawn(writerProps);
-            return writer;
         }
     }
 }

@@ -53,6 +53,16 @@ namespace Proto.Remote
             IServerStreamWriter<Unit> responseStream, ServerCallContext context
         )
         {
+            _ = Task.Run(async () =>
+            {
+                while (!_suspended)
+                {
+                    await Task.Delay(100);
+                    await responseStream.WriteAsync(new Unit { Alive = true });
+                }
+                await responseStream.WriteAsync(new Unit { Alive = false });
+            });
+
             var targets = new PID[100];
 
             return requestStream.ForEachAsync(
