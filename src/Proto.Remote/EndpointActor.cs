@@ -53,8 +53,6 @@ namespace Proto.Remote
                 case EndpointTerminatedEvent _:
                     HandleTerminatedEndpoint(context);
                     break;
-                case EndpointCrashedEvent _:
-                    throw new EndpointCrashedException();
                 case RemoteUnwatch remoteUnwatch:
                     HandleRemoteUnwatch(remoteUnwatch);
                     break;
@@ -302,12 +300,6 @@ namespace Proto.Remote
                 Address = _address
             };
             _remote.System.EventStream.Publish(terminated);
-        }
-
-        private void NotifyEndpointCrash(){
-            var crash = new EndpointCrashedEvent{
-                Address = _address};
-            _remote.System.EventStream.Publish(crash);
         }
     }
 }

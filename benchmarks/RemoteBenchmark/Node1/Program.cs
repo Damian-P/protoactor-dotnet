@@ -59,9 +59,9 @@ class Program
                 }
                 finally
                 {
-                    await Task.Delay(5000);
+                    await Task.Delay(500);
                     if(pid!= null)
-                    context.Stop(pid);
+                        context.Stop(pid);
                 }
             }
         });

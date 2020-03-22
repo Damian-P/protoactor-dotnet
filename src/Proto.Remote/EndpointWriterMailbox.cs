@@ -94,7 +94,6 @@ namespace Proto.Remote
                     switch (m)
                     {
                         case EndpointTerminatedEvent _:
-                        case EndpointCrashedEvent _:
                         case EndpointConnectedEvent _:
                             await _invoker.InvokeUserMessageAsync(sys);
                             break;

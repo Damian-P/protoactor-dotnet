@@ -25,7 +25,6 @@ namespace Proto.Remote
         private readonly Remote _remote;
         private Subscription<object> _endpointTermEvnSub;
         private Subscription<object> _endpointConnEvnSub;
-        private Subscription<object> _endpointCrashEvnSub;
 
         public EndpointManager(Remote remote)
         {
@@ -36,7 +35,6 @@ namespace Proto.Remote
         {
             _endpointTermEvnSub = _remote.System.EventStream.Subscribe<EndpointTerminatedEvent>(OnEndpointTerminated);
             _endpointConnEvnSub = _remote.System.EventStream.Subscribe<EndpointConnectedEvent>(OnEndpointConnected);
-            _endpointCrashEvnSub = _remote.System.EventStream.Subscribe<EndpointCrashedEvent>(OnEndpointCrashed);
             Logger.LogDebug("Started EndpointManager");
         }
 
@@ -50,7 +48,6 @@ namespace Proto.Remote
             _connections.Clear();
             _remote.System.EventStream.Unsubscribe(_endpointTermEvnSub.Id);
             _remote.System.EventStream.Unsubscribe(_endpointConnEvnSub.Id);
-            _remote.System.EventStream.Unsubscribe(_endpointCrashEvnSub.Id);
             Logger.LogDebug("Stopped EndpointManager");
         }
 
@@ -62,12 +59,6 @@ namespace Proto.Remote
 
             var endpoint = v.Value;
             endpoint.SendSystemMessage(_remote.System, msg);
-        }
-
-        private void OnEndpointCrashed(EndpointCrashedEvent msg)
-        {
-            var endpoint = EnsureConnected(msg.Address);
-            endpoint.SendSystemMessage(_remote.System, new EndpointCrashedEvent());
         }
 
         private void OnEndpointConnected(EndpointConnectedEvent msg)
@@ -140,13 +131,6 @@ namespace Proto.Remote
                     ).WithGuardianSupervisorStrategy(new EndpointSupervisorStrategy(address, remote));
             var writer = remote.System.Root.Spawn(endpointActorProps);
             return writer;
-        }
-    }
-
-    internal class EndpointCrashedException : Exception
-    {
-        public EndpointCrashedException()
-        {
         }
     }
 }
