@@ -6,6 +6,7 @@ namespace Proto
     public class ActorSystem
     {
         public ProcessRegistry ProcessRegistry { get; }
+        
         public RootContext Root { get; }
 
         public Guardians Guardians { get; }
@@ -24,5 +25,7 @@ namespace Proto
             Guardians = new Guardians(this);
             EventStream = new EventStream();
         }
+        
+        public static ActorSystem Default = new ActorSystem();
     }
 }
