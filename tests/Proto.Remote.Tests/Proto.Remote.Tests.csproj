@@ -8,6 +8,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Proto.Actor\Proto.Actor.csproj" />
     <ProjectReference Include="..\..\src\Proto.Remote\Proto.Remote.csproj" />
+    <ProjectReference Include="..\..\src\Proto.Remote.Grpc\Proto.Remote.Grpc.csproj" />
+    <ProjectReference Include="..\..\src\Proto.Remote.AspNetCore\Proto.Remote.AspNetCore.csproj" />
     <ProjectReference Include="..\Proto.Remote.Tests.Messages\Proto.Remote.Tests.Messages.csproj" />
   </ItemGroup>
   <ItemGroup>

@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Proto
 {
     public class ActorSystem
@@ -10,6 +13,8 @@ namespace Proto
         public DeadLetterProcess DeadLetter { get; }
 
         public EventStream EventStream { get; }
+
+        public Dictionary<Type, object> Plugins { get; } = new Dictionary<Type, object>();
 
         public ActorSystem()
         {

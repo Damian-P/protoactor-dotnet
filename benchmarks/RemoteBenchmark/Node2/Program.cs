@@ -8,9 +8,9 @@ using System;
 using System.Threading.Tasks;
 using Messages;
 using Proto;
-using Proto.Remote;
 using Microsoft.Extensions.Logging;
 using ProtosReflection = Messages.ProtosReflection;
+using Proto.Remote;
 
 namespace Node2
 {
@@ -38,17 +38,19 @@ namespace Node2
 
     static class Program
     {
-        private static void Main(string[] args)
+        private static async Task Main(string[] args)
         {
-            // Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
+            Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
             var system = new ActorSystem();
             var context = new RootContext(system);
-            var serialization = new Serialization();
-            serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            var Remote = new Remote(system, serialization);
-            Remote.Start("127.0.0.1", 12000);
-            context.SpawnNamed(Props.FromProducer(() => new EchoActor()).WithGuardianSupervisorStrategy(new AlwaysRestartStrategy()), "ponger");
+            var Remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 12000, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+                remote.RemoteKindRegistry.RegisterKnownKind("ponger", Props.FromProducer(() => new EchoActor()));
+            });
+            await Remote.Start();
             Console.ReadLine();
+            await Remote.Stop();
         }
     }
 }

@@ -4,7 +4,9 @@
 //   </copyright>
 // -----------------------------------------------------------------------
 
+using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Core.Utils;
@@ -16,11 +18,10 @@ namespace Proto.Remote
     public class EndpointReader : Remoting.RemotingBase
     {
         private static readonly ILogger Logger = Log.CreateLogger<EndpointReader>();
-
-        private bool _suspended;
         private readonly ActorSystem _system;
         private readonly EndpointManager _endpointManager;
         private readonly Serialization _serialization;
+        private readonly CancellationToken _cancellationToken;
 
         public EndpointReader(ActorSystem system, EndpointManager endpointManager, Serialization serialization)
         {
@@ -31,7 +32,7 @@ namespace Proto.Remote
 
         public override Task<ConnectResponse> Connect(ConnectRequest request, ServerCallContext context)
         {
-            if (_suspended)
+            if (_endpointManager.CancellationToken.IsCancellationRequested)
             {
                 Logger.LogWarning("Attempt to connect to the suspended reader has been rejected");
 
@@ -53,15 +54,25 @@ namespace Proto.Remote
             IServerStreamWriter<Unit> responseStream, ServerCallContext context
         )
         {
+            _endpointManager.CancellationToken.Register(() =>
+            {
+                Logger.LogDebug("EndpointReader suspended");
+                try
+                {
+                    responseStream.WriteAsync(new Unit { Alive = false });
+                }
+                catch (Exception e)
+                { Logger.LogDebug(e, ""); }
+            });
+
             _ = Task.Run(async () =>
             {
-                while (!_suspended)
+                while (!_cancellationToken.IsCancellationRequested)
                 {
-                    await Task.Delay(100);
+                    await Task.Delay(10_000);
                     await responseStream.WriteAsync(new Unit { Alive = true });
                 }
-                await responseStream.WriteAsync(new Unit { Alive = false });
-            });
+            }).ConfigureAwait(false);
 
             var targets = new PID[100];
 
@@ -70,7 +81,7 @@ namespace Proto.Remote
                 {
                     Logger.LogDebug("Received a batch of {Count} messages from {Remote}", batch.TargetNames.Count, context.Peer);
 
-                    if (_suspended)
+                    if (_endpointManager.CancellationToken.IsCancellationRequested)
                         return Actor.Done;
 
                     //only grow pid lookup if needed
@@ -128,12 +139,6 @@ namespace Proto.Remote
                     return Actor.Done;
                 }
             );
-        }
-
-        public void Suspend(bool suspended)
-        {
-            Logger.LogDebug("EndpointReader suspended");
-            _suspended = suspended;
         }
     }
 }

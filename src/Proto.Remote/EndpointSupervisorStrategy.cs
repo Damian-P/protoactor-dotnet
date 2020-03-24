@@ -18,22 +18,22 @@ namespace Proto.Remote
 
         private readonly int _maxNrOfRetries;
         private readonly Random _random = new Random();
-        private readonly Remote _remote;
+        private readonly ActorSystem _actorSystem;
         private readonly TimeSpan? _withinTimeSpan;
         private readonly CancellationTokenSource _cancelFutureRetries;
 
         private int _backoff;
         private readonly string _address;
 
-        public EndpointSupervisorStrategy(string address, Remote remote)
+        public EndpointSupervisorStrategy(string address, ActorSystem actorSystem, EndpointWriterOptions endpointWriterOptions)
         {
             _logger = Log.CreateLogger<EndpointSupervisorStrategy>();
             _address = address;
-            _remote = remote;
+            _actorSystem = actorSystem;
             _cancelFutureRetries = new CancellationTokenSource();
-            _maxNrOfRetries = remote.RemoteConfig.EndpointWriterOptions.MaxRetries;
-            _withinTimeSpan = remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan;
-            _backoff = remote.RemoteConfig.EndpointWriterOptions.RetryBackOffms;
+            _maxNrOfRetries = endpointWriterOptions.MaxRetries;
+            _withinTimeSpan = endpointWriterOptions.RetryTimeSpan;
+            _backoff = endpointWriterOptions.RetryBackOffms;
         }
 
         public void HandleFailure(
@@ -50,11 +50,11 @@ namespace Proto.Remote
 
                 _cancelFutureRetries.Cancel();
                 supervisor.StopChildren(child);
-                _remote.System.ProcessRegistry
+                _actorSystem.ProcessRegistry
                     .Remove(child); //TODO: work out why this hangs around in the process registry
 
                 var terminated = new EndpointTerminatedEvent {Address = _address};
-                _remote.System.EventStream.Publish(terminated);
+                _actorSystem.EventStream.Publish(terminated);
             }
             else
             {

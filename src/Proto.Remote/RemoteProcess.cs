@@ -10,11 +10,9 @@ namespace Proto.Remote
     {
         private readonly PID _pid;
         private readonly EndpointManager _endpointManager;
-        private readonly Remote _remote;
 
-        public RemoteProcess(Remote remote, EndpointManager endpointManager, PID pid) : base(remote.System)
+        public RemoteProcess(ActorSystem actorSystem, EndpointManager endpointManager, PID pid) : base(actorSystem)
         {
-            _remote = remote;
             _endpointManager = endpointManager;
             _pid = pid;
         }
@@ -40,7 +38,7 @@ namespace Proto.Remote
                     break;
                 }
                 default:
-                    _remote.SendMessage(_pid, msg, -1);
+                    _endpointManager.SendMessage(_pid, msg, -1);
                     break;
             }
         }

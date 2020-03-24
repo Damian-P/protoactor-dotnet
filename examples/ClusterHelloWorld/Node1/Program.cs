@@ -12,6 +12,7 @@ using Proto;
 using Proto.Cluster;
 using Proto.Cluster.Consul;
 using Proto.Remote;
+using Proto.Remote.AspNetCore;
 using ProtosReflection = Messages.ProtosReflection;
 
 namespace Node1
@@ -24,25 +25,26 @@ namespace Node1
             Log.SetLoggerFactory(log);
 
             Console.WriteLine("Starting Node1");
-            var system = new ActorSystem();
-            var serialization = new Serialization();
+            var system = new ActorSystem()
+                .AddRemotingOverAspNet("node1", 12001, remote =>
+                {
+                remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+            })
+            .AddClustering("MyCluster", new ConsulProvider(new ConsulProviderOptions(), c => c.Address = new Uri("http://consul:8500/")));
             var context = new RootContext(system);
-            serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            var Cluster = new Cluster(system, serialization);
+
             var parsedArgs = ParseArgs(args);
             // SINGLE REMOTE INSTANCE
             // Cluster.Start("MyCluster", parsedArgs.ServerName, 12001, new SingleRemoteInstanceProvider("localhost", 12000));
 
             // CONSUL 
 
-            await Cluster.Start(
-                "MyCluster", "node1", 12001, new ConsulProvider(new ConsulProviderOptions(), c => c.Address = new Uri("http://consul:8500/"))
-            );
+            await system.StartCluster();
 
-            var (pid, sc) = await Cluster.GetAsync("TheName", "HelloKind");
+            var (pid, sc) = await system.GetAsync("TheName", "HelloKind");
 
             while (sc != ResponseStatusCode.OK)
-                (pid, sc) = await Cluster.GetAsync("TheName", "HelloKind");
+                (pid, sc) = await system.GetAsync("TheName", "HelloKind");
 
             var i = 10000;
             while (i-- > 0)
@@ -55,7 +57,7 @@ namespace Node1
             await Task.Delay(-1);
             Console.WriteLine("Shutting Down...");
 
-            await Cluster.Shutdown();
+            await system.StopCluster();
         }
 
         private static Node1Config ParseArgs(string[] args)

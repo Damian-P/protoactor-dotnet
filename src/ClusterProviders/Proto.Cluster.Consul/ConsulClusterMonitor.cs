@@ -48,7 +48,7 @@ namespace Proto.Cluster.Consul
 
             Task Stop()
             {
-                Logger.LogDebug("Stopping monitoring for {Service}", _id);
+                Logger.LogInformation("Stopping monitoring for {Service}", _id);
                 return _registered ? UnregisterService(context) : Actor.Done;
             }
         }
@@ -97,14 +97,12 @@ namespace Proto.Cluster.Consul
             return _client.Agent.ServiceRegister(registration);
         }
 
-        private Task UnregisterService(IStopperContext context)
+        private async Task UnregisterService(IStopperContext context)
         {
-            Logger.LogDebug("Unregistering service {Service}", _id);
-
+            Logger.LogInformation("Unregistering service {Service}", _id);
             _registered = false;
-            context.Stop(_ttlCheck);
-
-            return _client.Agent.ServiceDeregister(_id);
+            await context.StopAsync(_ttlCheck);
+            await _client.Agent.ServiceDeregister(_id);
         }
 
         private async Task NotifyStatuses(ulong index, PID self)

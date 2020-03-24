@@ -9,28 +9,29 @@ using System.Threading;
 using System.Threading.Tasks;
 using Messages;
 using Proto;
-using Proto.Remote;
+using Proto.Remote.Grpc;
 using Microsoft.Extensions.Logging;
 using ProtosReflection = Messages.ProtosReflection;
+using Proto.Remote;
 
 class Program
 {
     static async Task Main(string[] args)
     {
-        // Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
+        Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
         var system = new ActorSystem();
         var context = new RootContext(system);
-        var serialization = new Serialization();
-        serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-        var Remote = new Remote(system, serialization);
-        Remote.Start("127.0.0.1", 12001);
 
-        var messageCount = 1000000;
-        
+        var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 0, remote =>
+        {
+            remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+        });
+        await remote.Start();
+
+        var messageCount = 1_000_000;
+
         _ = Task.Run(async () =>
         {
-            
-            
             while (true)
             {
                 PID pid = null;
@@ -39,15 +40,25 @@ class Program
                     var wg = new AutoResetEvent(false);
                     var props = Props.FromProducer(() => new LocalActor(0, messageCount, wg));
                     pid = context.Spawn(props);
-                    var remote = new PID("127.0.0.1:12000", "ponger");
-                    await context.RequestAsync<Start>(remote, new StartRemote { Sender = pid }).ConfigureAwait(false);
+
+                    var actorPidResponse = await remote.SpawnNamedAsync("127.0.0.1:12000", "ponger", "ponger", TimeSpan.FromSeconds(1));
+                    PID remoteActor;
+                    if (actorPidResponse.StatusCode == (int)ResponseStatusCode.OK)
+                        remoteActor = actorPidResponse.Pid;
+                    else if (actorPidResponse.StatusCode == (int)ResponseStatusCode.ProcessNameAlreadyExist)
+                        remoteActor = new PID("127.0.0.1:12000", "ponger");
+                    else
+                        throw new Exception($"{((ResponseStatusCode)actorPidResponse.StatusCode).ToString()}");
+
+
+                    await context.RequestAsync<Start>(remoteActor, new StartRemote { Sender = pid }).ConfigureAwait(false);
 
                     var start = DateTime.Now;
                     Console.WriteLine("Starting to send");
                     var msg = new Ping();
                     for (var i = 0; i < messageCount; i++)
                     {
-                        context.Send(remote, msg);
+                        context.Send(remoteActor, msg);
                     }
                     wg.WaitOne();
                     var elapsed = DateTime.Now - start;
@@ -57,17 +68,20 @@ class Program
                     var t = messageCount * 2.0 / elapsed.TotalMilliseconds * 1000;
                     Console.WriteLine("Throughput {0} msg / sec", t);
                 }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
                 finally
                 {
-                    await Task.Delay(500);
-                    if(pid!= null)
+                    await Task.Delay(2000);
+                    if (pid != null)
                         context.Stop(pid);
                 }
             }
         });
         Console.ReadLine();
-        await Remote.Shutdown();
-
+        await remote.Stop();
     }
 
     public class LocalActor : IActor

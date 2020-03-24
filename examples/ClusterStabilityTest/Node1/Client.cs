@@ -25,16 +25,17 @@ namespace TestApp
             logger.LogInformation("Test");
             const string clusterName = "test";
 
-            var system = new ActorSystem();
-            var serialization = new Serialization();
-            var cluster = new Cluster(system, serialization);
-            var grains = new Grains(cluster);
+             var system = new ActorSystem()
+                .AddRemotingOverAspNet("127.0.0.1", 0, remote =>
+                {
+                    remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+                })
+                .AddClustering(clusterName, new ConsulProvider(new ConsulProviderOptions { DeregisterCritical = TimeSpan.FromSeconds(2) }), cluster =>
+                {
+                    var grains = new Grains(cluster);
+                });
 
-            serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-
-            await cluster.Start(
-                clusterName, "127.0.0.1", 0, new ConsulProvider(new ConsulProviderOptions { DeregisterCritical = TimeSpan.FromSeconds(2) })
-            );
+           await system.StartCluster();
 
             system.EventStream.Subscribe<ClusterTopologyEvent>(e => logger.LogInformation("Topology changed {@Event}", e));
             system.EventStream.Subscribe<MemberStatusEvent>(e => logger.LogInformation("Member status {@Event}", e));
@@ -57,7 +58,7 @@ namespace TestApp
             var tasks = new Task[n];
             for (var i = 0; i < n; i++)
             {
-                var client = grains.HelloGrain("name" + i % 200);
+                var client = system.GetGrains().HelloGrain("name" + i % 200);
 
                 tasks[i] = policy.ExecuteAsync(
                     () => client.SayHello(new HelloRequest(), CancellationToken.None, options)
@@ -66,7 +67,7 @@ namespace TestApp
             Task.WaitAll(tasks);
             Console.WriteLine("Done!");
             Console.ReadLine();
-            await cluster.Shutdown();
+            await system.StopCluster();
         }
     }
 }

@@ -22,38 +22,40 @@ namespace Proto.Cluster
             get;
         }
 
-        public Remote.Remote Remote
+        public IRemote Remote
         {
             get;
         }
+        public Cluster(ActorSystem system, string clusterName, IClusterProvider cp)
+        : this(system, new ClusterConfig(clusterName, cp))
+        {
 
-        public Cluster(ActorSystem system, Serialization serialization)
+        }
+        public Cluster(ActorSystem system, ClusterConfig clusterConfig)
         {
             System = system;
-            Remote = new Remote.Remote(system, serialization);
+            var remote = system.Plugins[typeof(IRemote)] as IRemote;
+            if (remote == null) throw new InvalidOperationException("Remoting is not configured");
+            Remote = remote;
+            System.Plugins.Add(typeof(Cluster), this);
+            Config = clusterConfig;
             Partition = new Partition(this);
             MemberList = new MemberList(this);
             PidCache = new PidCache(this);
+            Remote.RemotingConfiguration.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+
         }
         internal Partition Partition { get; }
         internal MemberList MemberList { get; }
         internal PidCache PidCache { get; }
 
-        public Task Start(string clusterName, string address, int port, IClusterProvider cp)
-            => Start(new ClusterConfig(clusterName, address, port, cp));
-
-        public async Task Start(ClusterConfig config)
+        public async Task Start()
         {
-            Config = config;
-
-            this.Remote.Start(Config.Address, Config.Port, Config.RemoteConfig);
-
-            this.Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-
             Logger.LogInformation("Starting Proto.Actor cluster");
 
-            var kinds = this.Remote.GetKnownKinds();
-
+            var kinds = this.Remote.RemotingConfiguration.RemoteKindRegistry.GetKnownKinds();
+            if (!Remote.IsStarted)
+                await Remote.Start();
             Partition.Setup(kinds);
             PidCache.Setup();
             MemberList.Setup();
@@ -74,14 +76,14 @@ namespace Proto.Cluster
                 await Config.ClusterProvider.Shutdown(this);
 
                 //This is to wait ownership transferring complete.
-                await Task.Delay(2000);
+                // await Task.Delay(2000);
 
                 MemberList.Stop();
                 PidCache.Stop();
                 Partition.Stop();
             }
 
-            await Remote.Shutdown(graceful);
+            await Remote.Stop(graceful);
 
             Logger.LogInformation("Stopped Cluster");
         }

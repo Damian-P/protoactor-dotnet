@@ -16,120 +16,36 @@
 // limitations under the License.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using Grpc.Core;
 using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class Remote
+    public abstract class Remote : IRemote
     {
-        private static readonly ILogger Logger = Log.CreateLogger(typeof(Remote).FullName);
+        protected static readonly ILogger Logger = Log.CreateLogger(typeof(RemotingConfiguration).FullName);
+        protected readonly RemotingConfiguration _remote;
+        public RemotingConfiguration RemotingConfiguration { get { return _remote; } }
 
-        private Server _server;
-        private readonly Dictionary<string, Props> _kinds = new Dictionary<string, Props>();
-        public RemoteConfig RemoteConfig { get; private set; }
-        private PID ActivatorPid { get; set; }
+        public bool IsStarted { get; private set; }
 
-        private EndpointReader _endpointReader;
-        private EndpointManager _endpointManager;
-        public ActorSystem System { get; }
-        public Serialization Serialization { get; }
+        protected readonly ActorSystem _system;
+        protected readonly string _hostname;
+        protected readonly int _port;
 
-        public string[] GetKnownKinds() => _kinds.Keys.ToArray();
+        protected readonly EndpointManager _endpointManager;
 
-        public void RegisterKnownKind(string kind, Props props) => _kinds.Add(kind, props);
-
-        // Modified class in context of repo fork : https://github.com/Optis-World/protoactor-dotnet
-        public void UnregisterKnownKind(string kind) => _kinds.Remove(kind);
-
-        public Props GetKnownKind(string kind)
+        public Remote(ActorSystem system, IChannelProvider channelProvider, string hostname, int port, Action<RemotingConfiguration> configure = null)
         {
-            if (_kinds.TryGetValue(kind, out var props))
-            {
-                return props;
-            }
-
-            throw new ArgumentException($"No Props found for kind '{kind}'");
+            _system = system;
+            _system.Plugins.Add(typeof(IRemote), this);
+            _remote = new RemotingConfiguration();
+            configure?.Invoke(_remote);
+            _endpointManager = new EndpointManager(system, _remote.RemoteConfig, _remote.Serialization, channelProvider);
+            system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(system, _endpointManager, pid));
+            _hostname = hostname;
+            _port = port;
         }
-
-        public Remote(ActorSystem system, Serialization serialization)
-        {
-            System = system;
-            Serialization = serialization;
-        }
-
-        public void Start(string hostname, int port) => Start(hostname, port, new RemoteConfig());
-
-        public void Start(string hostname, int port, RemoteConfig config)
-        {
-            RemoteConfig = config;
-            _endpointManager = new EndpointManager(this);
-            _endpointReader = new EndpointReader(System, _endpointManager, Serialization);
-            System.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(this, _endpointManager, pid));
-
-            _server = new Server
-            {
-                Services = {Remoting.BindService(_endpointReader)},
-                Ports = {new ServerPort(hostname, port, config.ServerCredentials)}
-            };
-            _server.Start();
-
-            var boundPort = _server.Ports.Single().BoundPort;
-            System.ProcessRegistry.SetAddress(config.AdvertisedHostname ?? hostname, config.AdvertisedPort ?? boundPort
-            );
-            _endpointManager.Start();
-            SpawnActivator();
-
-            Logger.LogDebug("Starting Proto.Actor server on {Host}:{Port} ({Address})", hostname, boundPort,
-                System.ProcessRegistry.Address
-            );
-        }
-
-        public async Task Shutdown(bool graceful = true)
-        {
-            try
-            {
-                if (graceful)
-                {
-                    _endpointManager.Stop();
-                    _endpointReader.Suspend(true);
-                    StopActivator();
-                    await _server.ShutdownAsync();
-                }
-                else
-                {
-                    await _server.KillAsync();
-                }
-
-                Logger.LogDebug(
-                    "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
-                    System.ProcessRegistry.Address, graceful
-                );
-            }
-            catch (Exception ex)
-            {
-                await _server.KillAsync();
-
-                Logger.LogError(
-                    ex, "Proto.Actor server stopped on {Address} with error: {Message}",
-                    System.ProcessRegistry.Address, ex.Message
-                );
-            }
-        }
-
-        private void SpawnActivator()
-        {
-            var props = Props.FromProducer(() => new Activator(this, System))
-                .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
-            ActivatorPid = System.Root.SpawnNamed(props, "activator");
-        }
-
-        private void StopActivator() => System.Root.Stop(ActivatorPid);
-
-        public PID ActivatorForAddress(string address) => new PID(address, "activator");
 
         public Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout) =>
             SpawnNamedAsync(address, "", kind, timeout);
@@ -138,7 +54,7 @@ namespace Proto.Remote
         {
             var activator = ActivatorForAddress(address);
 
-            var res = await System.Root.RequestAsync<ActorPidResponse>(
+            var res = await _system.Root.RequestAsync<ActorPidResponse>(
                 activator, new ActorPidRequest
                 {
                     Kind = kind,
@@ -148,13 +64,36 @@ namespace Proto.Remote
 
             return res;
         }
-
-        public void SendMessage(PID pid, object msg, int serializerId)
+        private PID _activatorPid;
+        private void SpawnActivator()
         {
-            var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
-
-            var env = new RemoteDeliver(header, message, pid, sender, serializerId);
-            _endpointManager.RemoteDeliver(env);
+            var props = Props.FromProducer(() => new Activator(_remote.RemoteKindRegistry, _system))
+                .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
+            _activatorPid = _system.Root.SpawnNamed(props, "activator");
         }
+
+        private void StopActivator() => _system.Root.Stop(_activatorPid);
+
+        private PID ActivatorForAddress(string address) => new PID(address, "activator");
+
+        public virtual Task Start()
+        {
+            if (IsStarted) return Task.CompletedTask;
+            IsStarted = true;
+            _endpointManager.Start();
+            SpawnActivator();
+            return Task.CompletedTask;
+        }
+
+        public virtual async Task Stop(bool graceful = true)
+        {
+            if (graceful)
+            {
+                await _endpointManager.StopAsync();
+                StopActivator();
+            }
+        }
+        public void SendMessage(PID pid, object msg, int serializerId)
+            => _endpointManager.SendMessage(pid, msg, serializerId);
     }
 }

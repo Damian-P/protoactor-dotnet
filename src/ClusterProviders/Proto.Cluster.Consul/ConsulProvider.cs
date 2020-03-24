@@ -64,8 +64,7 @@ namespace Proto.Cluster.Consul
 
         public Task Shutdown(Cluster cluster)
         {
-            cluster.System.Root.Stop(_clusterMonitor);
-            return Task.CompletedTask;
+            return cluster.System.Root.StopAsync(_clusterMonitor);
         }
 
         public void MonitorMemberStatusChanges(Cluster cluster) => cluster.System.Root.Send(_clusterMonitor, new Messages.CheckStatus { Index = 0 });
