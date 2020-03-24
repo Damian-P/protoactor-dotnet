@@ -1,5 +1,5 @@
-// -----------------------------------------------------------------------
-//   <copyright file="EndpointActorBase.cs" company="Asynkron HB">
+﻿// -----------------------------------------------------------------------
+//   <copyright file="EndpointActor.cs" company="Asynkron HB">
 //       Copyright (C) 2015-2018 Asynkron HB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
-using Proto;
 
 namespace Proto.Remote
 {

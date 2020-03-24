@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using chat.messages;
 using Jaeger;
 using Jaeger.Samplers;
@@ -10,7 +11,7 @@ using Proto.Remote;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         var tracer = new Tracer.Builder("Proto.Chat.Server")
             .WithSampler(new ConstSampler(true))
@@ -20,11 +21,13 @@ class Program
         SpanSetup spanSetup = (span, message) => span.Log(message?.ToString());
 
         var system = new ActorSystem();
-        var serialization = new Serialization();
         var context = new RootContext(system);
-        serialization.RegisterFileDescriptor(ChatReflection.Descriptor);
-        var remote = new Remote(system, serialization);
-        remote.Start("127.0.0.1", 8000);
+
+        var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 8000, remote =>
+        {
+            remote.Serialization.RegisterFileDescriptor(ChatReflection.Descriptor);
+        });
+        await remote.Start();
 
         var clients = new HashSet<PID>();
         var props = Props.FromFunc(ctx =>
@@ -63,5 +66,6 @@ class Program
 
         context.SpawnNamed(props, "chatserver");
         Console.ReadLine();
+        await remote.Stop();
     }
 }

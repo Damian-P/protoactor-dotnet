@@ -12,7 +12,6 @@ using Proto;
 using Proto.Cluster;
 using Proto.Cluster.Consul;
 using Proto.Remote;
-using Proto.Remote.AspNetCore;
 using ProtosReflection = Messages.ProtosReflection;
 
 namespace Node1

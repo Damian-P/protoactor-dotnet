@@ -12,7 +12,7 @@ using Proto.Remote;
 
 namespace Proto.Cluster
 {
-    public class Cluster
+    public class Cluster: IProtoPlugin
     {
         private static readonly ILogger Logger = Log.CreateLogger(typeof(Cluster).FullName);
 
@@ -34,16 +34,15 @@ namespace Proto.Cluster
         public Cluster(ActorSystem system, ClusterConfig clusterConfig)
         {
             System = system;
-            var remote = system.Plugins[typeof(IRemote)] as IRemote;
+            var remote = system.Plugins.GetPlugin<IRemote>();
             if (remote == null) throw new InvalidOperationException("Remoting is not configured");
             Remote = remote;
-            System.Plugins.Add(typeof(Cluster), this);
+            System.Plugins.AddPlugin(this);
             Config = clusterConfig;
             Partition = new Partition(this);
             MemberList = new MemberList(this);
             PidCache = new PidCache(this);
             Remote.RemotingConfiguration.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-
         }
         internal Partition Partition { get; }
         internal MemberList MemberList { get; }
@@ -71,6 +70,7 @@ namespace Proto.Cluster
 
         public async Task Shutdown(bool graceful = true)
         {
+            Logger.LogInformation($"Stopping Cluster at {System.ProcessRegistry.GetAddress().Host}:{System.ProcessRegistry.GetAddress().Port}");
             if (graceful)
             {
                 await Config.ClusterProvider.Shutdown(this);
@@ -85,7 +85,7 @@ namespace Proto.Cluster
 
             await Remote.Stop(graceful);
 
-            Logger.LogInformation("Stopped Cluster");
+            Logger.LogInformation($"Stopped Cluster at {System.ProcessRegistry.GetAddress().Host}:{System.ProcessRegistry.GetAddress().Port}");
         }
 
         public Task<(PID, ResponseStatusCode)> GetAsync(string name, string kind) => GetAsync(name, kind, CancellationToken.None);

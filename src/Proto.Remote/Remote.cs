@@ -38,7 +38,7 @@ namespace Proto.Remote
         public Remote(ActorSystem system, IChannelProvider channelProvider, string hostname, int port, Action<RemotingConfiguration> configure = null)
         {
             _system = system;
-            _system.Plugins.Add(typeof(IRemote), this);
+            _system.Plugins.AddPlugin(this);
             _remote = new RemotingConfiguration();
             configure?.Invoke(_remote);
             _endpointManager = new EndpointManager(system, _remote.RemoteConfig, _remote.Serialization, channelProvider);

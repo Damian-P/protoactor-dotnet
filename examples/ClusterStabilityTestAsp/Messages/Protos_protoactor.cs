@@ -9,22 +9,19 @@ using Proto.Remote;
 
 namespace Messages
 {
-    public static class Extensions
+    public static class GrainsExtensions
     {
         public static Grains AddGrains(this Cluster cluster)
         {
             var grains = new Grains(cluster);
-            cluster.System.Plugins.Add(typeof(Grains), grains);
+            cluster.System.Plugins.AddPlugin(grains);
             return grains;
         }
         public static Grains GetGrains(this ActorSystem actorSystem)
-        {
-            var grains = actorSystem.Plugins[typeof(Grains)] as Grains;
-            return grains;
-        }
+            => actorSystem.Plugins.GetPlugin<Grains>();
     }
 
-    public class Grains
+    public class Grains : IProtoPlugin
     {
         public Cluster Cluster { get; }
 

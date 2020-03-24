@@ -21,7 +21,7 @@ namespace Proto.Remote
         public HostedRemote(ActorSystem actorSystem, EndpointManager endpointManager, RemotingConfiguration remotingConfiguration, ILogger<HostedRemote> logger)
         {
             actorSystem.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(actorSystem, endpointManager, pid));
-            actorSystem.Plugins.Add(typeof(IRemote), this);
+            actorSystem.Plugins.AddPlugin(this);
             actorSystem.ProcessRegistry.SetAddress(remotingConfiguration.RemoteConfig.AdvertisedHostname, remotingConfiguration.RemoteConfig.AdvertisedPort.Value);
 
             _actorSystem = actorSystem;
@@ -68,14 +68,9 @@ namespace Proto.Remote
             return Task.CompletedTask;
         }
 
-        public async Task Stop(bool graceful = true)
+        public Task Stop(bool graceful = true)
         {
-            if (graceful)
-            {
-                await _endpointManager.StopAsync();
-                StopActivator();
-            }
-
+            return Task.CompletedTask;
         }
         public void SendMessage(PID pid, object msg, int serializerId)
             => _endpointManager.SendMessage(pid, msg, serializerId);

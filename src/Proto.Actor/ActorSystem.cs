@@ -15,7 +15,7 @@ namespace Proto
 
         public EventStream EventStream { get; }
 
-        public Dictionary<Type, object> Plugins { get; } = new Dictionary<Type, object>();
+        public Plugins Plugins { get; }
 
         public ActorSystem()
         {
@@ -24,6 +24,7 @@ namespace Proto
             DeadLetter = new DeadLetterProcess(this);
             Guardians = new Guardians(this);
             EventStream = new EventStream();
+            Plugins = new Plugins();
         }
         
         public static ActorSystem Default = new ActorSystem();

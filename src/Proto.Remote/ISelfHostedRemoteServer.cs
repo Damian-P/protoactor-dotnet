@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Proto.Remote
 {
-    public interface IRemote
+    public interface IRemote: IProtoPlugin
     {
         bool IsStarted { get; }
         RemotingConfiguration RemotingConfiguration { get; }

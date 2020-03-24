@@ -1,6 +1,6 @@
-﻿// -----------------------------------------------------------------------
-//   <copyright file="HostedRemoteService.cs" company="Asynkron HB">
-//       Copyright (C) 2015-2020 Asynkron HB All rights reserved
+// -----------------------------------------------------------------------
+//   <copyright file="Cluster.cs" company="Asynkron HB">
+//       Copyright (C) 2015-2018 Asynkron HB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
 
@@ -9,31 +9,29 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Proto.Remote
+namespace Proto.Cluster
 {
-    internal class HostedRemoteService : IHostedService
+    public class HostedClusteringService : IHostedService
     {
         private readonly ILogger _logger;
         private readonly IHostApplicationLifetime _appLifetime;
-        private readonly IRemote _remoting;
-        private readonly EndpointManager _endpointManager;
+        private readonly Cluster _cluster;
 
-        public HostedRemoteService(
-            ILogger<HostedRemoteService> logger,
+        public HostedClusteringService(
+            ILogger<HostedClusteringService> logger,
             IHostApplicationLifetime appLifetime,
-            IRemote remoting,
-            EndpointManager endpointManager)
+            Cluster cluster)
         {
             _logger = logger;
             _appLifetime = appLifetime;
-            _remoting = remoting;
-            _endpointManager = endpointManager;
+            _cluster = cluster;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("StartAsync has been called.");
+            _logger.LogInformation("StartAsync");
             _appLifetime.ApplicationStopping.Register(OnStopping);
+            _appLifetime.ApplicationStopped.Register(OnStopped);
             _appLifetime.ApplicationStarted.Register(OnStarted);
             return Task.CompletedTask;
         }
@@ -41,8 +39,7 @@ namespace Proto.Remote
         private void OnStarted()
         {
             _logger.LogInformation("OnStarted has been called.");
-            _remoting.Start().GetAwaiter().GetResult();
-            _logger.LogInformation("OnStarted exits");
+            _cluster.Start().GetAwaiter().GetResult();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -52,7 +49,12 @@ namespace Proto.Remote
 
         private void OnStopping()
         {
-            _endpointManager.StopAsync().GetAwaiter().GetResult();
+            _cluster.Shutdown().GetAwaiter().GetResult();
+        }
+
+        private void OnStopped()
+        {
+            _logger.LogInformation("OnStopped has been called.");
         }
     }
 }
