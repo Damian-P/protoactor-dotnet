@@ -5,16 +5,20 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Consul;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Proto.Cluster.Consul
 {
     public class ConsulProvider : IClusterProvider
     {
+        private static ILogger Logger = Log.CreateLogger<ConsulProvider>();
         private readonly ConsulProviderOptions _options;
         private readonly Action<ConsulClientConfiguration> _consulConfig;
+        private CancellationTokenSource _cancellationTokenSource;
         private PID _clusterMonitor;
 
         public ConsulProvider(ConsulProviderOptions options) : this(options, config => { }) { }
@@ -35,8 +39,9 @@ namespace Proto.Cluster.Consul
             IMemberStatusValueSerializer statusValueSerializer
         )
         {
+            _cancellationTokenSource = new CancellationTokenSource();
             var props = Props
-                .FromProducer(() => new ConsulClusterMonitor(cluster.System, _options, _consulConfig))
+                .FromProducer(() => new ConsulClusterMonitor(cluster.System, _options, _consulConfig, _cancellationTokenSource.Token))
                 .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy)
                 .WithDispatcher(Mailbox.Dispatchers.SynchronousDispatcher);
             _clusterMonitor = cluster.System.Root.SpawnNamed(props, "ClusterMonitor");
@@ -62,10 +67,12 @@ namespace Proto.Cluster.Consul
             return Actor.Done;
         }
 
-        public Task Shutdown(Cluster cluster)
+        public async Task Shutdown(Cluster cluster)
         {
-            cluster.System.Root.Stop(_clusterMonitor);
-            return Task.CompletedTask;
+            Logger.LogDebug($"Stopping");
+            _cancellationTokenSource.Cancel();
+            await cluster.System.Root.StopAsync(_clusterMonitor).ConfigureAwait(false);
+            Logger.LogDebug($"Stopped");
         }
 
         public void MonitorMemberStatusChanges(Cluster cluster) => cluster.System.Root.Send(_clusterMonitor, new Messages.CheckStatus { Index = 0 });

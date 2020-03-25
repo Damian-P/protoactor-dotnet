@@ -22,28 +22,29 @@ namespace Proto.Remote
 {
     public class SelfHostedRemoteServerOverAspNet : Remote
     {
-        private IHost _host;
-        public SelfHostedRemoteServerOverAspNet(ActorSystem system, string hostname, int port, Action<RemotingConfiguration> configure = null)
+        private IWebHost _host;
+        public SelfHostedRemoteServerOverAspNet(ActorSystem system, string hostname, int port, Action<IRemoteConfiguration> configure = null)
         : base(system, new ChannelProvider(), hostname, port, configure)
         {
 
         }
         public override async Task Start()
         {
+            if (IsStarted) return;
             IServerAddressesFeature serverAddressesFeature = null;
             await base.Start();
             // Allows tu use Grpc.Net over http
-            if (_remote.RemoteConfig.ServerCredentials == ServerCredentials.Insecure)
+            if (RemoteConfig.ServerCredentials == ServerCredentials.Insecure)
                 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-            var endpointReader = new EndpointReader(_system, _endpointManager, _remote.Serialization);
+            var endpointReader = new EndpointReader(_system, EndpointManager, Serialization);
             if (_host != null) throw new InvalidOperationException("Already started");
-            _host = await Host
-                .CreateDefaultBuilder()
-                .ConfigureWebHostDefaults(webBuilder =>
-                        webBuilder
+
+            _host = new WebHostBuilder()
+                        .UseKestrel()
                         .ConfigureKestrel(serverOptions =>
                             {
-                                if (_remote.RemoteConfig.ServerCredentials == ServerCredentials.Insecure)
+                                if (RemoteConfig.ServerCredentials
+                                    == ServerCredentials.Insecure)
                                     serverOptions.Listen(IPAddress.Any, _port, listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; });
                                 else
                                     serverOptions.Listen(IPAddress.Any, _port, listenOptions =>
@@ -53,18 +54,19 @@ namespace Proto.Remote
                                     });
                             }
                         )
-                        .ConfigureServices((context, serviceCollection) =>
+                        .ConfigureServices((serviceCollection) =>
                             {
                                 serviceCollection.AddGrpc();
                                 serviceCollection.AddHostedService<SelfHostedRemoteService>();
                                 serviceCollection.AddSingleton<ILoggerFactory>(Log.LoggerFactory);
-                                serviceCollection.AddSingleton(_endpointManager);
-                                serviceCollection.AddSingleton<RemoteConfig>(_remote.RemoteConfig);
+                                serviceCollection.AddSingleton(EndpointManager);
+                                serviceCollection.AddSingleton<RemoteConfig>(RemoteConfig);
                                 serviceCollection.AddSingleton<ActorSystem>(sp => _system);
                                 serviceCollection.AddSingleton<Remoting.RemotingBase>(sp => endpointReader);
+                                serviceCollection.AddSingleton<IRemote>(this);
                             }
                         ).
-                        Configure((app) =>
+                        Configure(app =>
                             {
                                 app.UseRouting();
                                 app.UseEndpoints(endpoints =>
@@ -74,11 +76,10 @@ namespace Proto.Remote
                                 serverAddressesFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
                             }
                         )
-                )
-                .StartAsync();
+                .Start();
 
             var boundPort = serverAddressesFeature.Addresses.Select(a => int.Parse(a.Split(":")[2])).First();
-            _system.ProcessRegistry.SetAddress(_remote.RemoteConfig.AdvertisedHostname ?? _hostname, _remote.RemoteConfig.AdvertisedPort ?? boundPort);
+            _system.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? _hostname, RemoteConfig.AdvertisedPort ?? boundPort);
             Logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", _hostname, boundPort,
                 _system.ProcessRegistry.Address
             );
@@ -91,10 +92,8 @@ namespace Proto.Remote
                 {
                     if (graceful)
                     {
-                        // await base.Stop();
-                        await _host.StopAsync();
+                        await base.Stop();
                     }
-
                     Logger.LogDebug(
                         "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
                         _system.ProcessRegistry.Address, graceful

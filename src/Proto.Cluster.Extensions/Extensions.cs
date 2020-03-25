@@ -33,17 +33,17 @@ namespace Proto.Cluster
             return services;
         }
         
-        public static ActorSystem AddClustering(this ActorSystem actorSystem, string clusterName, IClusterProvider clusterProvider, Action<Cluster> configure = null)
+        public static Cluster AddClustering(this ActorSystem actorSystem, string clusterName, IClusterProvider clusterProvider, Action<Cluster> configure = null)
         {
             var cluster = new Cluster(actorSystem, clusterName, clusterProvider);
             configure?.Invoke(cluster);
-            return actorSystem;
+            return cluster;
         }
-        public static ActorSystem AddClustering(this ActorSystem actorSystem, ClusterConfig clusterConfig, Action<Cluster> configure = null)
+        public static Cluster AddClustering(this ActorSystem actorSystem, ClusterConfig clusterConfig, Action<Cluster> configure = null)
         {
             var cluster = new Cluster(actorSystem, clusterConfig);
             configure?.Invoke(cluster);
-            return actorSystem;
+            return cluster;
         }
         public static Task StartCluster(this ActorSystem actorSystem)
         {

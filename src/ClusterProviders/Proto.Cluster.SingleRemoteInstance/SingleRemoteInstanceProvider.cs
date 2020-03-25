@@ -39,9 +39,9 @@ namespace Proto.Cluster.SingleRemoteInstance
 
                             return Actor.Done;
                         });
-            cluster.Remote.RemotingConfiguration.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+            cluster.Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
 
-            cluster.Remote.RemotingConfiguration.RemoteKindRegistry.RegisterKnownKind(KindsResponder, props);
+            cluster.Remote.RemoteKindRegistry.RegisterKnownKind(KindsResponder, props);
 
             _kinds = kinds;
             _okStatus = serializer.Deserialize("Ok!");

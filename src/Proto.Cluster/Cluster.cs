@@ -12,7 +12,7 @@ using Proto.Remote;
 
 namespace Proto.Cluster
 {
-    public class Cluster: IProtoPlugin
+    public class Cluster : IProtoPlugin
     {
         private static readonly ILogger Logger = Log.CreateLogger(typeof(Cluster).FullName);
 
@@ -34,15 +34,13 @@ namespace Proto.Cluster
         public Cluster(ActorSystem system, ClusterConfig clusterConfig)
         {
             System = system;
-            var remote = system.Plugins.GetPlugin<IRemote>();
-            if (remote == null) throw new InvalidOperationException("Remoting is not configured");
-            Remote = remote;
+            Remote = system.Plugins.GetPlugin<IRemote>();
             System.Plugins.AddPlugin(this);
             Config = clusterConfig;
             Partition = new Partition(this);
             MemberList = new MemberList(this);
             PidCache = new PidCache(this);
-            Remote.RemotingConfiguration.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+            Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         }
         internal Partition Partition { get; }
         internal MemberList MemberList { get; }
@@ -52,9 +50,8 @@ namespace Proto.Cluster
         {
             Logger.LogInformation("Starting Proto.Actor cluster");
 
-            var kinds = this.Remote.RemotingConfiguration.RemoteKindRegistry.GetKnownKinds();
-            if (!Remote.IsStarted)
-                await Remote.Start();
+            var kinds = this.Remote.RemoteKindRegistry.GetKnownKinds();
+            await Remote.Start();
             Partition.Setup(kinds);
             PidCache.Setup();
             MemberList.Setup();

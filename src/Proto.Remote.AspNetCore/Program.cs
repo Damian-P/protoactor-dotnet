@@ -4,7 +4,7 @@ namespace Proto.Remote.AspNetCore
     {
         private static void Main(string[] args)
         {
-            
+
         }
     }
 }

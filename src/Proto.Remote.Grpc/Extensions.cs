@@ -10,9 +10,10 @@ namespace Proto.Remote
 {
     public static class Extensions
     {
-        public static ActorSystem AddRemotingOverGrpc(this ActorSystem actorSystem, string hostanme, int port, Action<RemotingConfiguration> configure = null)
+        public static ActorSystem AddRemoteOverGrpc(this ActorSystem actorSystem, string hostname, int port,
+            Action<IRemoteConfiguration> configure = null)
         {
-            var remote = new SelfHostedRemoteServerOverGrpc(actorSystem, hostanme, port, configure);
+            var remote = new SelfHostedRemoteServerOverGrpc(actorSystem, hostname, port, configure);
             return actorSystem;
         }
     }

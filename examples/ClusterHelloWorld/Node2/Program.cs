@@ -39,20 +39,20 @@ namespace Node2
                 }
             );
 
-            var system = new ActorSystem()
-                .AddRemotingOverAspNet("node2", 12000, remote =>
-                {
+            var system = new ActorSystem();
+            system.AddRemoteOverGrpc("node2", 12000, remote =>
+            {
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("HelloKind", props);
-            })
-            .AddClustering("MyCluster", new ConsulProvider(new ConsulProviderOptions(), c => c.Address = new Uri("http://consul:8500/")));
+            });
+            system.AddClustering("MyCluster", new ConsulProvider(new ConsulProviderOptions(), c => c.Address = new Uri("http://consul:8500/")));
 
             await system.StartCluster();
 
             var context = new RootContext(system);
 
             var parsedArgs = ParseArgs(args);
-            
+
 
             // SINGLE REMOTE INSTANCE
             // Cluster.Start("MyCluster", parsedArgs.ServerName, 12000, new SingleRemoteInstanceProvider(parsedArgs.ServerName, 12001));

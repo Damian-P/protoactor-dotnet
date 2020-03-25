@@ -9,11 +9,12 @@ using Grpc.Net.Client;
 
 namespace Proto.Remote.AspNetCore
 {
-    internal class ChannelProvider: IChannelProvider
+    internal class ChannelProvider : IChannelProvider
     {
         public ChannelBase GetChannel(RemoteConfig remoteConfig, string address)
         {
-            var addressWithProtocol = $"{(remoteConfig.ChannelCredentials == ChannelCredentials.Insecure ? "http://" : "https://")}{address}";
+            var addressWithProtocol =
+                $"{(remoteConfig.ChannelCredentials == ChannelCredentials.Insecure ? "http://" : "https://")}{address}";
 
             var channel = GrpcChannel.ForAddress(addressWithProtocol);
 

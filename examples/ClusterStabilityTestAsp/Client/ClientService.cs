@@ -49,12 +49,12 @@ namespace Client
                     RetryCount = 10,
                     RetryAction = i =>
                     {
-                        Console.Write("!");
+                        _logger.LogCritical("!");
                         return Task.Delay(50);
                     }
                 };
 
-                await Task.Delay(1000);
+                await Task.Delay(2000);
                 _logger.LogCritical("Starting to send !");
 
                 var policy = Policy.Handle<TaskCanceledException>().RetryForeverAsync();

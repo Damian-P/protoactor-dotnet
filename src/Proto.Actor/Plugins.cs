@@ -16,17 +16,21 @@ namespace Proto
     public class Plugins
     {
         private ConcurrentDictionary<Type, IProtoPlugin> _plugins { get; } = new ConcurrentDictionary<Type, IProtoPlugin>();
-        public bool AddPlugin<TPlugin>(TPlugin plugin)
-        where TPlugin : class, IProtoPlugin
+        public bool AddPlugin<TPlugin, TInstance>(TInstance plugin)
+        where TPlugin : IProtoPlugin
+        where TInstance : class, TPlugin
         {
-            var pluginInterface = plugin.GetType().GetInterfaces().SingleOrDefault(p => p.IsAssignableFrom(typeof(IProtoPlugin)));
-            return _plugins.TryAdd(pluginInterface, plugin);
+            return _plugins.TryAdd(typeof(TPlugin), plugin);
+        }
+        public bool AddPlugin<TPlugin>(TPlugin plugin)
+        where TPlugin : IProtoPlugin
+        {
+            return _plugins.TryAdd(typeof(TPlugin), plugin);
         }
         public TPlugin GetPlugin<TPlugin>()
-        where TPlugin : class, IProtoPlugin
+        where TPlugin : IProtoPlugin
         {
-            var pluginInterface = typeof(TPlugin).GetInterfaces().SingleOrDefault(p => p.IsAssignableFrom(typeof(IProtoPlugin)));
-            var instanceIsPresent = _plugins.TryGetValue(pluginInterface, out var foundInstance);
+            var instanceIsPresent = _plugins.TryGetValue(typeof(TPlugin), out var foundInstance);
             return foundInstance is TPlugin plugin ? plugin : throw new PluginNotFoundException<TPlugin>();
         }
     }

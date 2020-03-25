@@ -1,0 +1,1 @@
+docker-compose up -d --scale alpha=1 --scale beta=1 --scale gamma=1 --scale delta=1 --scale epsilon=1 --scale client=1

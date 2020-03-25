@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Messages\Messages.csproj" />
+    <ProjectReference Include="..\..\ClusterStabilityTest\Messages\Messages.csproj" />
     <ProjectReference Include="..\..\..\src\ClusterProviders\Proto.Cluster.Consul\Proto.Cluster.Consul.csproj" />
     <ProjectReference Include="..\..\..\src\Proto.Remote.AspNetCore\Proto.Remote.AspNetCore.csproj" />
     <ProjectReference Include="..\..\..\src\Proto.Actor.Extensions\Proto.Actor.Extensions.csproj" />

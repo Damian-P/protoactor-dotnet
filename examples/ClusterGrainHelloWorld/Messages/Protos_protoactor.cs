@@ -35,7 +35,7 @@ namespace Messages
         public void HelloGrainFactory(Func<IHelloGrain> factory) 
         {
             _HelloGrainFactory = factory;
-            Cluster.Remote.RemotingConfiguration.RemoteKindRegistry.RegisterKnownKind("HelloGrain", Props.FromProducer(() => new HelloGrainActor(this)));
+            Cluster.Remote.RemoteKindRegistry.RegisterKnownKind("HelloGrain", Props.FromProducer(() => new HelloGrainActor(this)));
         } 
 
         public HelloGrainClient HelloGrain(string id) => new HelloGrainClient(Cluster, id);

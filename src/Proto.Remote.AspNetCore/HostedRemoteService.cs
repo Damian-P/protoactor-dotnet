@@ -15,24 +15,20 @@ namespace Proto.Remote
     {
         private readonly ILogger _logger;
         private readonly IHostApplicationLifetime _appLifetime;
-        private readonly IRemote _remoting;
-        private readonly EndpointManager _endpointManager;
+        private readonly IRemote _remote;
 
         public HostedRemoteService(
             ILogger<HostedRemoteService> logger,
             IHostApplicationLifetime appLifetime,
-            IRemote remoting,
-            EndpointManager endpointManager)
+            IRemote remote)
         {
             _logger = logger;
             _appLifetime = appLifetime;
-            _remoting = remoting;
-            _endpointManager = endpointManager;
+            _remote = remote;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("StartAsync has been called.");
             _appLifetime.ApplicationStopping.Register(OnStopping);
             _appLifetime.ApplicationStarted.Register(OnStarted);
             return Task.CompletedTask;
@@ -40,9 +36,7 @@ namespace Proto.Remote
 
         private void OnStarted()
         {
-            _logger.LogInformation("OnStarted has been called.");
-            _remoting.Start().GetAwaiter().GetResult();
-            _logger.LogInformation("OnStarted exits");
+            _remote.Start().GetAwaiter().GetResult();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -52,7 +46,7 @@ namespace Proto.Remote
 
         private void OnStopping()
         {
-            _endpointManager.StopAsync().GetAwaiter().GetResult();
+            _remote.Stop().GetAwaiter().GetResult();
         }
     }
 }

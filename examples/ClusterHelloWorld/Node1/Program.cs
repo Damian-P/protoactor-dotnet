@@ -24,12 +24,12 @@ namespace Node1
             Log.SetLoggerFactory(log);
 
             Console.WriteLine("Starting Node1");
-            var system = new ActorSystem()
-                .AddRemotingOverAspNet("node1", 12001, remote =>
-                {
+            var system = new ActorSystem();
+            var remote = system.AddRemoteOverGrpc("node1", 12001, remote =>
+            {
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            })
-            .AddClustering("MyCluster", new ConsulProvider(new ConsulProviderOptions(), c => c.Address = new Uri("http://consul:8500/")));
+            });
+            var cluster = system.AddClustering("MyCluster", new ConsulProvider(new ConsulProviderOptions(), c => c.Address = new Uri("http://consul:8500/")));
             var context = new RootContext(system);
 
             var parsedArgs = ParseArgs(args);

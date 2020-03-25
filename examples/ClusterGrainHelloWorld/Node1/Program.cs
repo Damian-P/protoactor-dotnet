@@ -18,18 +18,17 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        var system = new ActorSystem()
-            .AddRemotingOverGrpc("node1", 12001, configure =>
+        var system = new ActorSystem();
+        system.AddRemoteOverGrpc("node1", 12001, configure =>
+        {
+            configure.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+        });
+        system.AddClustering("MyCluster", new ConsulProvider(
+            new ConsulProviderOptions(),
+            c => c.Address = new Uri("http://consul:8500/")), cluster =>
             {
-                configure.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            })
-            .AddClustering("MyCluster", new ConsulProvider(
-                new ConsulProviderOptions(),
-                c => c.Address = new Uri("http://consul:8500/")), cluster =>
-                {
-                    var grains = new Grains(cluster);
-                });
-                
+                cluster.AddGrains();
+            });
         await system.StartCluster();
         await Task.Delay(2000);
 

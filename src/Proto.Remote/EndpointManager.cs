@@ -20,8 +20,8 @@ namespace Proto.Remote
         private class ConnectionRegistry : ConcurrentDictionary<string, Lazy<PID>>
         {
         }
-        private CancellationTokenSource cancellationTokenSource;
-        public CancellationToken CancellationToken { get { return cancellationTokenSource.Token; } }
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        public CancellationToken CancellationToken { get { return _cancellationTokenSource.Token; } }
         private readonly ConnectionRegistry _connections = new ConnectionRegistry();
         private readonly ActorSystem _actorSystem;
         private readonly RemoteConfig _remoteConfig;
@@ -40,7 +40,6 @@ namespace Proto.Remote
 
         public void Start()
         {
-            cancellationTokenSource = new CancellationTokenSource();
             _endpointTermEvnSub = _actorSystem.EventStream.Subscribe<EndpointTerminatedEvent>(OnEndpointTerminated);
             _endpointConnEvnSub = _actorSystem.EventStream.Subscribe<EndpointConnectedEvent>(OnEndpointConnected);
             Logger.LogDebug("Started EndpointManager");
@@ -48,7 +47,8 @@ namespace Proto.Remote
 
         public async Task StopAsync()
         {
-            cancellationTokenSource.Cancel();
+            if(_cancellationTokenSource.IsCancellationRequested) return;
+            _cancellationTokenSource.Cancel();
             _actorSystem.EventStream.Unsubscribe(_endpointTermEvnSub.Id);
             _actorSystem.EventStream.Unsubscribe(_endpointConnEvnSub.Id);
             foreach (var (address, connection) in _connections)
@@ -145,7 +145,7 @@ namespace Proto.Remote
                         )
                     )
                     .WithGuardianSupervisorStrategy(new EndpointSupervisorStrategy(address, _actorSystem, _remoteConfig.EndpointWriterOptions));
-            var endpointActor = _actorSystem.Root.SpawnNamed(endpointActorProps, $"endpoint-{address}");
+            var endpointActor = _actorSystem.Root.Spawn(endpointActorProps);
             return endpointActor;
         }
     }

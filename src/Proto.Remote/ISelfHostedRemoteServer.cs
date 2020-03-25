@@ -9,10 +9,13 @@ using System.Threading.Tasks;
 
 namespace Proto.Remote
 {
-    public interface IRemote: IProtoPlugin
+    public interface IRemoteInternals: IRemoteConfiguration
+    {
+        EndpointManager EndpointManager { get; }
+    }
+    public interface IRemote : IProtoPlugin, IRemoteConfiguration
     {
         bool IsStarted { get; }
-        RemotingConfiguration RemotingConfiguration { get; }
         Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout);
         Task<ActorPidResponse> SpawnNamedAsync(string address, string name, string kind, TimeSpan timeout);
         Task Start();

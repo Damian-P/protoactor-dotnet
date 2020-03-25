@@ -48,11 +48,11 @@ namespace Proto.Remote.Tests
         public const string RemoteAddress = "localhost:12000";
         static RemoteManager()
         {
-            // Log.SetLoggerFactory(LoggerFactory.Create(x => x.AddConsole().SetMinimumLevel(LogLevel.Debug)));
+            Log.SetLoggerFactory(LoggerFactory.Create(x => x.AddConsole().SetMinimumLevel(LogLevel.Debug)));
             var props = Props.FromProducer(() => new EchoActor("localhost", 12000));
             system = new ActorSystem();
             var distantSystem = new ActorSystem();
-            distantRemote = new SelfHostedRemoteServerOverAspNet(distantSystem, "localhost", 12000, remote =>
+            distantRemote = new SelfHostedRemoteServerOverGrpc(distantSystem, "localhost", 12000, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
                 remote.RemoteConfig.EndpointWriterOptions = new EndpointWriterOptions
@@ -61,7 +61,7 @@ namespace Proto.Remote.Tests
                     RetryBackOffms = 10,
                     RetryTimeSpan = TimeSpan.FromSeconds(120)
                 };
-                
+
                 remote.RemoteKindRegistry.RegisterKnownKind("EchoActor", props);
             });
             distantRemote.Start().GetAwaiter().GetResult();
@@ -88,13 +88,15 @@ namespace Proto.Remote.Tests
         {
             if (remoteStarted) return (localRemote, system);
 
-            var config =
-            localRemote.Start();
+            localRemote.Start().GetAwaiter().GetResult();
             remoteStarted = true;
 
             return (localRemote, system);
-
-
+        }
+        public static void Stop()
+        {
+            localRemote.Stop().GetAwaiter().GetResult();
+            distantRemote.Stop().GetAwaiter().GetResult();
         }
         static string GetLocalIp()
         {

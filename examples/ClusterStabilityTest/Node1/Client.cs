@@ -25,17 +25,17 @@ namespace TestApp
             logger.LogInformation("Test");
             const string clusterName = "test";
 
-             var system = new ActorSystem()
-                .AddRemotingOverAspNet("127.0.0.1", 0, remote =>
-                {
-                    remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-                })
-                .AddClustering(clusterName, new ConsulProvider(new ConsulProviderOptions { DeregisterCritical = TimeSpan.FromSeconds(2) }), cluster =>
-                {
-                    var grains = new Grains(cluster);
-                });
+            var system = new ActorSystem();
+            system.AddRemoteOverGrpc("127.0.0.1", 0, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+            });
+            system.AddClustering(clusterName, new ConsulProvider(new ConsulProviderOptions { DeregisterCritical = TimeSpan.FromSeconds(2) }), cluster =>
+            {
+                var grains = cluster.AddGrains();
+            });
 
-           await system.StartCluster();
+            await system.StartCluster();
 
             system.EventStream.Subscribe<ClusterTopologyEvent>(e => logger.LogInformation("Topology changed {@Event}", e));
             system.EventStream.Subscribe<MemberStatusEvent>(e => logger.LogInformation("Member status {@Event}", e));

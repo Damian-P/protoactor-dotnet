@@ -40,7 +40,7 @@ namespace Node2
     {
         private static async Task Main(string[] args)
         {
-            Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Warning)));
+            Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
             var system = new ActorSystem();
             var context = new RootContext(system);
             var Remote = new SelfHostedRemoteServerOverAspNet(system, "127.0.0.1", 12000, remote =>

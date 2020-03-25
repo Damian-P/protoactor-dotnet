@@ -10,35 +10,38 @@ using Grpc.Core;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Proto.Remote.AspNetCore;
 
 namespace Proto.Remote
 {
     public static class Extensions
     {
-        public static ActorSystem AddRemotingOverAspNet(this ActorSystem actorSystem, string hostanme, int port, Action<RemotingConfiguration> configure = null)
+        public static IRemote AddRemoteOverAspNet(this ActorSystem actorSystem, string hostname, int port,
+            Action<IRemoteConfiguration> configure = null)
         {
-            var remote = new SelfHostedRemoteServerOverAspNet(actorSystem, hostanme, port, configure);
-            return actorSystem;
+            return new SelfHostedRemoteServerOverAspNet(actorSystem, hostname, port, configure); ;
         }
 
-        public static IServiceCollection AddRemote(this IServiceCollection services, Action<RemotingConfiguration> configure)
+        public static IServiceCollection AddRemote(this IServiceCollection services,
+            Action<IRemoteConfiguration> configure)
         {
             services.AddHostedService<HostedRemoteService>();
-            services.AddSingleton<RemotingConfiguration>(sp =>
+            services.AddSingleton<IRemote, HostedRemote>(sp =>
             {
-                var remotingConfiguration = new RemotingConfiguration();
-                configure?.Invoke(remotingConfiguration);
-                if (remotingConfiguration.RemoteConfig.ServerCredentials == ServerCredentials.Insecure)
-                    AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-                return remotingConfiguration;
+                var actorSystem = sp.GetRequiredService<ActorSystem>();
+                var logger = sp.GetRequiredService<ILogger<HostedRemote>>();
+                var channelProvider = sp.GetRequiredService<IChannelProvider>();
+
+                var remote = new HostedRemote(actorSystem, logger, channelProvider);
+                configure.Invoke(remote);
+                return remote;
             });
-            services.AddSingleton<IRemote, HostedRemote>();
-            services.AddSingleton<EndpointManager>();
+            services.AddSingleton<EndpointManager>(sp => (sp.GetRequiredService<IRemote>() as HostedRemote).EndpointManager);
             services.AddSingleton<IChannelProvider, ChannelProvider>();
-            services.AddSingleton<Serialization>(sp => sp.GetRequiredService<RemotingConfiguration>().Serialization);
-            services.AddSingleton<RemoteKindRegistry>(sp => sp.GetRequiredService<RemotingConfiguration>().RemoteKindRegistry);
-            services.AddSingleton<RemoteConfig>(sp => sp.GetRequiredService<RemotingConfiguration>().RemoteConfig);
+            services.AddSingleton<Serialization>(sp => sp.GetRequiredService<IRemote>().Serialization);
+            services.AddSingleton<RemoteKindRegistry>(sp => sp.GetRequiredService<IRemote>().RemoteKindRegistry);
+            services.AddSingleton<RemoteConfig>(sp => sp.GetRequiredService<IRemote>().RemoteConfig);
             services.AddSingleton<Remoting.RemotingBase, EndpointReader>();
             return services;
         }

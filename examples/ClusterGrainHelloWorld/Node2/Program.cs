@@ -30,15 +30,15 @@ namespace Node2
         static async Task Main(string[] args)
         {
             var system = new ActorSystem();
-            system.AddRemotingOverGrpc("node2", 12000, remote =>
+            system.AddRemoteOverGrpc("node2", 12000, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             });
-            var cluster = new Cluster(system, "MyCluster", new ConsulProvider(new ConsulProviderOptions(), c => c.Address = new Uri("http://consul:8500/")));
-            var grains = new Grains(cluster);
-
-
-            grains.HelloGrainFactory(() => new HelloGrain());
+            var cluster = system.AddClustering("MyCluster", new ConsulProvider(new ConsulProviderOptions(), c => c.Address = new Uri("http://consul:8500/")), cluster =>
+            {
+                var grains = cluster.AddGrains();
+                grains.HelloGrainFactory(() => new HelloGrain());
+            });
 
             await cluster.Start();
 

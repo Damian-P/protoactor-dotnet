@@ -17,33 +17,35 @@ namespace Proto.Remote
     {
         private Server _server;
 
-        public SelfHostedRemoteServerOverGrpc(ActorSystem system, string hostname, int port, Action<RemotingConfiguration> configure = null)
-        : base(system, new ChannelProvider(), hostname, port, configure)
+        public SelfHostedRemoteServerOverGrpc(ActorSystem system, string hostname, int port,
+            Action<IRemoteConfiguration> configure = null)
+            : base(system, new ChannelProvider(), hostname, port, configure)
         {
         }
 
         public override async Task Start()
         {
             await base.Start();
-            var endpointReader = new EndpointReader(_system, _endpointManager, _remote.Serialization);
+            var endpointReader = new EndpointReader(_system, EndpointManager, Serialization);
             _server = new Server
             {
                 Services = { Remoting.BindService(endpointReader) },
-                Ports = { new ServerPort(_hostname, _port, _remote.RemoteConfig.ServerCredentials) }
+                Ports = { new ServerPort(_hostname, _port, RemoteConfig.ServerCredentials) }
             };
 
             _server.Start();
 
             var boundPort = _server.Ports.Single().BoundPort;
 
-            _system.ProcessRegistry.SetAddress(_remote.RemoteConfig.AdvertisedHostname
-                                               ?? _hostname, _remote.RemoteConfig.AdvertisedPort ?? boundPort
+            _system.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname
+                                               ?? _hostname, RemoteConfig.AdvertisedPort ?? boundPort
             );
 
             Logger.LogDebug("Starting Proto.Actor server on {Host}:{Port} ({Address})", _hostname, boundPort,
                 _system.ProcessRegistry.Address
             );
         }
+
         public override async Task Stop(bool graceful = true)
         {
             try

@@ -16,7 +16,7 @@ class Program
     static async Task Main(string[] args)
     {
         var system = new ActorSystem();
-        system.AddRemotingOverGrpc("127.0.0.1", 12001, remote =>
+        system.AddRemoteOverGrpc("127.0.0.1", 12001, remote =>
         {
             remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         });

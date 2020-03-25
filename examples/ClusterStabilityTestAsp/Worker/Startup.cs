@@ -13,6 +13,7 @@ using Proto.Cluster;
 using Proto.Cluster.Consul;
 using Messages;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace Worker
 {
@@ -22,6 +23,12 @@ namespace Worker
     }
     public class Startup
     {
+        private readonly IConfiguration configuration;
+
+        public Startup(IConfiguration configuration)
+        {
+            this.configuration = configuration;
+        }
         // This method gets called by the runtime. Use this method to add services to the container.
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
@@ -33,7 +40,7 @@ namespace Worker
             services.AddProtoActor();
             services.AddRemote(remote =>
             {
-                remote.RemoteConfig.AdvertisedHostname = Environment.MachineName;
+                remote.RemoteConfig.AdvertisedHostname = configuration.GetValue<string>("Proto_Hostname", Environment.MachineName);
                 remote.RemoteConfig.AdvertisedPort = 80;
                 remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
             });

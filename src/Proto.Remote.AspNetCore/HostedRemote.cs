@@ -6,29 +6,33 @@
 
 using System;
 using System.Threading.Tasks;
+using Grpc.Core;
 using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class HostedRemote : IRemote
+    public class HostedRemote : IRemote, IRemoteInternals
     {
         private readonly ILogger Logger;
         public bool IsStarted { get; private set; }
         private PID _activatorPid;
         private readonly ActorSystem _actorSystem;
-        private readonly EndpointManager _endpointManager;
-        public RemotingConfiguration RemotingConfiguration { get; }
-        public HostedRemote(ActorSystem actorSystem, EndpointManager endpointManager, RemotingConfiguration remotingConfiguration, ILogger<HostedRemote> logger)
-        {
-            actorSystem.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(actorSystem, endpointManager, pid));
-            actorSystem.Plugins.AddPlugin(this);
-            actorSystem.ProcessRegistry.SetAddress(remotingConfiguration.RemoteConfig.AdvertisedHostname, remotingConfiguration.RemoteConfig.AdvertisedPort.Value);
+        public EndpointManager EndpointManager { get; }
 
+        public RemoteConfig RemoteConfig { get; } = new RemoteConfig();
+
+        public RemoteKindRegistry RemoteKindRegistry { get; } = new RemoteKindRegistry();
+
+        public Serialization Serialization { get; } = new Serialization();
+
+        public HostedRemote(ActorSystem actorSystem, ILogger<HostedRemote> logger, IChannelProvider channelProvider)
+        {
+            actorSystem.Plugins.AddPlugin<IRemote>(this);
             _actorSystem = actorSystem;
-            _endpointManager = endpointManager;
-            RemotingConfiguration = remotingConfiguration;
+            EndpointManager = new EndpointManager(actorSystem, RemoteConfig, Serialization, channelProvider);
             Logger = logger;
         }
+
         public Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout) =>
             SpawnNamedAsync(address, "", kind, timeout);
 
@@ -49,7 +53,7 @@ namespace Proto.Remote
 
         private void SpawnActivator()
         {
-            var props = Props.FromProducer(() => new Activator(RemotingConfiguration.RemoteKindRegistry, _actorSystem))
+            var props = Props.FromProducer(() => new Activator(RemoteKindRegistry, _actorSystem))
                 .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
             _activatorPid = _actorSystem.Root.SpawnNamed(props, "activator");
         }
@@ -61,18 +65,39 @@ namespace Proto.Remote
         public Task Start()
         {
             if (IsStarted) return Task.CompletedTask;
-            Logger.LogInformation("Starting Proto.Actor");
+            if (RemoteConfig.ServerCredentials == ServerCredentials.Insecure)
+                AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+            Logger.LogInformation("Starting Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
+            );
+            _actorSystem.ProcessRegistry.RegisterHostResolver(
+                pid => new RemoteProcess(_actorSystem, EndpointManager, pid)
+            );
+            _actorSystem.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname,
+                RemoteConfig.AdvertisedPort.Value
+            );
             IsStarted = true;
-            _endpointManager.Start();
+            EndpointManager.Start();
             SpawnActivator();
             return Task.CompletedTask;
         }
 
-        public Task Stop(bool graceful = true)
+        public async Task Stop(bool graceful = true)
         {
-            return Task.CompletedTask;
+            if (!IsStarted) return;
+            IsStarted = false;
+            Logger.LogInformation("Stopping Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
+            );
+            if (graceful)
+            {
+                await EndpointManager.StopAsync();
+                StopActivator();
+            }
+
+            Logger.LogInformation("Stopped Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
+            );
         }
+
         public void SendMessage(PID pid, object msg, int serializerId)
-            => _endpointManager.SendMessage(pid, msg, serializerId);
+            => EndpointManager.SendMessage(pid, msg, serializerId);
     }
 }

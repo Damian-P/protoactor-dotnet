@@ -15,16 +15,16 @@ namespace Proto.Remote.AspNetCore
     {
         private readonly ILogger _logger;
         private readonly IHostApplicationLifetime _appLifetime;
-        private readonly EndpointManager _endpointManager;
+        private readonly IRemote _remote;
 
         public SelfHostedRemoteService(
             ILogger<SelfHostedRemoteService> logger,
             IHostApplicationLifetime appLifetime,
-            EndpointManager endpointManager)
+            IRemote remote)
         {
             _logger = logger;
             _appLifetime = appLifetime;
-            _endpointManager = endpointManager;
+            _remote = remote;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -40,8 +40,7 @@ namespace Proto.Remote.AspNetCore
 
         private void OnStopping()
         {
-            _endpointManager.StopAsync().GetAwaiter().GetResult();
-            System.Diagnostics.Process.GetCurrentProcess().Kill();
+            _remote.Stop(false).GetAwaiter().GetResult();
         }
     }
 }

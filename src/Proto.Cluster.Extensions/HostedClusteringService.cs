@@ -29,16 +29,13 @@ namespace Proto.Cluster
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _logger.LogInformation("StartAsync");
             _appLifetime.ApplicationStopping.Register(OnStopping);
-            _appLifetime.ApplicationStopped.Register(OnStopped);
             _appLifetime.ApplicationStarted.Register(OnStarted);
             return Task.CompletedTask;
         }
 
         private void OnStarted()
         {
-            _logger.LogInformation("OnStarted has been called.");
             _cluster.Start().GetAwaiter().GetResult();
         }
 
@@ -50,11 +47,6 @@ namespace Proto.Cluster
         private void OnStopping()
         {
             _cluster.Shutdown().GetAwaiter().GetResult();
-        }
-
-        private void OnStopped()
-        {
-            _logger.LogInformation("OnStopped has been called.");
         }
     }
 }

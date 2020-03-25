@@ -46,7 +46,7 @@ namespace {{CsNamespace}}
         public void {{Name}}Factory(Func<I{{Name}}> factory) 
         {
             _{{Name}}Factory = factory;
-            Cluster.Remote.RemotingConfiguration.RemoteKindRegistry.RegisterKnownKind(""{{Name}}"", Props.FromProducer(() => new {{Name}}Actor(this)));
+            Cluster.Remote.RemoteKindRegistry.RegisterKnownKind(""{{Name}}"", Props.FromProducer(() => new {{Name}}Actor(this)));
         } 
 
         public {{Name}}Client {{Name}}(string id) => new {{Name}}Client(Cluster, id);

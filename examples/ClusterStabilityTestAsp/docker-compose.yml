@@ -1,12 +1,34 @@
 version: "3.7"
 
 services:
-  worker:
+  alpha:
     build: ./Worker
+    environment:
+      - Proto_Hostname=alpha
+  beta:
+    build: ./Worker
+    environment:
+      - Proto_Hostname=beta
+  gamma:
+    build: ./Worker
+    environment:
+      - Proto_Hostname=gamma
+  delta:
+    build: ./Worker
+    environment:
+      - Proto_Hostname=delta
+  epsilon:
+    build: ./Worker
+    environment:
+      - Proto_Hostname=epsilon
   client:
     build: ./Client
     depends_on:
-      - worker
+      - alpha
+      - beta
+      - gamma
+      - delta
+      - epsilon
   seq:
     logging:
       driver: none

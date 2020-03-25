@@ -116,8 +116,6 @@ namespace Proto.Remote
 
             var res = await _client.ConnectAsync(new ConnectRequest());
             _serializerId = res.DefaultSerializerId;
-
-
             _stream = _client.Receive(_remoteConfig.CallOptions);
             _streamWriter = _stream.RequestStream;
 
@@ -133,7 +131,7 @@ namespace Proto.Remote
                                 if (!i.Alive)
                                 {
                                     Logger.LogInformation("Lost connection to address {Address}", _address);
-                                    await _stream.RequestStream.CompleteAsync();
+                                    // await _stream.RequestStream.CompleteAsync();
                                     NotifyEndpointTermination();
                                 }
                             }

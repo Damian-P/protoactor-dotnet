@@ -23,26 +23,26 @@ namespace Proto.Remote
 {
     public abstract class Remote : IRemote
     {
-        protected static readonly ILogger Logger = Log.CreateLogger(typeof(RemotingConfiguration).FullName);
-        protected readonly RemotingConfiguration _remote;
-        public RemotingConfiguration RemotingConfiguration { get { return _remote; } }
-
-        public bool IsStarted { get; private set; }
-
+        protected static readonly ILogger Logger = Log.CreateLogger<Remote>();
         protected readonly ActorSystem _system;
         protected readonly string _hostname;
         protected readonly int _port;
+        public EndpointManager EndpointManager { get; }
 
-        protected readonly EndpointManager _endpointManager;
+        public bool IsStarted { get; private set; }
 
-        public Remote(ActorSystem system, IChannelProvider channelProvider, string hostname, int port, Action<RemotingConfiguration> configure = null)
+        public RemoteConfig RemoteConfig { get; } = new RemoteConfig();
+
+        public RemoteKindRegistry RemoteKindRegistry { get; } = new RemoteKindRegistry();
+
+        public Serialization Serialization { get; } = new Serialization();
+        public Remote(ActorSystem system, IChannelProvider channelProvider, string hostname, int port, Action<IRemoteConfiguration> configure = null)
         {
             _system = system;
-            _system.Plugins.AddPlugin(this);
-            _remote = new RemotingConfiguration();
-            configure?.Invoke(_remote);
-            _endpointManager = new EndpointManager(system, _remote.RemoteConfig, _remote.Serialization, channelProvider);
-            system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(system, _endpointManager, pid));
+            _system.Plugins.AddPlugin<IRemote>(this);
+            configure?.Invoke(this);
+            EndpointManager = new EndpointManager(system, RemoteConfig, Serialization, channelProvider);
+            system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(system, EndpointManager, pid));
             _hostname = hostname;
             _port = port;
         }
@@ -67,7 +67,7 @@ namespace Proto.Remote
         private PID _activatorPid;
         private void SpawnActivator()
         {
-            var props = Props.FromProducer(() => new Activator(_remote.RemoteKindRegistry, _system))
+            var props = Props.FromProducer(() => new Activator(RemoteKindRegistry, _system))
                 .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
             _activatorPid = _system.Root.SpawnNamed(props, "activator");
         }
@@ -80,7 +80,7 @@ namespace Proto.Remote
         {
             if (IsStarted) return Task.CompletedTask;
             IsStarted = true;
-            _endpointManager.Start();
+            EndpointManager.Start();
             SpawnActivator();
             return Task.CompletedTask;
         }
@@ -89,11 +89,11 @@ namespace Proto.Remote
         {
             if (graceful)
             {
-                await _endpointManager.StopAsync();
+                await EndpointManager.StopAsync();
                 StopActivator();
             }
         }
         public void SendMessage(PID pid, object msg, int serializerId)
-            => _endpointManager.SendMessage(pid, msg, serializerId);
+            => EndpointManager.SendMessage(pid, msg, serializerId);
     }
 }

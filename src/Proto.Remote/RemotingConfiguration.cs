@@ -1,5 +1,5 @@
 ﻿// -----------------------------------------------------------------------
-//   <copyright file="Remote.cs" company="Asynkron HB">
+//   <copyright file="RemoteConfiguration.cs" company="Asynkron HB">
 //       Copyright (C) 2015-2018 Asynkron HB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
@@ -17,8 +17,13 @@
 
 namespace Proto.Remote
 {
-
-    public class RemotingConfiguration
+    public interface IRemoteConfiguration
+    {
+        RemoteConfig RemoteConfig { get; }
+        RemoteKindRegistry RemoteKindRegistry { get; }
+        Serialization Serialization { get; }
+    }
+    public class RemoteConfiguration
     {
         public RemoteConfig RemoteConfig { get; } = new RemoteConfig();
         public RemoteKindRegistry RemoteKindRegistry { get; } = new RemoteKindRegistry();

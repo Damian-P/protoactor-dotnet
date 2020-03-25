@@ -36,7 +36,7 @@ namespace Node2
             });
 
             var system = new ActorSystem();
-            system.AddRemotingOverGrpc("127.0.0.1", 12000, remote =>
+            system.AddRemoteOverGrpc("127.0.0.1", 12000, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("hello", props);
