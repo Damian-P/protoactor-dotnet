@@ -18,7 +18,6 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
         var system = new ActorSystem();
         var context = new RootContext(system);
 

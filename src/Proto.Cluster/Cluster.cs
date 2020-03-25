@@ -17,20 +17,15 @@ namespace Proto.Cluster
         private static readonly ILogger Logger = Log.CreateLogger(typeof(Cluster).FullName);
 
         internal ClusterConfig Config;
-        public ActorSystem System
-        {
-            get;
-        }
+        public ActorSystem System { get; }
 
-        public IRemote Remote
-        {
-            get;
-        }
+        public IRemote Remote { get; }
+
         public Cluster(ActorSystem system, string clusterName, IClusterProvider cp)
-        : this(system, new ClusterConfig(clusterName, cp))
+            : this(system, new ClusterConfig(clusterName, cp))
         {
-
         }
+
         public Cluster(ActorSystem system, ClusterConfig clusterConfig)
         {
             System = system;
@@ -42,6 +37,7 @@ namespace Proto.Cluster
             PidCache = new PidCache(this);
             Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         }
+
         internal Partition Partition { get; }
         internal MemberList MemberList { get; }
         internal PidCache PidCache { get; }
@@ -58,7 +54,8 @@ namespace Proto.Cluster
 
             var (host, port) = System.ProcessRegistry.GetAddress();
 
-            await Config.ClusterProvider.RegisterMemberAsync(this, Config.Name, host, port, kinds, Config.InitialMemberStatusValue, Config.MemberStatusValueSerializer
+            await Config.ClusterProvider.RegisterMemberAsync(this, Config.Name, host, port, kinds,
+                Config.InitialMemberStatusValue, Config.MemberStatusValueSerializer
             );
             Config.ClusterProvider.MonitorMemberStatusChanges(this);
 
@@ -67,7 +64,9 @@ namespace Proto.Cluster
 
         public async Task Shutdown(bool graceful = true)
         {
-            Logger.LogInformation($"Stopping Cluster at {System.ProcessRegistry.GetAddress().Host}:{System.ProcessRegistry.GetAddress().Port}");
+            Logger.LogInformation(
+                $"Stopping Cluster at {System.ProcessRegistry.GetAddress().Host}:{System.ProcessRegistry.GetAddress().Port}"
+            );
             if (graceful)
             {
                 await Config.ClusterProvider.Shutdown(this);
@@ -80,12 +79,15 @@ namespace Proto.Cluster
                 Partition.Stop();
             }
 
-            Remote.Stop(graceful);
+            await Remote.Stop(graceful);
 
-            Logger.LogInformation($"Stopped Cluster at {System.ProcessRegistry.GetAddress().Host}:{System.ProcessRegistry.GetAddress().Port}");
+            Logger.LogInformation(
+                $"Stopped Cluster at {System.ProcessRegistry.GetAddress().Host}:{System.ProcessRegistry.GetAddress().Port}"
+            );
         }
 
-        public Task<(PID, ResponseStatusCode)> GetAsync(string name, string kind) => GetAsync(name, kind, CancellationToken.None);
+        public Task<(PID, ResponseStatusCode)> GetAsync(string name, string kind) =>
+            GetAsync(name, kind, CancellationToken.None);
 
         public async Task<(PID, ResponseStatusCode)> GetAsync(string name, string kind, CancellationToken ct)
         {
@@ -115,7 +117,7 @@ namespace Proto.Cluster
                 var resp = ct == CancellationToken.None
                     ? await System.Root.RequestAsync<ActorPidResponse>(remotePid, req, Config.TimeoutTimespan)
                     : await System.Root.RequestAsync<ActorPidResponse>(remotePid, req, ct);
-                var status = (ResponseStatusCode)resp.StatusCode;
+                var status = (ResponseStatusCode) resp.StatusCode;
 
                 switch (status)
                 {

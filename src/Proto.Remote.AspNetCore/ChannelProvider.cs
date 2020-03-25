@@ -12,8 +12,8 @@ namespace Proto.Remote.AspNetCore
 {
     internal class ChannelProvider : IChannelProvider
     {
-
-        public ChannelBase GetChannel(string address, ChannelCredentials channelCredentials, IEnumerable<ChannelOption> channelOptions)
+        public ChannelBase GetChannel(string address, ChannelCredentials channelCredentials,
+            IEnumerable<ChannelOption> channelOptions)
         {
             var addressWithProtocol =
                 $"{(channelCredentials == ChannelCredentials.Insecure ? "http://" : "https://")}{address}";

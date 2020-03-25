@@ -11,6 +11,7 @@ namespace Proto.Remote
 {
     public interface IChannelProvider
     {
-        ChannelBase GetChannel(string address, ChannelCredentials channelCredentials, IEnumerable<ChannelOption> channelOptions);
+        ChannelBase GetChannel(string address, ChannelCredentials channelCredentials,
+            IEnumerable<ChannelOption> channelOptions);
     }
 }

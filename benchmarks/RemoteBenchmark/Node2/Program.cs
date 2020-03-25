@@ -36,14 +36,10 @@ namespace Node2
         }
     }
 
-    static class Program
+    class Program
     {
-        private static async Task Main(string[] args)
+        static async Task Main(string[] args)
         {
-            Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole()
-                                                            .AddFilter("Proto.EventStream", LogLevel.Warning)
-                                                            .AddFilter("Proto.Remote.EndpointActor", LogLevel.Debug)
-                                                            .SetMinimumLevel(LogLevel.Information)));
             var system = new ActorSystem();
             var context = new RootContext(system);
             var Remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 12000, remote =>

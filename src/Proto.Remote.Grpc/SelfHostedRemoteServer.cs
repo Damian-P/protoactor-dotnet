@@ -29,8 +29,8 @@ namespace Proto.Remote
             var endpointReader = new EndpointReader(_system, EndpointManager, Serialization);
             _server = new Server
             {
-                Services = { Remoting.BindService(endpointReader) },
-                Ports = { new ServerPort(_hostname, _port, RemoteConfig.ServerCredentials) }
+                Services = {Remoting.BindService(endpointReader)},
+                Ports = {new ServerPort(_hostname, _port, RemoteConfig.ServerCredentials)}
             };
 
             _server.Start();

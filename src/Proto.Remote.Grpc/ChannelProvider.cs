@@ -11,7 +11,8 @@ namespace Proto.Remote.Grpc
 {
     internal class ChannelProvider : IChannelProvider
     {
-        public ChannelBase GetChannel(string address, ChannelCredentials channelCredentials, IEnumerable<ChannelOption> channelOptions)
+        public ChannelBase GetChannel(string address, ChannelCredentials channelCredentials,
+            IEnumerable<ChannelOption> channelOptions)
         {
             var channel = new Channel(address, channelCredentials, channelOptions);
             return channel;

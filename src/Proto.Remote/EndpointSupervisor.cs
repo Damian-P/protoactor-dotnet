@@ -66,7 +66,7 @@ namespace Proto.Remote
                 supervisor.StopChildren(child);
                 _system.ProcessRegistry.Remove(child); //TODO: work out why this hangs around in the process registry
 
-                var terminated = new EndpointTerminatedEvent { Address = _address };
+                var terminated = new EndpointTerminatedEvent {Address = _address};
                 _system.EventStream.Publish(terminated);
             }
             else
@@ -114,7 +114,8 @@ namespace Proto.Remote
             return watcher;
         }
 
-        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, IRemote remote, IChannelProvider channelProvider)
+        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, IRemote remote,
+            IChannelProvider channelProvider)
         {
             var writerProps =
                 Props.FromProducer(
@@ -125,9 +126,14 @@ namespace Proto.Remote
                             channelProvider,
                             remote.RemoteConfig.ChannelOptions,
                             remote.RemoteConfig.CallOptions,
-                            remote.RemoteConfig.ChannelCredentials)
+                            remote.RemoteConfig.ChannelCredentials
+                        )
                     )
-                    .WithMailbox(() => new EndpointWriterMailbox(system, remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize));
+                    .WithMailbox(() =>
+                        new EndpointWriterMailbox(system,
+                            remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize
+                        )
+                    );
             var writer = context.Spawn(writerProps);
             return writer;
         }

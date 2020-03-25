@@ -36,7 +36,9 @@ namespace Proto.Remote
         public RemoteKindRegistry RemoteKindRegistry { get; } = new RemoteKindRegistry();
 
         public Serialization Serialization { get; } = new Serialization();
-        public Remote(ActorSystem system, IChannelProvider channelProvider, string hostname, int port, Action<IRemoteConfiguration> configure = null)
+
+        public Remote(ActorSystem system, IChannelProvider channelProvider, string hostname, int port,
+            Action<IRemoteConfiguration> configure = null)
         {
             _system = system;
             _system.Plugins.AddPlugin<IRemote>(this);
@@ -64,7 +66,9 @@ namespace Proto.Remote
 
             return res;
         }
+
         private PID _activatorPid;
+
         private void SpawnActivator()
         {
             var props = Props.FromProducer(() => new Activator(RemoteKindRegistry, _system))
@@ -91,8 +95,10 @@ namespace Proto.Remote
                 EndpointManager.Stop();
                 StopActivator();
             }
+
             return Task.CompletedTask;
         }
+
         public void SendMessage(PID pid, object msg, int serializerId)
         {
             var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);

@@ -45,8 +45,6 @@ namespace Node2
             Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole()
                                                             .AddFilter("Microsoft", LogLevel.Critical)
                                                             .AddFilter("Grpc.AspNetCore", LogLevel.Critical)
-                                                            .AddFilter("Proto.EventStream", LogLevel.Warning)
-                                                            .AddFilter("Proto.Remote.EndpointActor", LogLevel.Debug)
                                                             .SetMinimumLevel(LogLevel.Information)));
             var system = new ActorSystem();
             var context = new RootContext(system);

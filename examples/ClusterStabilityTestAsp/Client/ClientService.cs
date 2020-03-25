@@ -39,40 +39,48 @@ namespace Client
         private void OnStarted()
         {
             _ = Task.Run(async () =>
-            {
-
-                _actorSystem.EventStream.Subscribe<ClusterTopologyEvent>(e => _logger.LogInformation("Topology changed {@Event}", e));
-                _actorSystem.EventStream.Subscribe<MemberStatusEvent>(e => _logger.LogInformation("Member status {@Event}", e));
-
-                var options = new GrainCallOptions
                 {
-                    RetryCount = 10,
-                    RetryAction = i =>
-                    {
-                        _logger.LogCritical("!");
-                        return Task.Delay(50);
-                    }
-                };
+                    _actorSystem.EventStream.Subscribe<ClusterTopologyEvent>(e =>
+                        _logger.LogInformation("Topology changed {@Event}", e)
+                    );
+                    _actorSystem.EventStream.Subscribe<MemberStatusEvent>(e =>
+                        _logger.LogInformation("Member status {@Event}", e)
+                    );
 
-                await Task.Delay(2000);
-                _logger.LogCritical("Starting to send !");
-
-                var policy = Policy.Handle<TaskCanceledException>().RetryForeverAsync();
-                var n = 1_000_000;
-                var tasks = new List<Task>();
-                for (var i = 0; i < n; i++)
-                {
-                    var client = _grains.HelloGrain("name" + i % 200);
-                    tasks.Add(policy.ExecuteAsync(() => client.SayHello(new HelloRequest(), CancellationToken.None, options)));
-                    if (tasks.Count % 1000 == 0)
+                    var options = new GrainCallOptions
                     {
-                        Task.WaitAll(tasks.ToArray());
-                        tasks.Clear();
+                        RetryCount = 10,
+                        RetryAction = i =>
+                        {
+                            _logger.LogCritical("!");
+                            return Task.Delay(50);
+                        }
+                    };
+
+                    await Task.Delay(2000);
+                    _logger.LogCritical("Starting to send !");
+
+                    var policy = Policy.Handle<TaskCanceledException>().RetryForeverAsync();
+                    var n = 1_000_000;
+                    var tasks = new List<Task>();
+                    for (var i = 0; i < n; i++)
+                    {
+                        var client = _grains.HelloGrain("name" + i % 200);
+                        tasks.Add(policy.ExecuteAsync(() =>
+                                client.SayHello(new HelloRequest(), CancellationToken.None, options)
+                            )
+                        );
+                        if (tasks.Count % 1000 == 0)
+                        {
+                            Task.WaitAll(tasks.ToArray());
+                            tasks.Clear();
+                        }
                     }
-                }
-                Task.WaitAll(tasks.ToArray());
-                _logger.LogCritical("Done!");
-            }, _appLifetime.ApplicationStopping);
+
+                    Task.WaitAll(tasks.ToArray());
+                    _logger.LogCritical("Done!");
+                }, _appLifetime.ApplicationStopping
+            );
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

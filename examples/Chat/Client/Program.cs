@@ -20,10 +20,9 @@ class Program
         var openTracingMiddleware = OpenTracingExtensions.OpenTracingSenderMiddleware(tracer);
 
         var system = new ActorSystem();
-        var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 0, remote =>
-        {
-            remote.Serialization.RegisterFileDescriptor(ChatReflection.Descriptor);
-        });
+        var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 0,
+            remote => { remote.Serialization.RegisterFileDescriptor(ChatReflection.Descriptor); }
+        );
 
 
         remote.Start();
@@ -31,28 +30,31 @@ class Program
         var context = new RootContext(system, default, openTracingMiddleware);
 
         var props = Props.FromFunc(ctx =>
-        {
-            switch (ctx.Message)
-            {
-                case Connected connected:
-                    Console.WriteLine(connected.Message);
-                    break;
-                case SayResponse sayResponse:
-                    Console.WriteLine($"{sayResponse.UserName} {sayResponse.Message}");
-                    break;
-                case NickResponse nickResponse:
-                    Console.WriteLine($"{nickResponse.OldUserName} is now {nickResponse.NewUserName}");
-                    break;
-            }
-            return Actor.Done;
-        })
-        .WithOpenTracing(spanSetup, spanSetup, tracer);
+                {
+                    switch (ctx.Message)
+                    {
+                        case Connected connected:
+                            Console.WriteLine(connected.Message);
+                            break;
+                        case SayResponse sayResponse:
+                            Console.WriteLine($"{sayResponse.UserName} {sayResponse.Message}");
+                            break;
+                        case NickResponse nickResponse:
+                            Console.WriteLine($"{nickResponse.OldUserName} is now {nickResponse.NewUserName}");
+                            break;
+                    }
+
+                    return Actor.Done;
+                }
+            )
+            .WithOpenTracing(spanSetup, spanSetup, tracer);
 
         var client = context.Spawn(props);
         context.Send(server, new Connect
-        {
-            Sender = client
-        });
+            {
+                Sender = client
+            }
+        );
         var nick = "Alex";
         while (true)
         {
@@ -61,23 +63,26 @@ class Program
             {
                 await remote.Stop();
             }
+
             if (text.StartsWith("/nick "))
             {
                 var t = text.Split(' ')[1];
                 context.Send(server, new NickRequest
-                {
-                    OldUserName = nick,
-                    NewUserName = t
-                });
+                    {
+                        OldUserName = nick,
+                        NewUserName = t
+                    }
+                );
                 nick = t;
             }
             else
             {
                 context.Send(server, new SayRequest
-                {
-                    UserName = nick,
-                    Message = text
-                });
+                    {
+                        UserName = nick,
+                        Message = text
+                    }
+                );
             }
         }
     }

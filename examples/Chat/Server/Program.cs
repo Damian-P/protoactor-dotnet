@@ -23,46 +23,51 @@ class Program
         var system = new ActorSystem();
         var context = new RootContext(system);
 
-        var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 8000, remote =>
-        {
-            remote.Serialization.RegisterFileDescriptor(ChatReflection.Descriptor);
-        });
+        var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 8000,
+            remote => { remote.Serialization.RegisterFileDescriptor(ChatReflection.Descriptor); }
+        );
         remote.Start();
 
         var clients = new HashSet<PID>();
         var props = Props.FromFunc(ctx =>
-        {
-            switch (ctx.Message)
-            {
-                case Connect connect:
-                    Console.WriteLine($"Client {connect.Sender} connected");
-                    clients.Add(connect.Sender);
-                    ctx.Send(connect.Sender, new Connected { Message = "Welcome!" });
-                    break;
-                case SayRequest sayRequest:
-                    foreach (var client in clients)
+                {
+                    switch (ctx.Message)
                     {
-                        ctx.Send(client, new SayResponse
-                        {
-                            UserName = sayRequest.UserName,
-                            Message = sayRequest.Message
-                        });
+                        case Connect connect:
+                            Console.WriteLine($"Client {connect.Sender} connected");
+                            clients.Add(connect.Sender);
+                            ctx.Send(connect.Sender, new Connected {Message = "Welcome!"});
+                            break;
+                        case SayRequest sayRequest:
+                            foreach (var client in clients)
+                            {
+                                ctx.Send(client, new SayResponse
+                                    {
+                                        UserName = sayRequest.UserName,
+                                        Message = sayRequest.Message
+                                    }
+                                );
+                            }
+
+                            break;
+                        case NickRequest nickRequest:
+                            foreach (var client in clients)
+                            {
+                                ctx.Send(client, new NickResponse
+                                    {
+                                        OldUserName = nickRequest.OldUserName,
+                                        NewUserName = nickRequest.NewUserName
+                                    }
+                                );
+                            }
+
+                            break;
                     }
-                    break;
-                case NickRequest nickRequest:
-                    foreach (var client in clients)
-                    {
-                        ctx.Send(client, new NickResponse
-                        {
-                            OldUserName = nickRequest.OldUserName,
-                            NewUserName = nickRequest.NewUserName
-                        });
-                    }
-                    break;
-            }
-            return Actor.Done;
-        })
-        .WithOpenTracing(spanSetup, spanSetup);
+
+                    return Actor.Done;
+                }
+            )
+            .WithOpenTracing(spanSetup, spanSetup);
 
         context.SpawnNamed(props, "chatserver");
         Console.ReadLine();

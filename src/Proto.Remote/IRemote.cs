@@ -18,6 +18,7 @@ namespace Proto.Remote
         Task Stop(bool graceful = true);
         void SendMessage(PID pid, object msg, int serializerId);
     }
+
     public interface IRemoteConfiguration
     {
         RemoteConfig RemoteConfig { get; }

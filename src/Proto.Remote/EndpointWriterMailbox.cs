@@ -61,7 +61,9 @@ namespace Proto.Remote
             _dispatcher = dispatcher;
         }
 
-        public void Start() { }
+        public void Start()
+        {
+        }
 
         private async Task RunAsync()
         {
@@ -115,13 +117,14 @@ namespace Proto.Remote
                     {
                         Logger.LogDebug("[EndpointWriterMailbox] Processing User Message {@Message}", msg);
 
-                        if (msg is EndpointTerminatedEvent) //The mailbox was crashing when it received this particular message 
+                        if (msg is EndpointTerminatedEvent
+                        ) //The mailbox was crashing when it received this particular message 
                         {
                             await _invoker.InvokeUserMessageAsync(msg);
                             continue;
                         }
 
-                        batch.Add((RemoteDeliver)msg);
+                        batch.Add((RemoteDeliver) msg);
 
                         if (batch.Count >= _batchSize)
                         {

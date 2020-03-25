@@ -12,7 +12,6 @@ using System.Threading.Tasks;
 
 namespace Proto.Remote
 {
-
     public class Endpoint
     {
         public Endpoint(PID writer, PID watcher)
@@ -28,8 +27,15 @@ namespace Proto.Remote
     public class EndpointManager
     {
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
-        public CancellationToken CancellationToken { get { return _cancellationTokenSource.Token; } }
-        private class ConnectionRegistry : ConcurrentDictionary<string, Lazy<Endpoint>> { }
+
+        public CancellationToken CancellationToken
+        {
+            get { return _cancellationTokenSource.Token; }
+        }
+
+        private class ConnectionRegistry : ConcurrentDictionary<string, Lazy<Endpoint>>
+        {
+        }
 
         private static readonly ILogger Logger = Log.CreateLogger(typeof(EndpointManager).FullName);
 
@@ -71,10 +77,11 @@ namespace Proto.Remote
             foreach (var (address, v) in Connections)
             {
                 var endpoint = v.Value;
-                var msg = new EndpointTerminatedEvent { Address = address };
+                var msg = new EndpointTerminatedEvent {Address = address};
                 _system.Root.Send(endpoint.Watcher, msg);
                 _system.Root.Send(endpoint.Writer, msg);
             }
+
             Connections.Clear();
             _system.Root.Stop(endpointSupervisor);
             Logger.LogDebug("Stopped EndpointManager");

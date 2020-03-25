@@ -27,6 +27,7 @@ namespace Proto.Remote
         public string[] GetKnownKinds() => _kinds.Keys.ToArray();
         public void RegisterKnownKind(string kind, Props props) => _kinds.Add(kind, props);
         public void UnregisterKnownKind(string kind) => _kinds.Remove(kind);
+
         public Props GetKnownKind(string kind)
         {
             if (_kinds.TryGetValue(kind, out var props))

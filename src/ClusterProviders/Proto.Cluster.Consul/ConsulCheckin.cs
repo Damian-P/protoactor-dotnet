@@ -31,14 +31,8 @@ namespace Proto.Cluster.Consul
             {
                 Started _   => Start(),
                 UpdateTtl _ => ReportAliveToConsul(),
-                _           => Log()
+                _           => Actor.Done
             };
-
-            Task Log()
-            {
-                Logger.LogDebug("{message} at {address}", context.Message, context.Self);
-                return Actor.Done;
-            }
 
             Task Start()
             {
@@ -49,7 +43,7 @@ namespace Proto.Cluster.Consul
             async Task ReportAliveToConsul()
             {
                 Logger.LogTrace("[ConsulProvider] Confirming alive for {Service}", _id);
-                
+
                 try
                 {
                     await _client.Agent.PassTTL("service:" + _id, "", _cancellationToken);

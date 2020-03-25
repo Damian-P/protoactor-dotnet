@@ -23,7 +23,7 @@ namespace Proto.Cluster
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             ClusterProvider = cp ?? throw new ArgumentNullException(nameof(cp));
-            
+
             RemoteConfig = new RemoteConfig();
             TimeoutTimespan = TimeSpan.FromSeconds(5);
             MemberStatusValueSerializer = new NullMemberStatusValueSerializer();

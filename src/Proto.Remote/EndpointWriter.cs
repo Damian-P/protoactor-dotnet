@@ -19,7 +19,7 @@ namespace Proto.Remote
 
         private int _serializerId;
         private readonly string _address;
-        private readonly IChannelProvider channelProvider;
+        private readonly IChannelProvider _channelProvider;
         private readonly CallOptions _callOptions;
         private readonly ChannelCredentials _channelCredentials;
         private readonly IEnumerable<ChannelOption> _channelOptions;
@@ -44,7 +44,7 @@ namespace Proto.Remote
             _system = system;
             _serialization = serialization;
             _address = address;
-            this.channelProvider = channelProvider;
+            _channelProvider = channelProvider;
             _channelOptions = channelOptions;
             _callOptions = callOptions;
             _channelCredentials = channelCredentials;
@@ -58,7 +58,8 @@ namespace Proto.Remote
                     Logger.LogDebug("Starting Endpoint Writer");
                     return StartedAsync();
                 case Stopped _:
-                    return StoppedAsync().ContinueWith(_ => Logger.LogDebug("Stopped EndpointWriter at {Address}", _address));
+                    return StoppedAsync()
+                        .ContinueWith(_ => Logger.LogDebug("Stopped EndpointWriter at {Address}", _address));
                 case Restarting _:
                     return RestartingAsync();
                 case EndpointTerminatedEvent _:
@@ -177,7 +178,7 @@ namespace Proto.Remote
         private async Task StartedAsync()
         {
             Logger.LogDebug("Connecting to address {Address}", _address);
-            _channel = channelProvider.GetChannel(_address, _channelCredentials, _channelOptions);
+            _channel = _channelProvider.GetChannel(_address, _channelCredentials, _channelOptions);
             _channel = new Channel(_address, _channelCredentials, _channelOptions);
             _client = new Remoting.RemotingClient(_channel);
 
@@ -196,23 +197,25 @@ namespace Proto.Remote
                     try
                     {
                         await _stream.ResponseStream.ForEachAsync(unit =>
-                       {
-                           if (!unit.Alive)
-                           {
-                               Logger.LogInformation("Lost connection to address {Address}", _address);
-                               var terminated = new EndpointTerminatedEvent
-                               {
-                                   Address = _address
-                               };
-                               _system.EventStream.Publish(terminated);
-                           }
-                           return Actor.Done;
-                       }
-                       ).ConfigureAwait(false);
+                            {
+                                if (!unit.Alive)
+                                {
+                                    Logger.LogInformation("Lost connection to address {Address}", _address);
+                                    var terminated = new EndpointTerminatedEvent
+                                    {
+                                        Address = _address
+                                    };
+                                    _system.EventStream.Publish(terminated);
+                                }
+
+                                return Actor.Done;
+                            }
+                        ).ConfigureAwait(false);
                     }
                     catch (Exception x)
                     {
-                        Logger.LogError(x, "Lost connection to address {Address}, reason {Message}", _address, x.Message);
+                        Logger.LogError(x, "Lost connection to address {Address}, reason {Message}", _address, x.Message
+                        );
 
                         var terminated = new EndpointTerminatedEvent
                         {
@@ -237,6 +240,8 @@ namespace Proto.Remote
 
     class EndpointWriterException : Exception
     {
-        public EndpointWriterException(string message) : base(message) { }
+        public EndpointWriterException(string message) : base(message)
+        {
+        }
     }
 }
