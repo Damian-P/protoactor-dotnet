@@ -1,5 +1,5 @@
 ﻿// -----------------------------------------------------------------------
-//   <copyright file="HostedRemoteService.cs" company="Asynkron HB">
+//   <copyright file="RemoteHostedService.cs" company="Asynkron HB">
 //       Copyright (C) 2015-2020 Asynkron HB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
@@ -11,14 +11,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    internal class HostedRemoteService : IHostedService
+    internal class RemoteHostedService : IHostedService
     {
         private readonly ILogger _logger;
         private readonly IHostApplicationLifetime _appLifetime;
         private readonly IRemote _remote;
 
-        public HostedRemoteService(
-            ILogger<HostedRemoteService> logger,
+        public RemoteHostedService(
+            ILogger<RemoteHostedService> logger,
             IHostApplicationLifetime appLifetime,
             IRemote remote)
         {

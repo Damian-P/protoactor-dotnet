@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------
-//   <copyright file="Cluster.cs" company="Asynkron HB">
+//   <copyright file="ClusterHostedService.cs" company="Asynkron HB">
 //       Copyright (C) 2015-2018 Asynkron HB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
@@ -11,14 +11,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Proto.Cluster
 {
-    public class HostedClusteringService : IHostedService
+    public class ClusterHostedService : IHostedService
     {
         private readonly ILogger _logger;
         private readonly IHostApplicationLifetime _appLifetime;
         private readonly Cluster _cluster;
 
-        public HostedClusteringService(
-            ILogger<HostedClusteringService> logger,
+        public ClusterHostedService(
+            ILogger<ClusterHostedService> logger,
             IHostApplicationLifetime appLifetime,
             Cluster cluster)
         {

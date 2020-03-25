@@ -20,7 +20,7 @@ namespace Proto.Cluster
             IClusterProvider clusterProvider,
             Action<Cluster> configure = null)
         {
-            services.AddHostedService<HostedClusteringService>();
+            services.AddHostedService<ClusterHostedService>();
 
             var actorSystem = services.AddSingleton<Cluster>(sp =>
             {

@@ -27,7 +27,7 @@ namespace Proto.Remote
         public static IServiceCollection AddRemote(this IServiceCollection services,
             Action<IRemoteConfiguration> configure)
         {
-            services.AddHostedService<HostedRemoteService>();
+            services.AddHostedService<RemoteHostedService>();
             services.AddSingleton<IRemote, HostedRemote>(sp =>
                 {
                     var actorSystem = sp.GetRequiredService<ActorSystem>();
