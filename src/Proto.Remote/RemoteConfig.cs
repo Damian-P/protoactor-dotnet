@@ -12,9 +12,6 @@ namespace Proto.Remote
 {
     public class RemoteConfig
     {
-       
-        
-
         /// <summary>
         /// Gets or sets the ChannelOptions for the gRPC channel.
         /// </summary>
@@ -49,7 +46,7 @@ namespace Proto.Remote
         /// </summary>
         public int? AdvertisedPort { get; set; }
 
-        public EndpointWriterOptions EndpointWriterOptions { get; set;} = new EndpointWriterOptions();
+        public EndpointWriterOptions EndpointWriterOptions { get; set; } = new EndpointWriterOptions();
     }
 
     public class EndpointWriterOptions
@@ -59,12 +56,12 @@ namespace Proto.Remote
         /// The endpoint writer will send up to this number of messages in a batch.
         /// </summary>
         public int EndpointWriterBatchSize { get; set; } = 1000;
-        
+
         /// <summary>
         /// the number of times to retry the connection within the RetryTimeSpan
         /// </summary>
-        public int MaxRetries {get; set; } = 8;
-        
+        public int MaxRetries { get; set; } = 8;
+
         public TimeSpan RetryTimeSpan { get; set; } = TimeSpan.FromMinutes(3);
 
         /// <summary>

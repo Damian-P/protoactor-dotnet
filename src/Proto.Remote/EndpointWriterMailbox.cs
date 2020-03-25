@@ -61,7 +61,9 @@ namespace Proto.Remote
             _dispatcher = dispatcher;
         }
 
-        public void Start() { }
+        public void Start()
+        {
+        }
 
         private async Task RunAsync()
         {
@@ -89,7 +91,17 @@ namespace Proto.Remote
                     };
 
                     m = sys;
-                    await _invoker.InvokeSystemMessageAsync(sys);
+                    switch (m)
+                    {
+                        case EndpointTerminatedEvent _:
+                        case EndpointConnectedEvent _:
+                            await _invoker.InvokeUserMessageAsync(sys);
+                            break;
+                        default:
+                            await _invoker.InvokeSystemMessageAsync(sys);
+                            break;
+                    }
+
 
                     if (sys is Stop)
                     {
@@ -114,14 +126,16 @@ namespace Proto.Remote
                     while ((msg = _userMessages.Pop()) != null)
                     {
                         Logger.LogDebug("[EndpointWriterMailbox] Processing User Message {@Message}", msg);
-
-                        if (msg is EndpointTerminatedEvent) //The mailbox was crashing when it received this particular message 
+                        switch (msg)
                         {
-                            await _invoker.InvokeUserMessageAsync(msg);
-                            continue;
+                            case RemoteWatch _:
+                            case RemoteUnwatch _:
+                            case RemoteTerminate _:
+                                await _invoker.InvokeUserMessageAsync(msg);
+                                continue;
                         }
 
-                        batch.Add((RemoteDeliver)msg);
+                        batch.Add((RemoteDeliver) msg);
 
                         if (batch.Count >= _batchSize)
                         {
@@ -139,7 +153,7 @@ namespace Proto.Remote
             }
             catch (Exception x)
             {
-                Logger.LogWarning(x, "[EndpointWriterMailbox] Exception in RunAsync");
+                Logger.LogDebug(x, "[EndpointWriterMailbox] Exception in RunAsync");
                 _suspended = true;
                 _invoker.EscalateFailure(x, m);
             }

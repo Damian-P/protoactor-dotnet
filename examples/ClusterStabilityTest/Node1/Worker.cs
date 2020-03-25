@@ -30,24 +30,24 @@ namespace TestApp
 
             Console.WriteLine("Starting worker");
 
-            var system = new ActorSystem();
-            var serialization = new Serialization();
-            var cluster = new Cluster(system, serialization);
-            var grains = new Grains(cluster);
+            var system = new ActorSystem()
+                .AddRemotingOverAspNet("127.0.0.1", int.Parse(port), remote =>
+                {
+                    remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+                })
+                .AddClustering(clusterName, new ConsulProvider(new ConsulProviderOptions { DeregisterCritical = TimeSpan.FromSeconds(2) }), cluster =>
+                {
+                    var grains = new Grains(cluster);
+                    grains.HelloGrainFactory(() => new HelloGrain());
+                });
 
-            serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            grains.HelloGrainFactory(() => new HelloGrain());
-
-            await cluster.Start(
-                clusterName, "127.0.0.1", int.Parse(port),
-                new ConsulProvider(new ConsulProviderOptions { DeregisterCritical = TimeSpan.FromSeconds(2) })
-            );
+            await system.StartCluster();
 
             Console.WriteLine("Started worked on " + system.ProcessRegistry.Address);
 
             Console.ReadLine();
 
-            await cluster.Shutdown();
+            await system.StopCluster();
         }
     }
 }

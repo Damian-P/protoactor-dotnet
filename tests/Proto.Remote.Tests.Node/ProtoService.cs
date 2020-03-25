@@ -11,7 +11,7 @@ namespace Proto.Remote.Tests.Node
         private readonly ILogger<ProtoService> _logger;
         private readonly int _port;
         private readonly string _host;
-        private Remote _remote;
+        private IRemote _remote;
 
         public ProtoService(IConfiguration configuration, ILogger<ProtoService> logger, ILoggerFactory loggerFactory)
         {
@@ -21,29 +21,30 @@ namespace Proto.Remote.Tests.Node
             _port = configuration.GetValue<int>("port");
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("ProtoService starting on {Host}:{Port}...", _host, _port);
 
             var actorSystem = new ActorSystem();
-            var serialization = new Serialization();
-            serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
-            _remote = new Remote(actorSystem, serialization);
-            _remote.Start(_host, _port);
 
             var props = Props.FromProducer(() => new EchoActor(_host, _port));
-            _remote.RegisterKnownKind("EchoActor", props);
+
+            _remote = new SelfHostedRemoteServerOverGrpc(actorSystem, _host, _port, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
+                remote.RemoteKindRegistry.RegisterKnownKind("EchoActor", props);
+            });
+            await _remote.Start();
+
             actorSystem.Root.SpawnNamed(props, "EchoActorInstance");
 
             _logger.LogInformation("ProtoService started");
-
-            return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("ProtoService stopping...");
-            return _remote.Shutdown();
+            return _remote.Stop();
         }
     }
 }

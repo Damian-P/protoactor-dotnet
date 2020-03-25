@@ -19,7 +19,19 @@ using Proto.Remote;
 
 namespace {{CsNamespace}}
 {
-    public class Grains
+    public static class GrainsExtensions
+    {
+        public static Grains AddGrains(this Cluster cluster)
+        {
+            var grains = new Grains(cluster);
+            cluster.System.Plugins.AddPlugin(grains);
+            return grains;
+        }
+        public static Grains GetGrains(this ActorSystem actorSystem)
+            => actorSystem.Plugins.GetPlugin<Grains>();
+    }
+
+    public class Grains : IProtoPlugin
     {
         public Cluster Cluster { get; }
 
@@ -34,7 +46,7 @@ namespace {{CsNamespace}}
         public void {{Name}}Factory(Func<I{{Name}}> factory) 
         {
             _{{Name}}Factory = factory;
-            Cluster.Remote.RegisterKnownKind(""{{Name}}"", Props.FromProducer(() => new {{Name}}Actor(this)));
+            Cluster.Remote.RemotingConfiguration.RemoteKindRegistry.RegisterKnownKind(""{{Name}}"", Props.FromProducer(() => new {{Name}}Actor(this)));
         } 
 
         public {{Name}}Client {{Name}}(string id) => new {{Name}}Client(Cluster, id);

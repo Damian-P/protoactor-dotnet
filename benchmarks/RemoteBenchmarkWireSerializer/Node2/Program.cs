@@ -37,19 +37,20 @@ namespace Node2
 
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             var system = new ActorSystem();
             var context = new RootContext(system);
-            var serialization = new Serialization();
             //Registering "knownTypes" is not required, but improves performance as those messages
             //do not need to pass any typename manifest
             var wire = new WireSerializer(new[] { typeof(Ping), typeof(Pong), typeof(StartRemote), typeof(Start) });
-            serialization.RegisterSerializer(wire, true);
-            var Remote = new Remote(system, serialization);
-            Remote.Start("127.0.0.1", 12000);
+            var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 12000, remote => {
+                remote.Serialization.RegisterSerializer(wire, true);
+            });
+            await remote.Start();
             context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
+            await remote.Stop();
         }
     }
 }
