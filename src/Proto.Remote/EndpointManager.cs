@@ -64,16 +64,6 @@ namespace Proto.Remote
 
         public void Stop()
         {
-            _system.EventStream.Unsubscribe(endpointTermEvnSub.Id);
-            _system.EventStream.Unsubscribe(endpointConnEvnSub.Id);
-
-            Connections.Clear();
-            _system.Root.Stop(endpointSupervisor);
-            Logger.LogDebug("Stopped EndpointManager");
-        }
-
-        public async Task StopAsync()
-        {
             if (_cancellationTokenSource.IsCancellationRequested) return;
             _cancellationTokenSource.Cancel();
             _system.EventStream.Unsubscribe(endpointTermEvnSub.Id);
@@ -86,7 +76,7 @@ namespace Proto.Remote
                 _system.Root.Send(endpoint.Writer, msg);
             }
             Connections.Clear();
-
+            _system.Root.Stop(endpointSupervisor);
             Logger.LogDebug("Stopped EndpointManager");
         }
 

@@ -59,7 +59,7 @@ namespace Node2
                 remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize = 10000;
             });
 
-            await Remote.Start();
+            Remote.Start();
             system.Root.SpawnNamed(Props.FromProducer(() => new EchoActor()), "ponger");
             Console.ReadLine();
             await Remote.Stop();

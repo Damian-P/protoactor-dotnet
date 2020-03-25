@@ -76,22 +76,22 @@ namespace Proto.Remote
 
         private PID ActivatorForAddress(string address) => new PID(address, "activator");
 
-        public virtual Task Start()
+        public virtual void Start()
         {
-            if (IsStarted) return Task.CompletedTask;
+            if (IsStarted) return;
             IsStarted = true;
             EndpointManager.Start();
             SpawnActivator();
-            return Task.CompletedTask;
         }
 
-        public virtual async Task Stop(bool graceful = true)
+        public virtual Task Stop(bool graceful = true)
         {
             if (graceful)
             {
-                await EndpointManager.StopAsync();
+                EndpointManager.Stop();
                 StopActivator();
             }
+            return Task.CompletedTask;
         }
         public void SendMessage(PID pid, object msg, int serializerId)
         {

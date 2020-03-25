@@ -32,7 +32,7 @@ namespace Proto.Cluster
             });
             return services;
         }
-        
+
         public static Cluster AddClustering(this ActorSystem actorSystem, string clusterName, IClusterProvider clusterProvider, Action<Cluster> configure = null)
         {
             var cluster = new Cluster(actorSystem, clusterName, clusterProvider);
@@ -47,13 +47,11 @@ namespace Proto.Cluster
         }
         public static Task StartCluster(this ActorSystem actorSystem)
         {
-            var cluster = actorSystem.Plugins.GetPlugin<Cluster>();
-            return cluster.Start();
+            return actorSystem.Plugins.GetPlugin<Cluster>().Start();
         }
         public static Task StopCluster(this ActorSystem actorSystem, bool graceful = true)
         {
-            var cluster = actorSystem.Plugins.GetPlugin<Cluster>();
-            return cluster.Shutdown(graceful);
+            return actorSystem.Plugins.GetPlugin<Cluster>().Shutdown(graceful);
         }
         public static Task<(PID, ResponseStatusCode)> GetAsync(this ActorSystem actorSystem, string name, string kind)
         {

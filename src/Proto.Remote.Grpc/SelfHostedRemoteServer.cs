@@ -23,9 +23,9 @@ namespace Proto.Remote
         {
         }
 
-        public override async Task Start()
+        public override void Start()
         {
-            await base.Start();
+            base.Start();
             var endpointReader = new EndpointReader(_system, EndpointManager, Serialization);
             _server = new Server
             {
@@ -52,7 +52,7 @@ namespace Proto.Remote
             {
                 if (graceful)
                 {
-                    await base.Stop();
+                    await base.Stop(graceful);
                     await _server.ShutdownAsync();
                 }
                 else

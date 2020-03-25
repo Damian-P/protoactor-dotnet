@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Net;
-using System.Net.Sockets;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Proto.Remote.Tests.Messages;
@@ -64,7 +62,7 @@ namespace Proto.Remote.Tests
 
                 remote.RemoteKindRegistry.RegisterKnownKind("EchoActor", props);
             });
-            distantRemote.Start().GetAwaiter().GetResult();
+            distantRemote.Start();
             distantSystem.Root.SpawnNamed(props, "EchoActorInstance");
             localRemote = new SelfHostedRemoteServerOverAspNet(system, "localhost", 12001, remote =>
             {
@@ -88,15 +86,15 @@ namespace Proto.Remote.Tests
         {
             if (remoteStarted) return (localRemote, system);
 
-            localRemote.Start().GetAwaiter().GetResult();
+            localRemote.Start();
             remoteStarted = true;
 
             return (localRemote, system);
         }
         public static void Stop()
         {
-            localRemote.Stop().GetAwaiter().GetResult();
-            distantRemote.Stop().GetAwaiter().GetResult();
+            localRemote.Stop();
+            distantRemote.Stop();
         }
     }
 }

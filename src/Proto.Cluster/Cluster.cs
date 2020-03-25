@@ -50,8 +50,8 @@ namespace Proto.Cluster
         {
             Logger.LogInformation("Starting Proto.Actor cluster");
 
-            var kinds = this.Remote.RemoteKindRegistry.GetKnownKinds();
-            await Remote.Start();
+            var kinds = Remote.RemoteKindRegistry.GetKnownKinds();
+            Remote.Start();
             Partition.Setup(kinds);
             PidCache.Setup();
             MemberList.Setup();
@@ -73,14 +73,14 @@ namespace Proto.Cluster
                 await Config.ClusterProvider.Shutdown(this);
 
                 //This is to wait ownership transferring complete.
-                // await Task.Delay(2000);
+                await Task.Delay(2000);
 
                 MemberList.Stop();
                 PidCache.Stop();
                 Partition.Stop();
             }
 
-            await Remote.Stop(graceful);
+            Remote.Stop(graceful);
 
             Logger.LogInformation($"Stopped Cluster at {System.ProcessRegistry.GetAddress().Host}:{System.ProcessRegistry.GetAddress().Port}");
         }

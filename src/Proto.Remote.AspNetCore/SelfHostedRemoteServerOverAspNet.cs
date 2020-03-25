@@ -28,11 +28,11 @@ namespace Proto.Remote
         {
 
         }
-        public override async Task Start()
+        public override void Start()
         {
             if (IsStarted) return;
             IServerAddressesFeature serverAddressesFeature = null;
-            await base.Start();
+            base.Start();
             // Allows tu use Grpc.Net over http
             if (RemoteConfig.ServerCredentials == ServerCredentials.Insecure)
                 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);

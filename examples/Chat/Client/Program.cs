@@ -20,12 +20,13 @@ class Program
         var openTracingMiddleware = OpenTracingExtensions.OpenTracingSenderMiddleware(tracer);
 
         var system = new ActorSystem();
-        var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 0, remote=>{
+        var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 0, remote =>
+        {
             remote.Serialization.RegisterFileDescriptor(ChatReflection.Descriptor);
         });
-        
-       
-        await remote.Start();
+
+
+        remote.Start();
         var server = new PID("127.0.0.1:8000", "chatserver");
         var context = new RootContext(system, default, openTracingMiddleware);
 

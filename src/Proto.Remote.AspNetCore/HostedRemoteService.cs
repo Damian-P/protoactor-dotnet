@@ -36,7 +36,7 @@ namespace Proto.Remote
 
         private void OnStarted()
         {
-            _remote.Start().GetAwaiter().GetResult();
+            _remote.Start();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

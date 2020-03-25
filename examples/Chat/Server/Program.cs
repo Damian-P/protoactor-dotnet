@@ -27,7 +27,7 @@ class Program
         {
             remote.Serialization.RegisterFileDescriptor(ChatReflection.Descriptor);
         });
-        await remote.Start();
+        remote.Start();
 
         var clients = new HashSet<PID>();
         var props = Props.FromFunc(ctx =>

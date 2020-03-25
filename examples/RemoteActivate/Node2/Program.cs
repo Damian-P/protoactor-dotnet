@@ -41,7 +41,7 @@ namespace Node2
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("hello", props);
             });
-            await system.StartRemote();
+            system.StartRemote();
 
             Console.ReadLine();
         }

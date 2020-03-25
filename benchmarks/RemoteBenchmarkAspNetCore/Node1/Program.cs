@@ -32,7 +32,7 @@ class Program
             remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize = 10000;
         });
-        await remote.Start();
+        remote.Start();
 
         var messageCount = 1_000_000;
 

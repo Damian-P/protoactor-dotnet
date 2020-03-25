@@ -20,7 +20,7 @@ class Program
         {
             remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         });
-        await system.StartRemote();
+        system.StartRemote();
         var pid = system.SpawnNamedAsync("127.0.0.1:12000", "remote", "hello", TimeSpan.FromSeconds(5)).Result.Pid;
         var res = await system.Root.RequestAsync<HelloResponse>(pid, new HelloRequest { });
         Console.WriteLine(res.Message);

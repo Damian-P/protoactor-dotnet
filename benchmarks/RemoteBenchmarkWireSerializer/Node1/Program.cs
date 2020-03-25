@@ -25,7 +25,7 @@ class Program
         {
             remote.Serialization.RegisterSerializer(wire, true);
         });
-        await remote.Start();
+        remote.Start();
 
         var messageCount = 1000000;
         var wg = new AutoResetEvent(false);

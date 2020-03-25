@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class HostedRemote : IRemote, IRemoteInternals
+    public class HostedRemote : IRemote
     {
         private readonly ILogger Logger;
         public bool IsStarted { get; private set; }
@@ -62,12 +62,12 @@ namespace Proto.Remote
 
         private PID ActivatorForAddress(string address) => new PID(address, "activator");
 
-        public Task Start()
+        public void Start()
         {
-            if (IsStarted) return Task.CompletedTask;
+            if (IsStarted) return;
             if (RemoteConfig.ServerCredentials == ServerCredentials.Insecure)
                 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-            Logger.LogInformation("Starting Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
+            Logger.LogDebug("Starting Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
             );
             _actorSystem.ProcessRegistry.RegisterHostResolver(
                 pid => new RemoteProcess(this, _actorSystem, EndpointManager, pid)
@@ -78,23 +78,23 @@ namespace Proto.Remote
             IsStarted = true;
             EndpointManager.Start();
             SpawnActivator();
-            return Task.CompletedTask;
         }
 
-        public async Task Stop(bool graceful = true)
+        public Task Stop(bool graceful = true)
         {
-            if (!IsStarted) return;
+            if (!IsStarted) return Task.CompletedTask;
             IsStarted = false;
-            Logger.LogInformation("Stopping Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
+            Logger.LogDebug("Stopping Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
             );
             if (graceful)
             {
-                await EndpointManager.StopAsync();
+                EndpointManager.Stop();
                 StopActivator();
             }
 
-            Logger.LogInformation("Stopped Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
+            Logger.LogDebug("Stopped Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
             );
+            return Task.CompletedTask;
         }
 
         public void SendMessage(PID pid, object msg, int serializerId)

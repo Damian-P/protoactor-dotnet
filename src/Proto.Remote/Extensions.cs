@@ -11,16 +11,16 @@ namespace Proto.Remote
 {
     public static class Extensions
     {
-        public static Task StartRemote(this ActorSystem actorSystem)
+        public static void StartRemote(this ActorSystem actorSystem)
         {
             var remote = actorSystem.Plugins.GetPlugin<IRemote>();
-            return remote.Start();
+            remote.Start();
         }
 
-        public static Task StopRemote(this ActorSystem actorSystem, bool graceful = true)
+        public static void StopRemote(this ActorSystem actorSystem, bool graceful = true)
         {
             var remote = actorSystem.Plugins.GetPlugin<IRemote>();
-            return remote.Stop(graceful);
+            remote.Stop(graceful);
         }
 
         public static Task<ActorPidResponse> SpawnAsync(this ActorSystem actorSystem, string address, string kind, TimeSpan timeout)

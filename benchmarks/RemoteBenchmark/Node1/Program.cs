@@ -26,7 +26,7 @@ class Program
         {
             remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         });
-        await remote.Start();
+        remote.Start();
 
         var messageCount = 1_000_000;
 

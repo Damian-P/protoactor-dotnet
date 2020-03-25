@@ -21,7 +21,7 @@ namespace Proto.Remote.Tests.Node
             _port = configuration.GetValue<int>("port");
         }
 
-        public async Task StartAsync(CancellationToken cancellationToken)
+        public Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("ProtoService starting on {Host}:{Port}...", _host, _port);
 
@@ -34,17 +34,19 @@ namespace Proto.Remote.Tests.Node
                 remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("EchoActor", props);
             });
-            await _remote.Start();
+            _remote.Start();
 
             actorSystem.Root.SpawnNamed(props, "EchoActorInstance");
 
             _logger.LogInformation("ProtoService started");
+            return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("ProtoService stopping...");
-            return _remote.Stop();
+            _remote.Stop();
+            return Task.CompletedTask;
         }
     }
 }

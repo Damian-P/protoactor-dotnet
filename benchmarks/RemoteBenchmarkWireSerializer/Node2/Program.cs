@@ -44,10 +44,11 @@ namespace Node2
             //Registering "knownTypes" is not required, but improves performance as those messages
             //do not need to pass any typename manifest
             var wire = new WireSerializer(new[] { typeof(Ping), typeof(Pong), typeof(StartRemote), typeof(Start) });
-            var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 12000, remote => {
+            var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 12000, remote =>
+            {
                 remote.Serialization.RegisterSerializer(wire, true);
             });
-            await remote.Start();
+            remote.Start();
             context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
             await remote.Stop();
