@@ -31,7 +31,7 @@ namespace Proto
         where TPlugin : IProtoPlugin
         {
             var instanceIsPresent = _plugins.TryGetValue(typeof(TPlugin), out var foundInstance);
-            return foundInstance is TPlugin plugin ? plugin : throw new PluginNotFoundException<TPlugin>();
+            return instanceIsPresent && foundInstance is TPlugin plugin ? plugin : throw new PluginNotFoundException<TPlugin>();
         }
     }
 }
