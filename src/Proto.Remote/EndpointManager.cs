@@ -28,10 +28,7 @@ namespace Proto.Remote
     {
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
 
-        public CancellationToken CancellationToken
-        {
-            get { return _cancellationTokenSource.Token; }
-        }
+        public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
         private class ConnectionRegistry : ConcurrentDictionary<string, Lazy<Endpoint>>
         {
@@ -41,7 +38,7 @@ namespace Proto.Remote
 
         private readonly ConnectionRegistry Connections = new ConnectionRegistry();
         private readonly ActorSystem _system;
-        private readonly IChannelProvider channelProvider;
+        private readonly IChannelProvider _channelProvider;
         private readonly IRemote _remote;
         private PID endpointSupervisor;
         private Subscription<object> endpointTermEvnSub;
@@ -51,7 +48,7 @@ namespace Proto.Remote
         {
             _remote = remote;
             _system = system;
-            this.channelProvider = channelProvider;
+            _channelProvider = channelProvider;
         }
 
         public void Start()
@@ -59,7 +56,7 @@ namespace Proto.Remote
             Logger.LogDebug("Started EndpointManager");
 
             var props = Props
-                .FromProducer(() => new EndpointSupervisor(_remote, _system, channelProvider))
+                .FromProducer(() => new EndpointSupervisor(_remote, _system, _channelProvider))
                 .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy)
                 .WithDispatcher(Mailbox.Dispatchers.SynchronousDispatcher);
 
