@@ -40,15 +40,23 @@ namespace Node2
     {
         private static async Task Main(string[] args)
         {
-            Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
+            Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole()
+                                                            .AddFilter("Proto.EventStream", LogLevel.Warning)
+                                                            .AddFilter("Proto.Remote.EndpointActor", LogLevel.Debug)
+                                                            .SetMinimumLevel(LogLevel.Information)));
             var system = new ActorSystem();
             var context = new RootContext(system);
             var Remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 12000, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("ponger", Props.FromProducer(() => new EchoActor()));
+                remote.RemoteConfig.EndpointWriterOptions.MaxRetries = 5;
+                remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan = TimeSpan.FromSeconds(10);
+                remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize = 10000;
             });
+            
             await Remote.Start();
+            system.Root.SpawnNamed(Props.FromProducer(() => new EchoActor()), "ponger");
             Console.ReadLine();
             await Remote.Stop();
         }

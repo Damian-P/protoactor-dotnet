@@ -57,7 +57,6 @@ namespace Proto.Remote
                         .ConfigureServices((serviceCollection) =>
                             {
                                 serviceCollection.AddGrpc();
-                                serviceCollection.AddHostedService<SelfHostedRemoteService>();
                                 serviceCollection.AddSingleton<ILoggerFactory>(Log.LoggerFactory);
                                 serviceCollection.AddSingleton(EndpointManager);
                                 serviceCollection.AddSingleton<RemoteConfig>(RemoteConfig);

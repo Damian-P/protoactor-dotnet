@@ -15,15 +15,20 @@ using Proto.Remote;
 
 class Program
 {
+    static PID remoteActor = new PID("127.0.0.1:12000", "ponger");
     static async Task Main(string[] args)
     {
-        Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
+        Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole()
+                                                            .AddFilter("Proto.EventStream", LogLevel.Warning)
+                                                            .AddFilter("Proto.Remote.EndpointActor", LogLevel.Debug)
+                                                            .SetMinimumLevel(LogLevel.Information)));
         var system = new ActorSystem();
         var context = new RootContext(system);
 
-        var remote = new SelfHostedRemoteServerOverAspNet(system, "127.0.0.1", 0, remote =>
+        var remote = new SelfHostedRemoteServerOverAspNet(system, "127.0.0.1", 12001, remote =>
         {
             remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+            remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize = 10000;
         });
         await remote.Start();
 
@@ -39,16 +44,6 @@ class Program
                     var wg = new AutoResetEvent(false);
                     var props = Props.FromProducer(() => new LocalActor(0, messageCount, wg));
                     pid = context.Spawn(props);
-
-                    var actorPidResponse = await remote.SpawnNamedAsync("127.0.0.1:12000", "ponger", "ponger", TimeSpan.FromSeconds(1));
-                    PID remoteActor;
-                    if (actorPidResponse.StatusCode == (int)ResponseStatusCode.OK)
-                        remoteActor = actorPidResponse.Pid;
-                    else if (actorPidResponse.StatusCode == (int)ResponseStatusCode.ProcessNameAlreadyExist)
-                        remoteActor = new PID("127.0.0.1:12000", "ponger");
-                    else
-                        throw new Exception($"{((ResponseStatusCode)actorPidResponse.StatusCode).ToString()}");
-
 
                     await context.RequestAsync<Start>(remoteActor, new StartRemote { Sender = pid }).ConfigureAwait(false);
 
@@ -101,16 +96,22 @@ class Program
         {
             switch (context.Message)
             {
+                case Started _:
+                    context.Watch(remoteActor);
+                    break;
                 case Pong _:
                     _count++;
                     if (_count % 50000 == 0)
                     {
-                        // Console.WriteLine(_count);
+                        Console.WriteLine(_count);
                     }
                     if (_count == _messageCount)
                     {
                         _wg.Set();
                     }
+                    break;
+                default:
+                    Console.WriteLine(context.Message);
                     break;
             }
             return Actor.Done;

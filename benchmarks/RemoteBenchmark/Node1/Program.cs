@@ -30,6 +30,8 @@ class Program
 
         var messageCount = 1_000_000;
 
+        var remoteActor = new PID("127.0.0.1:12000", "ponger");
+
         _ = Task.Run(async () =>
         {
             while (true)
@@ -40,16 +42,6 @@ class Program
                     var wg = new AutoResetEvent(false);
                     var props = Props.FromProducer(() => new LocalActor(0, messageCount, wg));
                     pid = context.Spawn(props);
-
-                    var actorPidResponse = await remote.SpawnNamedAsync("127.0.0.1:12000", "ponger", "ponger", TimeSpan.FromSeconds(1));
-                    PID remoteActor;
-                    if (actorPidResponse.StatusCode == (int)ResponseStatusCode.OK)
-                        remoteActor = actorPidResponse.Pid;
-                    else if (actorPidResponse.StatusCode == (int)ResponseStatusCode.ProcessNameAlreadyExist)
-                        remoteActor = new PID("127.0.0.1:12000", "ponger");
-                    else
-                        throw new Exception($"{((ResponseStatusCode)actorPidResponse.StatusCode).ToString()}");
-
 
                     await context.RequestAsync<Start>(remoteActor, new StartRemote { Sender = pid }).ConfigureAwait(false);
 

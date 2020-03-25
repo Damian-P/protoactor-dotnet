@@ -42,12 +42,13 @@ namespace Proto.Remote
         {
             _endpointTermEvnSub = _actorSystem.EventStream.Subscribe<EndpointTerminatedEvent>(OnEndpointTerminated);
             _endpointConnEvnSub = _actorSystem.EventStream.Subscribe<EndpointConnectedEvent>(OnEndpointConnected);
+            _endpointConnEvnSub = _actorSystem.EventStream.Subscribe<EndpointCrashedEvent>(OnEndpointCrashed);
             Logger.LogDebug("Started EndpointManager");
         }
 
         public async Task StopAsync()
         {
-            if(_cancellationTokenSource.IsCancellationRequested) return;
+            if (_cancellationTokenSource.IsCancellationRequested) return;
             _cancellationTokenSource.Cancel();
             _actorSystem.EventStream.Unsubscribe(_endpointTermEvnSub.Id);
             _actorSystem.EventStream.Unsubscribe(_endpointConnEvnSub.Id);
@@ -69,6 +70,7 @@ namespace Proto.Remote
 
             var endpoint = v.Value;
             endpoint.SendSystemMessage(_actorSystem, msg);
+            _actorSystem.Root.Stop(endpoint);
         }
 
         private void OnEndpointConnected(EndpointConnectedEvent msg)
@@ -77,22 +79,27 @@ namespace Proto.Remote
             endpoint.SendSystemMessage(_actorSystem, msg);
         }
 
+        private void OnEndpointCrashed(EndpointCrashedEvent msg)
+        {
+            Logger.LogWarning("Endpoint {Address} crashed", msg.Address);
+        }
+
         public void RemoteTerminate(RemoteTerminate msg)
         {
             var endpoint = EnsureConnected(msg.Watchee.Address);
-            _actorSystem.Root.Send(endpoint, msg);
+            endpoint.SendSystemMessage(_actorSystem, msg);
         }
 
         public void RemoteWatch(RemoteWatch msg)
         {
             var endpoint = EnsureConnected(msg.Watchee.Address);
-            _actorSystem.Root.Send(endpoint, msg);
+            endpoint.SendSystemMessage(_actorSystem, msg);
         }
 
         public void RemoteUnwatch(RemoteUnwatch msg)
         {
             var endpoint = EnsureConnected(msg.Watchee.Address);
-            _actorSystem.Root.Send(endpoint, msg);
+            endpoint.SendSystemMessage(_actorSystem, msg);
         }
 
         public void SendMessage(PID pid, object msg, int serializerId)
@@ -145,7 +152,7 @@ namespace Proto.Remote
                         )
                     )
                     .WithGuardianSupervisorStrategy(new EndpointSupervisorStrategy(address, _actorSystem, _remoteConfig.EndpointWriterOptions));
-            var endpointActor = _actorSystem.Root.Spawn(endpointActorProps);
+            var endpointActor = _actorSystem.Root.SpawnPrefix(endpointActorProps, $"endpoint-for-{address}");
             return endpointActor;
         }
     }

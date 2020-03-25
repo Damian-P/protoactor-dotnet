@@ -87,12 +87,16 @@ namespace Proto.Remote
                     {
                         SuspendMailbox _ => true,
                         EndpointConnectedEvent _ => false,
+                        EndpointTerminatedEvent _ => true,
                         _ => _suspended
                     };
 
                     m = sys;
                     switch (m)
                     {
+                        case RemoteWatch _:
+                        case RemoteUnwatch _:
+                        case RemoteTerminate _:
                         case EndpointTerminatedEvent _:
                         case EndpointConnectedEvent _:
                             await _invoker.InvokeUserMessageAsync(sys);
@@ -107,10 +111,11 @@ namespace Proto.Remote
                     {
                         //Dump messages from user messages queue to deadletter 
                         object usrMsg;
-
+                        var count = 0;
+                        Logger.LogWarning("Dumping messages from user messages queue to deadletter");
                         while ((usrMsg = _userMessages.Pop()) != null)
                         {
-                            if (usrMsg is RemoteDeliver rd)
+                            if (usrMsg is RemoteDeliver rd && count++ < 5)
                             {
                                 _system.EventStream.Publish(new DeadLetterEvent(rd.Target, rd.Message, rd.Sender));
                             }
@@ -128,19 +133,15 @@ namespace Proto.Remote
                         Logger.LogDebug("[EndpointWriterMailbox] Processing User Message {@Message}", msg);
                         switch (msg)
                         {
-                            case RemoteWatch _:
-                            case RemoteUnwatch _:
-                            case RemoteTerminate _:
-                                await _invoker.InvokeUserMessageAsync(msg);
-                                continue;
+                            case RemoteDeliver _:
+                                batch.Add((RemoteDeliver)msg);
+                                break;
+                            default:
+                                Logger.LogWarning("[EndpointWriterMailbox] unknown message {@Message}", msg);
+                                break;
                         }
-
-                        batch.Add((RemoteDeliver) msg);
-
                         if (batch.Count >= _batchSize)
-                        {
                             break;
-                        }
                     }
 
                     if (batch.Count > 0)

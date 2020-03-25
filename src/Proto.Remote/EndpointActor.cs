@@ -28,7 +28,7 @@ namespace Proto.Remote
         private AsyncDuplexStreamingCall<MessageBatch, Unit> _stream;
         private IClientStreamWriter<MessageBatch> _streamWriter;
         private ChannelBase _channel;
-
+        private bool _isConnected = false;
 
         public EndpointActor(ActorSystem actorSystem, Serialization serialization, RemoteConfig remoteConfig, IChannelProvider channelProvider, string address)
         {
@@ -47,11 +47,11 @@ namespace Proto.Remote
                     await ConnectAsync().ConfigureAwait(false);
                     break;
                 case Stopping _:
-                    Logger.LogDebug("Stopping EndpointActor at {Address}", _address);
+                    Logger.LogDebug("Stopping EndpointActor ({PID}) at {Address}", context.Self, _address);
                     break;
                 case Stopped _:
                     await ShutDownChannel().ConfigureAwait(false);
-                    Logger.LogDebug("Stopped EndpointActor at {Address}", _address);
+                    Logger.LogDebug("Stopped EndpointActor ({PID}) at {Address}", context.Self, _address);
                     break;
                 case Restarting _:
                     await ShutDownChannel().ConfigureAwait(false);
@@ -126,35 +126,39 @@ namespace Proto.Remote
                 {
                     try
                     {
-                        await _stream.ResponseStream.ForEachAsync(async i =>
+                        await _stream.ResponseStream.ForEachAsync(unit =>
+                        {
+                            if (!unit.Alive)
                             {
-                                if (!i.Alive)
-                                {
-                                    Logger.LogInformation("Lost connection to address {Address}", _address);
-                                    // await _stream.RequestStream.CompleteAsync();
-                                    NotifyEndpointTermination();
-                                }
+                                Logger.LogInformation("Lost connection to address {Address}", _address);
+                                PublishEndpointTerminatedEvent();
                             }
+                            return Actor.Done;
+                        }
                         ).ConfigureAwait(false);
                     }
                     catch (Exception x)
                     {
                         Logger.LogError(x, "Lost connection to address {Address}, reason {Message}", _address, x.Message
                         );
-                        NotifyEndpointTermination();
-                        throw;
+                        PublishEndpointTerminatedEvent();
                     }
                 }
             );
 
             Logger.LogDebug("Created reader for address {Address}", _address);
+            PublishEndpointConnectedEvent();
+            Logger.LogDebug("Connected to address {Address}", _address);
+        }
 
+        private void PublishEndpointConnectedEvent()
+        {
+            _isConnected = true;
             var connected = new EndpointConnectedEvent
             {
                 Address = _address
             };
             _actorSystem.EventStream.Publish(connected);
-            Logger.LogDebug("Connected to address {Address}", _address);
         }
 
         private void HandleRemoteTerminate(IContext context, RemoteTerminate msg)
@@ -178,7 +182,19 @@ namespace Proto.Remote
 
         private void HandleRemoteWatch(IContext context, RemoteWatch msg)
         {
-            if (_watched.TryGetValue(msg.Watcher.Id, out var pidSet))
+            if (!_isConnected)
+            {
+                msg.Watcher.SendSystemMessage(
+                                                _actorSystem,
+                                                new Terminated
+                                                {
+                                                    AddressTerminated = true,
+                                                    Who = msg.Watchee
+                                                }
+                                            );
+                return;
+            }
+            else if (_watched.TryGetValue(msg.Watcher.Id, out var pidSet))
             {
                 pidSet.Add(msg.Watchee);
             }
@@ -188,23 +204,26 @@ namespace Proto.Remote
             }
 
             var w = new Watch(msg.Watcher);
-            SendMessage(context, msg.Watchee, w, -1);
+            SendMessageToRemoteActorSystem(context, msg.Watchee, w, -1);
         }
 
         private void HandleRemoteUnwatch(IContext context, RemoteUnwatch msg)
         {
-            if (_watched.TryGetValue(msg.Watcher.Id, out var pidSet))
+            if (_isConnected)
             {
-                pidSet.Remove(msg.Watchee);
-
-                if (pidSet.Count == 0)
+                if (_watched.TryGetValue(msg.Watcher.Id, out var pidSet))
                 {
-                    _watched.Remove(msg.Watcher.Id);
-                }
-            }
+                    pidSet.Remove(msg.Watchee);
 
-            var w = new Unwatch(msg.Watcher);
-            SendMessage(context, msg.Watchee, w, -1);
+                    if (pidSet.Count == 0)
+                    {
+                        _watched.Remove(msg.Watcher.Id);
+                    }
+                }
+
+                var w = new Unwatch(msg.Watcher);
+                SendMessageToRemoteActorSystem(context, msg.Watchee, w, -1);
+            }
         }
 
         private void HandleTerminatedEndpoint(IContext context)
@@ -229,9 +248,8 @@ namespace Proto.Remote
                     watcherPid.SendSystemMessage(_actorSystem, t);
                 }
             }
-
             _watched.Clear();
-            context.System.Root.Stop(context.Self);
+            context.Stop(context.Self);
         }
 
         private async Task Deliver(IContext context, IEnumerable<RemoteDeliver> remoteMessages)
@@ -297,8 +315,9 @@ namespace Proto.Remote
             await SendEnvelopesAsync(batch, context).ConfigureAwait(false);
         }
 
-        protected void NotifyEndpointTermination()
+        protected void PublishEndpointTerminatedEvent()
         {
+            _isConnected = false;
             var terminated = new EndpointTerminatedEvent
             {
                 Address = _address
@@ -306,7 +325,17 @@ namespace Proto.Remote
             _actorSystem.EventStream.Publish(terminated);
         }
 
-        public void SendMessage(IContext context, PID pid, object msg, int serializerId)
+        protected void NotifyEndpointCrash()
+        {
+            _isConnected = false;
+            var terminated = new EndpointCrashedEvent
+            {
+                Address = _address
+            };
+            _actorSystem.EventStream.Publish(terminated);
+        }
+
+        public void SendMessageToRemoteActorSystem(IContext context, PID pid, object msg, int serializerId)
         {
             var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
 

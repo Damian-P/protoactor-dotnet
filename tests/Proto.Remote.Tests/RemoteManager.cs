@@ -78,9 +78,9 @@ namespace Proto.Remote.Tests
             });
         }
 
-        private static IRemote localRemote;
-        private static IRemote distantRemote;
-        private static ActorSystem system;
+        private static readonly IRemote localRemote;
+        private static readonly IRemote distantRemote;
+        private static readonly ActorSystem system;
 
         private static bool remoteStarted;
 
@@ -97,14 +97,6 @@ namespace Proto.Remote.Tests
         {
             localRemote.Stop().GetAwaiter().GetResult();
             distantRemote.Stop().GetAwaiter().GetResult();
-        }
-        static string GetLocalIp()
-        {
-            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
-
-            socket.Connect("8.8.8.8", 65530);
-            var endPoint = socket.LocalEndPoint as IPEndPoint;
-            return endPoint?.Address.ToString();
         }
     }
 }

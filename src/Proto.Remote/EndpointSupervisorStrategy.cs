@@ -49,11 +49,7 @@ namespace Proto.Remote
                 );
 
                 _cancelFutureRetries.Cancel();
-                supervisor.StopChildren(child);
-                _actorSystem.ProcessRegistry
-                    .Remove(child); //TODO: work out why this hangs around in the process registry
-
-                var terminated = new EndpointTerminatedEvent {Address = _address};
+                var terminated = new EndpointTerminatedEvent { Address = _address };
                 _actorSystem.EventStream.Publish(terminated);
             }
             else
@@ -66,7 +62,7 @@ namespace Proto.Remote
                     .ContinueWith(
                         t =>
                         {
-                            _logger.LogWarning(
+                            _logger.LogInformation(
                                 "Restarting {Actor} after {Duration} because of {Reason}",
                                 child.ToShortString(), duration, reason
                             );
