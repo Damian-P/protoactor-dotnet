@@ -25,12 +25,6 @@ namespace Node2
             Log.SetLoggerFactory(log);
             Console.WriteLine("Starting Node2");
 
-            var system = new ActorSystem();
-            var serialization = new Serialization();
-            var context = new RootContext(system);
-            serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            var Cluster = new Cluster(system, serialization);
-
             var props = Props.FromFunc(
                 ctx =>
                 {
@@ -45,21 +39,28 @@ namespace Node2
                 }
             );
 
+            var system = new ActorSystem();
+            system.AddRemoteOverGrpc("node2", 12000, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+                remote.RemoteKindRegistry.RegisterKnownKind("HelloKind", props);
+            });
+            system.AddClustering("MyCluster", new ConsulProvider(new ConsulProviderOptions(), c => c.Address = new Uri("http://consul:8500/")));
+
+            await system.StartCluster();
+
+            var context = new RootContext(system);
+
             var parsedArgs = ParseArgs(args);
-            Cluster.Remote.RegisterKnownKind("HelloKind", props);
+
 
             // SINGLE REMOTE INSTANCE
             // Cluster.Start("MyCluster", parsedArgs.ServerName, 12000, new SingleRemoteInstanceProvider(parsedArgs.ServerName, 12001));
 
-            // CONSUL 
-            await Cluster.Start(
-                "MyCluster", "node2", 12000, new ConsulProvider(new ConsulProviderOptions(), c => c.Address = new Uri("http://consul:8500/"))
-            );
-
             await Task.Delay(-1);
 
             Console.WriteLine("Shutting Down...");
-            await Cluster.Shutdown();
+            await system.StopCluster();
         }
 
         private static Node2Config ParseArgs(string[] args)

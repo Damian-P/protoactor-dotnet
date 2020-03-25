@@ -14,32 +14,33 @@ using Proto.Serialization.Wire;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         var system = new ActorSystem();
         var context = new RootContext(system);
-        var serialization = new Serialization();
         //Registering "knownTypes" is not required, but improves performance as those messages
         //do not need to pass any typename manifest
         var wire = new WireSerializer(new[] { typeof(Ping), typeof(Pong), typeof(StartRemote), typeof(Start) });
-        serialization.RegisterSerializer(wire, true);
-        var Remote = new Remote(system, serialization);
-        Remote.Start("127.0.0.1", 12001);
+        var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 12000, remote =>
+        {
+            remote.Serialization.RegisterSerializer(wire, true);
+        });
+        await remote.Start();
 
         var messageCount = 1000000;
         var wg = new AutoResetEvent(false);
         var props = Props.FromProducer(() => new LocalActor(0, messageCount, wg));
 
         var pid = context.Spawn(props);
-        var remote = new PID("127.0.0.1:12000", "remote");
-        context.RequestAsync<Start>(remote, new StartRemote { Sender = pid }).Wait();
+        var remotePID = new PID("127.0.0.1:12000", "remote");
+        context.RequestAsync<Start>(remotePID, new StartRemote { Sender = pid }).Wait();
 
         var start = DateTime.Now;
         Console.WriteLine("Starting to send");
         var msg = new Ping();
         for (var i = 0; i < messageCount; i++)
         {
-            context.Send(remote, msg);
+            context.Send(remotePID, msg);
         }
         wg.WaitOne();
         var elapsed = DateTime.Now - start;
@@ -49,6 +50,7 @@ class Program
         Console.WriteLine("Throughput {0} msg / sec", t);
 
         Console.ReadLine();
+        await remote.Stop();
     }
 
     public class LocalActor : IActor

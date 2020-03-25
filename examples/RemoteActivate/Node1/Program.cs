@@ -5,7 +5,6 @@
 // -----------------------------------------------------------------------
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Messages;
 using Proto;
@@ -14,12 +13,16 @@ using ProtosReflection = Messages.ProtosReflection;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
-        Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-        Remote.Start("127.0.0.1", 12001);
-        var pid = Remote.SpawnNamedAsync("127.0.0.1:12000", "remote", "hello", TimeSpan.FromSeconds(5)).Result.Pid;
-        var res = pid.RequestAsync<HelloResponse>(new HelloRequest { }).Result;
+        var system = new ActorSystem();
+        system.AddRemoteOverGrpc("127.0.0.1", 12001, remote =>
+        {
+            remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+        });
+        await system.StartRemote();
+        var pid = system.SpawnNamedAsync("127.0.0.1:12000", "remote", "hello", TimeSpan.FromSeconds(5)).Result.Pid;
+        var res = await system.Root.RequestAsync<HelloResponse>(pid, new HelloRequest { });
         Console.WriteLine(res.Message);
         Console.ReadLine();
     }

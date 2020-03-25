@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using chat.messages;
 using Jaeger;
 using Jaeger.Samplers;
@@ -9,7 +10,7 @@ using Proto.Remote;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         var tracer = new Tracer.Builder("Proto.Chat.Client")
             .WithSampler(new ConstSampler(true))
@@ -19,10 +20,12 @@ class Program
         var openTracingMiddleware = OpenTracingExtensions.OpenTracingSenderMiddleware(tracer);
 
         var system = new ActorSystem();
-        var serialization = new Serialization();
-        serialization.RegisterFileDescriptor(ChatReflection.Descriptor);
-        var remote = new Remote(system, serialization);
-        remote.Start("127.0.0.1", 0);
+        var remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 0, remote=>{
+            remote.Serialization.RegisterFileDescriptor(ChatReflection.Descriptor);
+        });
+        
+       
+        await remote.Start();
         var server = new PID("127.0.0.1:8000", "chatserver");
         var context = new RootContext(system, default, openTracingMiddleware);
 
@@ -55,7 +58,7 @@ class Program
             var text = Console.ReadLine();
             if (text.Equals("/exit"))
             {
-                return;
+                await remote.Stop();
             }
             if (text.StartsWith("/nick "))
             {

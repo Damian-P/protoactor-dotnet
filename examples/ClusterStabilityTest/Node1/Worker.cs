@@ -6,9 +6,6 @@ using Proto;
 using Proto.Cluster;
 using Proto.Cluster.Consul;
 using Proto.Remote;
-using Serilog;
-using Serilog.Core;
-using Serilog.Events;
 using Log = Proto.Log;
 using ProtosReflection = Messages.ProtosReflection;
 
@@ -31,23 +28,23 @@ namespace TestApp
             Console.WriteLine("Starting worker");
 
             var system = new ActorSystem();
-            var serialization = new Serialization();
-            var cluster = new Cluster(system, serialization);
-            var grains = new Grains(cluster);
+            system.AddRemoteOverGrpc("127.0.0.1", int.Parse(port), remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+            });
+            system.AddClustering(clusterName, new ConsulProvider(new ConsulProviderOptions { DeregisterCritical = TimeSpan.FromSeconds(2) }), cluster =>
+            {
+                var grains = cluster.AddGrains();
+                grains.HelloGrainFactory(() => new HelloGrain());
+            });
 
-            serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            grains.HelloGrainFactory(() => new HelloGrain());
-
-            await cluster.Start(
-                clusterName, "127.0.0.1", int.Parse(port),
-                new ConsulProvider(new ConsulProviderOptions { DeregisterCritical = TimeSpan.FromSeconds(2) })
-            );
+            await system.StartCluster();
 
             Console.WriteLine("Started worked on " + system.ProcessRegistry.Address);
 
             Console.ReadLine();
 
-            await cluster.Shutdown();
+            await system.StopCluster();
         }
     }
 }

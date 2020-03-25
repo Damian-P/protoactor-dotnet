@@ -19,15 +19,20 @@ class Program
     static async Task Main(string[] args)
     {
         var system = new ActorSystem();
-        var serialization = new Serialization();
-        var cluster = new Cluster(system, serialization);
-        var grains = new Grains(cluster);
-        serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-
-        await cluster.Start("MyCluster", "node1", 12001, new ConsulProvider(new ConsulProviderOptions(), c => c.Address = new Uri("http://consul:8500/")));
+        system.AddRemoteOverGrpc("node1", 12001, configure =>
+        {
+            configure.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+        });
+        system.AddClustering("MyCluster", new ConsulProvider(
+            new ConsulProviderOptions(),
+            c => c.Address = new Uri("http://consul:8500/")), cluster =>
+            {
+                cluster.AddGrains();
+            });
+        await system.StartCluster();
         await Task.Delay(2000);
 
-        var client = grains.HelloGrain("Roger");
+        var client = system.GetGrains().HelloGrain("Roger");
 
         var res = client.SayHello(new HelloRequest()).Result;
         Console.WriteLine(res.Message);
@@ -38,7 +43,7 @@ class Program
         Console.CancelKeyPress += async (e, y) =>
         {
             Console.WriteLine("Shutting Down...");
-            await cluster.Shutdown();
+            await system.StopCluster();
         };
         await Task.Delay(-1);
     }

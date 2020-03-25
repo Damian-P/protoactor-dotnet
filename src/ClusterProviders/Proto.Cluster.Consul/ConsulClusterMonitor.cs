@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Consul;
 using Microsoft.Extensions.Logging;
@@ -21,14 +22,16 @@ namespace Proto.Cluster.Consul
 
         private readonly ConsulProviderOptions _options;
         private readonly ConsulClient _client;
+        private readonly CancellationToken _cancellationToken;
 
         private IMemberStatusValueSerializer _statusValueSerializer;
         private ActorSystem _system;
 
-        public ConsulClusterMonitor(ActorSystem system, ConsulProviderOptions options, Action<ConsulClientConfiguration> consulConfig)
+        public ConsulClusterMonitor(ActorSystem system, ConsulProviderOptions options, Action<ConsulClientConfiguration> consulConfig, CancellationToken cancellationToken)
         {
             _system = system;
             _options = options;
+            _cancellationToken = cancellationToken;
             _client = new ConsulClient(consulConfig);
         }
 
@@ -48,7 +51,7 @@ namespace Proto.Cluster.Consul
 
             Task Stop()
             {
-                Logger.LogDebug("Stopping monitoring for {Service}", _id);
+                Logger.LogInformation("Stopping monitoring for {Service}", _id);
                 return _registered ? UnregisterService(context) : Actor.Done;
             }
         }
@@ -65,7 +68,7 @@ namespace Proto.Cluster.Consul
             await RegisterService(cmd.StatusValue, context);
         }
 
-        private Task RegisterService(IMemberStatusValue statusValue, ISpawnerContext context)
+        private async Task RegisterService(IMemberStatusValue statusValue, ISpawnerContext context)
         {
             var registration = new AgentServiceRegistration
             {
@@ -91,20 +94,19 @@ namespace Proto.Cluster.Consul
             _registered = true;
             _statusValue = statusValue;
 
-            var ttlCheckProps = Props.FromProducer(() => new ConsulCheckin(_client, _id, _options.RefreshTtl));
+            var ttlCheckProps = Props.FromProducer(() => new ConsulCheckin(_client, _id, _options.RefreshTtl, _cancellationToken));
+            
+            await _client.Agent.ServiceRegister(registration, _cancellationToken);
             _ttlCheck = context.Spawn(ttlCheckProps);
-
-            return _client.Agent.ServiceRegister(registration);
         }
 
-        private Task UnregisterService(IStopperContext context)
+        private async Task UnregisterService(IStopperContext context)
         {
-            Logger.LogDebug("Unregistering service {Service}", _id);
-
+            Logger.LogInformation("Unregistering service {Service}", _id);
             _registered = false;
-            context.Stop(_ttlCheck);
-
-            return _client.Agent.ServiceDeregister(_id);
+            await context.StopAsync(_ttlCheck);
+            await _client.Agent.ServiceDeregister(_id);
+            Logger.LogInformation("Unregistered service {Service}", _id);
         }
 
         private async Task NotifyStatuses(ulong index, PID self)
@@ -114,7 +116,7 @@ namespace Proto.Cluster.Consul
                 {
                     WaitIndex = index,
                     WaitTime = _options.BlockingWaitTime
-                }
+                }, _cancellationToken
             );
 
             Logger.LogDebug("Consul response: {@Response}", (object)statuses.Response);

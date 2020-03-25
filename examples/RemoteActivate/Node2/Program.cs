@@ -13,13 +13,13 @@ using ProtosReflection = Messages.ProtosReflection;
 
 namespace Node2
 {
-   
+
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
-            Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            var props = Actor.FromFunc(ctx =>
+
+            var props = Props.FromFunc(ctx =>
             {
                 switch (ctx.Message)
                 {
@@ -35,8 +35,13 @@ namespace Node2
                 return Actor.Done;
             });
 
-            Remote.RegisterKnownKind("hello", props);
-            Remote.Start("127.0.0.1", 12000);
+            var system = new ActorSystem();
+            system.AddRemoteOverGrpc("127.0.0.1", 12000, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+                remote.RemoteKindRegistry.RegisterKnownKind("hello", props);
+            });
+            await system.StartRemote();
 
             Console.ReadLine();
         }

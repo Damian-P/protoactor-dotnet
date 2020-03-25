@@ -8,8 +8,9 @@ using System;
 using System.Threading.Tasks;
 using Messages;
 using Proto;
-using Proto.Remote;
+using Microsoft.Extensions.Logging;
 using ProtosReflection = Messages.ProtosReflection;
+using Proto.Remote;
 
 namespace Node2
 {
@@ -35,18 +36,29 @@ namespace Node2
         }
     }
 
-    class Program
+    static class Program
     {
-        static void Main(string[] args)
+        private static async Task Main(string[] args)
         {
+            Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole()
+                                                            .AddFilter("Proto.EventStream", LogLevel.Warning)
+                                                            .AddFilter("Proto.Remote.EndpointActor", LogLevel.Debug)
+                                                            .SetMinimumLevel(LogLevel.Information)));
             var system = new ActorSystem();
             var context = new RootContext(system);
-            var serialization = new Serialization();
-            serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            var Remote = new Remote(system, serialization);
-            Remote.Start("127.0.0.1", 12000);
-            context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
+            var Remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 12000, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+                remote.RemoteKindRegistry.RegisterKnownKind("ponger", Props.FromProducer(() => new EchoActor()));
+                remote.RemoteConfig.EndpointWriterOptions.MaxRetries = 5;
+                remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan = TimeSpan.FromSeconds(10);
+                remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize = 10000;
+            });
+            
+            await Remote.Start();
+            system.Root.SpawnNamed(Props.FromProducer(() => new EchoActor()), "ponger");
             Console.ReadLine();
+            await Remote.Stop();
         }
     }
 }

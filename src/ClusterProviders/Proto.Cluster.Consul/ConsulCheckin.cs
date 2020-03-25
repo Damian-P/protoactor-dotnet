@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using Consul;
 using Microsoft.Extensions.Logging;
 using static Proto.Cluster.Consul.Messages;
+using Proto.Schedulers.SimpleScheduler;
+using System.Threading;
 
 namespace Proto.Cluster.Consul
 {
@@ -13,12 +15,14 @@ namespace Proto.Cluster.Consul
         private readonly ConsulClient _client;
         private readonly string _id;
         private readonly TimeSpan _period;
+        private readonly CancellationToken _cancellationToken;
 
-        public ConsulCheckin(ConsulClient client, string id, TimeSpan period)
+        public ConsulCheckin(ConsulClient client, string id, TimeSpan period, CancellationToken cancellationToken)
         {
             _client = client;
             _id = id;
             _period = period;
+            _cancellationToken = cancellationToken;
         }
 
         public Task ReceiveAsync(IContext context)
@@ -26,9 +30,15 @@ namespace Proto.Cluster.Consul
             return context.Message switch
             {
                 Started _   => Start(),
-                UpdateTtl _ => Task.Delay(_period).ContinueWith(_ => ReportAliveToConsul()),
-                _           => Actor.Done
+                UpdateTtl _ => ReportAliveToConsul(),
+                _           => Log()
             };
+
+            Task Log()
+            {
+                Logger.LogDebug("{message} at {address}", context.Message, context.Self);
+                return Actor.Done;
+            }
 
             Task Start()
             {
@@ -39,11 +49,11 @@ namespace Proto.Cluster.Consul
             async Task ReportAliveToConsul()
             {
                 Logger.LogTrace("[ConsulProvider] Confirming alive for {Service}", _id);
-                context.Send(context.Self, new UpdateTtl());
-
+                
                 try
                 {
-                    await _client.Agent.PassTTL("service:" + _id, "");
+                    await _client.Agent.PassTTL("service:" + _id, "", _cancellationToken);
+                    context.ScheduleTellOnce(_period, context.Self, new UpdateTtl());
                 }
                 catch (ConsulRequestException e) when (e.Message.Contains("does not have associated TTL"))
                 {

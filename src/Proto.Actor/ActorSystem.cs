@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Proto
 {
     public class ActorSystem
@@ -12,6 +15,8 @@ namespace Proto
 
         public EventStream EventStream { get; }
 
+        public Plugins Plugins { get; }
+
         public ActorSystem()
         {
             ProcessRegistry = new ProcessRegistry(this);
@@ -19,6 +24,7 @@ namespace Proto
             DeadLetter = new DeadLetterProcess(this);
             Guardians = new Guardians(this);
             EventStream = new EventStream();
+            Plugins = new Plugins();
         }
         
         public static ActorSystem Default = new ActorSystem();

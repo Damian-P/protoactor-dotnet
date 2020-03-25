@@ -26,15 +26,16 @@ namespace TestApp
             const string clusterName = "test";
 
             var system = new ActorSystem();
-            var serialization = new Serialization();
-            var cluster = new Cluster(system, serialization);
-            var grains = new Grains(cluster);
+            system.AddRemoteOverGrpc("127.0.0.1", 0, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+            });
+            system.AddClustering(clusterName, new ConsulProvider(new ConsulProviderOptions { DeregisterCritical = TimeSpan.FromSeconds(2) }), cluster =>
+            {
+                var grains = cluster.AddGrains();
+            });
 
-            serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-
-            await cluster.Start(
-                clusterName, "127.0.0.1", 0, new ConsulProvider(new ConsulProviderOptions { DeregisterCritical = TimeSpan.FromSeconds(2) })
-            );
+            await system.StartCluster();
 
             system.EventStream.Subscribe<ClusterTopologyEvent>(e => logger.LogInformation("Topology changed {@Event}", e));
             system.EventStream.Subscribe<MemberStatusEvent>(e => logger.LogInformation("Member status {@Event}", e));
@@ -53,20 +54,20 @@ namespace TestApp
             Console.ReadLine();
 
             var policy = Policy.Handle<TaskCanceledException>().RetryForeverAsync();
-
-            for (var i = 0; i < 100000; i++)
+            var n = 100000;
+            var tasks = new Task[n];
+            for (var i = 0; i < n; i++)
             {
-                var client = grains.HelloGrain("name" + i % 200);
+                var client = system.GetGrains().HelloGrain("name" + i % 200);
 
-                await policy.ExecuteAsync(
+                tasks[i] = policy.ExecuteAsync(
                     () => client.SayHello(new HelloRequest(), CancellationToken.None, options)
-                );
-                Console.Write(".");
+                ).ContinueWith((result) => Console.Write("."));
             }
-
+            Task.WaitAll(tasks);
             Console.WriteLine("Done!");
             Console.ReadLine();
-            await cluster.Shutdown();
+            await system.StopCluster();
         }
     }
 }

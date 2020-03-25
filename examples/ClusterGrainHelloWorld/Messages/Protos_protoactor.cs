@@ -9,7 +9,19 @@ using Proto.Remote;
 
 namespace Messages
 {
-    public class Grains
+    public static class GrainsExtensions
+    {
+        public static Grains AddGrains(this Cluster cluster)
+        {
+            var grains = new Grains(cluster);
+            cluster.System.Plugins.AddPlugin(grains);
+            return grains;
+        }
+        public static Grains GetGrains(this ActorSystem actorSystem)
+            => actorSystem.Plugins.GetPlugin<Grains>();
+    }
+
+    public class Grains : IProtoPlugin
     {
         public Cluster Cluster { get; }
 
@@ -23,7 +35,7 @@ namespace Messages
         public void HelloGrainFactory(Func<IHelloGrain> factory) 
         {
             _HelloGrainFactory = factory;
-            Cluster.Remote.RegisterKnownKind("HelloGrain", Props.FromProducer(() => new HelloGrainActor(this)));
+            Cluster.Remote.RemoteKindRegistry.RegisterKnownKind("HelloGrain", Props.FromProducer(() => new HelloGrainActor(this)));
         } 
 
         public HelloGrainClient HelloGrain(string id) => new HelloGrainClient(Cluster, id);

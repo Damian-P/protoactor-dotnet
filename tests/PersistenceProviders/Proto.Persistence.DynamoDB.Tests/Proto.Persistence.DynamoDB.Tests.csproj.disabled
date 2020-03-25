@@ -14,7 +14,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Proto.Actor\Proto.Actor.csproj" />
-    <ProjectReference Include="..\..\..\src\Proto.Mailbox\Proto.Mailbox.csproj" />
     <ProjectReference Include="..\..\..\src\Proto.Persistence\Proto.Persistence.csproj" />
     <ProjectReference Include="..\..\..\src\PersistenceProviders\Proto.Persistence.DynamoDB\Proto.Persistence.DynamoDB.csproj" />
   </ItemGroup>
