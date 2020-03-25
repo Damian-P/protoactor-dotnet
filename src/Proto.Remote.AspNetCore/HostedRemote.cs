@@ -29,7 +29,7 @@ namespace Proto.Remote
         {
             actorSystem.Plugins.AddPlugin<IRemote>(this);
             _actorSystem = actorSystem;
-            EndpointManager = new EndpointManager(actorSystem, RemoteConfig, Serialization, channelProvider);
+            EndpointManager = new EndpointManager(this, actorSystem, channelProvider);
             Logger = logger;
         }
 
@@ -70,7 +70,7 @@ namespace Proto.Remote
             Logger.LogInformation("Starting Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
             );
             _actorSystem.ProcessRegistry.RegisterHostResolver(
-                pid => new RemoteProcess(_actorSystem, EndpointManager, pid)
+                pid => new RemoteProcess(this, _actorSystem, EndpointManager, pid)
             );
             _actorSystem.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname,
                 RemoteConfig.AdvertisedPort.Value
@@ -98,6 +98,11 @@ namespace Proto.Remote
         }
 
         public void SendMessage(PID pid, object msg, int serializerId)
-            => EndpointManager.SendMessage(pid, msg, serializerId);
+        {
+            var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
+
+            var env = new RemoteDeliver(header, message, pid, sender, serializerId);
+            EndpointManager.RemoteDeliver(env);
+        }
     }
 }

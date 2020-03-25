@@ -19,6 +19,8 @@ class Program
     static async Task Main(string[] args)
     {
         Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole()
+                                                            .AddFilter("Microsoft", LogLevel.Critical)
+                                                            .AddFilter("Grpc.AspNetCore", LogLevel.Critical)
                                                             .AddFilter("Proto.EventStream", LogLevel.Warning)
                                                             .AddFilter("Proto.Remote.EndpointActor", LogLevel.Debug)
                                                             .SetMinimumLevel(LogLevel.Information)));
@@ -68,7 +70,7 @@ class Program
                 }
                 finally
                 {
-                    await Task.Delay(2000);
+                    await Task.Delay(5000);
                     if (pid != null)
                         context.Stop(pid);
                 }

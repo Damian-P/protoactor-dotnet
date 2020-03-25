@@ -4,6 +4,7 @@
 //   </copyright>
 // -----------------------------------------------------------------------
 
+using System.Collections.Generic;
 using Grpc.Core;
 using Grpc.Net.Client;
 
@@ -11,12 +12,17 @@ namespace Proto.Remote.AspNetCore
 {
     internal class ChannelProvider : IChannelProvider
     {
-        public ChannelBase GetChannel(RemoteConfig remoteConfig, string address)
+
+        public ChannelBase GetChannel(string address, ChannelCredentials channelCredentials, IEnumerable<ChannelOption> channelOptions)
         {
             var addressWithProtocol =
-                $"{(remoteConfig.ChannelCredentials == ChannelCredentials.Insecure ? "http://" : "https://")}{address}";
+                $"{(channelCredentials == ChannelCredentials.Insecure ? "http://" : "https://")}{address}";
 
-            var channel = GrpcChannel.ForAddress(addressWithProtocol);
+            var options = new GrpcChannelOptions
+            {
+                Credentials = channelCredentials
+            };
+            var channel = GrpcChannel.ForAddress(addressWithProtocol, options);
 
             return channel;
         }

@@ -48,7 +48,7 @@ namespace Proto.Remote.Tests
         public const string RemoteAddress = "localhost:12000";
         static RemoteManager()
         {
-            Log.SetLoggerFactory(LoggerFactory.Create(x => x.AddConsole().SetMinimumLevel(LogLevel.Debug)));
+            // Log.SetLoggerFactory(LoggerFactory.Create(x => x.AddConsole().SetMinimumLevel(LogLevel.Debug)));
             var props = Props.FromProducer(() => new EchoActor("localhost", 12000));
             system = new ActorSystem();
             var distantSystem = new ActorSystem();

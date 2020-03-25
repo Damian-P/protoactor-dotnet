@@ -41,8 +41,8 @@ namespace Proto.Remote
             _system = system;
             _system.Plugins.AddPlugin<IRemote>(this);
             configure?.Invoke(this);
-            EndpointManager = new EndpointManager(system, RemoteConfig, Serialization, channelProvider);
-            system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(system, EndpointManager, pid));
+            EndpointManager = new EndpointManager(this, system, channelProvider);
+            system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(this, system, EndpointManager, pid));
             _hostname = hostname;
             _port = port;
         }
@@ -94,6 +94,11 @@ namespace Proto.Remote
             }
         }
         public void SendMessage(PID pid, object msg, int serializerId)
-            => EndpointManager.SendMessage(pid, msg, serializerId);
+        {
+            var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
+
+            var env = new RemoteDeliver(header, message, pid, sender, serializerId);
+            EndpointManager.RemoteDeliver(env);
+        }
     }
 }

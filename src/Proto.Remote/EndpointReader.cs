@@ -21,7 +21,7 @@ namespace Proto.Remote
         private readonly ActorSystem _system;
         private readonly EndpointManager _endpointManager;
         private readonly Serialization _serialization;
-        private readonly CancellationToken _cancellationToken;
+        private readonly CancellationToken _suspendedToken;
 
         public EndpointReader(ActorSystem system, EndpointManager endpointManager, Serialization serialization)
         {
@@ -67,7 +67,7 @@ namespace Proto.Remote
 
             _ = Task.Run(async () =>
             {
-                while (!_cancellationToken.IsCancellationRequested)
+                while (!_suspendedToken.IsCancellationRequested)
                 {
                     await Task.Delay(10_000);
                     await responseStream.WriteAsync(new Unit { Alive = true });

@@ -4,12 +4,13 @@
 //   </copyright>
 // -----------------------------------------------------------------------
 
+using System.Collections.Generic;
 using Grpc.Core;
 
 namespace Proto.Remote
 {
     public interface IChannelProvider
     {
-        ChannelBase GetChannel(RemoteConfig remoteConfig, string address);
+        ChannelBase GetChannel(string address, ChannelCredentials channelCredentials, IEnumerable<ChannelOption> channelOptions);
     }
 }
