@@ -60,11 +60,11 @@ namespace TestApp
             {
                 var client = system.GetGrains().HelloGrain("name" + i % 200);
 
-                tasks[i] = policy.ExecuteAsync(
+                await policy.ExecuteAsync(
                     () => client.SayHello(new HelloRequest(), CancellationToken.None, options)
                 ).ContinueWith((result) => Console.Write("."));
             }
-            Task.WaitAll(tasks);
+            // Task.WaitAll(tasks);
             Console.WriteLine("Done!");
             Console.ReadLine();
             await system.StopCluster();

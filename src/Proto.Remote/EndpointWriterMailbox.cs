@@ -97,14 +97,17 @@ namespace Proto.Remote
                     {
                         //Dump messages from user messages queue to deadletter 
                         object usrMsg;
-
+                        var dumpedcount = 0;
                         while ((usrMsg = _userMessages.Pop()) != null)
                         {
                             if (usrMsg is RemoteDeliver rd)
                             {
+                                dumpedcount++;
                                 _system.EventStream.Publish(new DeadLetterEvent(rd.Target, rd.Message, rd.Sender));
                             }
                         }
+                        if (dumpedcount > 0)
+                            Logger.LogWarning("[EndpointWriterMailbox] Dumped {@Count} messages", dumpedcount);
                     }
                 }
 
@@ -124,7 +127,7 @@ namespace Proto.Remote
                             continue;
                         }
 
-                        batch.Add((RemoteDeliver) msg);
+                        batch.Add((RemoteDeliver)msg);
 
                         if (batch.Count >= _batchSize)
                         {
