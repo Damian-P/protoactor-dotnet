@@ -140,9 +140,9 @@ namespace Proto.Remote
             if (_streamWriter == null)
             {
                 Logger.LogError("gRPC Failed to send to address {Address}, reason No Connection available", _address);
-                return;
-
-                // throw new EndpointWriterException("gRPC Failed to send, reason No Connection available");
+                // return;
+                context.Stash();
+                throw new EndpointWriterException("gRPC Failed to send, reason No Connection available");
             }
 
             try

@@ -53,7 +53,7 @@ namespace TestApp
             Console.WriteLine("Ready to send messages, press Enter");
             Console.ReadLine();
 
-            var policy = Policy.Handle<TaskCanceledException>().RetryForeverAsync();
+            var policy = Policy.Handle<Exception>().RetryForeverAsync();
             var n = 100000;
             var tasks = new Task[n];
             for (var i = 0; i < n; i++)
@@ -61,7 +61,7 @@ namespace TestApp
                 var client = system.GetGrains().HelloGrain("name" + i % 200);
 
                 await policy.ExecuteAsync(
-                    () => client.SayHello(new HelloRequest(), CancellationToken.None, options)
+                    () => client.SayHello(new HelloRequest(), new CancellationTokenSource(1000).Token, options)
                 ).ContinueWith((result) => Console.Write("."));
             }
             // Task.WaitAll(tasks);

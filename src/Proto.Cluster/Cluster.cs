@@ -72,7 +72,7 @@ namespace Proto.Cluster
                 await Config.ClusterProvider.Shutdown(this);
 
                 //This is to wait ownership transferring complete.
-                await Task.Delay(2000);
+                // await Task.Delay(2000);
 
                 MemberList.Stop();
                 PidCache.Stop();
