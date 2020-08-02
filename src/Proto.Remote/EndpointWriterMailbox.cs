@@ -81,8 +81,6 @@ namespace Proto.Remote
 
                 if (sys != null)
                 {
-                    Logger.LogDebug("[EndpointWriterMailbox] Processing System Message {@Message}", sys);
-
                     _suspended = sys switch
                     {
                         SuspendMailbox _ => true,
@@ -91,7 +89,19 @@ namespace Proto.Remote
                     };
 
                     m = sys;
-                    await _invoker.InvokeSystemMessageAsync(sys);
+                    switch (sys)
+                    {
+                        case EndpointConnectedEvent _:
+                        case EndpointTerminatedEvent _:
+                            Logger.LogDebug("[EndpointWriterMailbox] Processing User Message {@Message}", sys);
+                            await _invoker.InvokeUserMessageAsync(sys);
+                            break;
+                        default:
+                            Logger.LogDebug("[EndpointWriterMailbox] Processing System Message {@Message}", sys);
+                            await _invoker.InvokeSystemMessageAsync(sys);
+                            break;
+                    }
+
 
                     if (sys is Stop)
                     {
@@ -119,15 +129,16 @@ namespace Proto.Remote
                     while ((msg = _userMessages.Pop()) != null)
                     {
                         Logger.LogDebug("[EndpointWriterMailbox] Processing User Message {@Message}", msg);
-
-                        if (msg is EndpointTerminatedEvent
-                        ) //The mailbox was crashing when it received this particular message 
+                        switch (msg)
                         {
-                            await _invoker.InvokeUserMessageAsync(msg);
-                            continue;
+                            case RemoteDeliver remoteDeliver:
+                                batch.Add((RemoteDeliver)msg);
+                                break;
+                            default:
+                                Logger.LogWarning("[EndpointWriterMailbox] Processing User Message {@Message}", msg);
+                                await _invoker.InvokeUserMessageAsync(msg);
+                                continue;
                         }
-
-                        batch.Add((RemoteDeliver)msg);
 
                         if (batch.Count >= _batchSize)
                         {

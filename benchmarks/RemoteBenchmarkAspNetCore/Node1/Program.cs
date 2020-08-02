@@ -78,7 +78,7 @@ public class MyJsonSerializer : Proto.Remote.ISerializer
 
 class Program
 {
-    static PID remoteActor = new PID("127.0.0.1:12000", "ponger");
+    static PID remoteActor = new PID("127.0.0.1:12000", "remote");
     static async Task Main(string[] args)
     {
         Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole()
@@ -91,15 +91,16 @@ class Program
 
         var remote = new SelfHostedRemoteServerOverAspNet(system, "127.0.0.1", 12001, remote =>
         {
-            remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize = 10000;
             var s = new MyJsonSerializer();
             s.RegisterTypeDeserializer<Messages.Ping>();
             s.RegisterTypeDeserializer<Messages.Pong>();
             s.RegisterTypeDeserializer<Messages.Start>();
             s.RegisterTypeDeserializer<Messages.StartRemote>();
             s.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            remote.Serialization.RegisterSerializer(s, true);
+            remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+            // remote.Serialization.RegisterSerializer(s, true);
+            remote.RemoteConfig.EndpointWriterOptions.MaxRetries = 2;
+            remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan = TimeSpan.FromHours(1);
         });
         remote.Start();
 

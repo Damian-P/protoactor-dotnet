@@ -139,9 +139,9 @@ namespace Proto.Remote
         {
             if (_streamWriter == null)
             {
-                Logger.LogError("gRPC Failed to send to address {Address}, reason No Connection available", _address);
                 // return;
                 context.Stash();
+                Logger.LogError("gRPC Failed to send to address {Address}, reason No Connection available", _address);
                 throw new EndpointWriterException("gRPC Failed to send, reason No Connection available");
             }
 
@@ -179,7 +179,6 @@ namespace Proto.Remote
         {
             Logger.LogDebug("Connecting to address {Address}", _address);
             _channel = _channelProvider.GetChannel(_address, _channelCredentials, _channelOptions);
-            _channel = new Channel(_address, _channelCredentials, _channelOptions);
             _client = new Remoting.RemotingClient(_channel);
 
             Logger.LogDebug("Created channel and client for address {Address}", _address);

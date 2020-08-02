@@ -29,15 +29,17 @@ namespace Client
                 {
                     remote.RemoteConfig.AdvertisedHostname = "client";
                     remote.RemoteConfig.AdvertisedPort = 80;
+                    remote.RemoteConfig.EndpointWriterOptions.MaxRetries = 2;
+                    remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan = TimeSpan.FromHours(1);
                     remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
                 }
             );
             services.AddClustering(
                 "StabilityTestAsp",
                 new ConsulProvider(new ConsulProviderOptions
-                    {
-                        DeregisterCritical = TimeSpan.FromSeconds(2)
-                    },
+                {
+                    DeregisterCritical = TimeSpan.FromSeconds(2)
+                },
                     c => { c.Address = new Uri("http://consul:8500/"); }
                 )
             );

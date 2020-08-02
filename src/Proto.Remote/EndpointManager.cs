@@ -74,9 +74,9 @@ namespace Proto.Remote
             foreach (var (address, v) in Connections)
             {
                 var endpoint = v.Value;
-                var msg = new EndpointTerminatedEvent {Address = address};
+                var msg = new EndpointTerminatedEvent { Address = address };
                 _system.Root.Send(endpoint.Watcher, msg);
-                _system.Root.Send(endpoint.Writer, msg);
+                endpoint.Writer.SendSystemMessage(_system, msg);
             }
 
             Connections.Clear();
@@ -92,7 +92,7 @@ namespace Proto.Remote
 
             var endpoint = v.Value;
             _system.Root.Send(endpoint.Watcher, msg);
-            _system.Root.Send(endpoint.Writer, msg);
+            endpoint.Writer.SendSystemMessage(_system, msg);
         }
 
         private void OnEndpointConnected(EndpointConnectedEvent msg)

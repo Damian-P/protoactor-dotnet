@@ -60,14 +60,14 @@ namespace Client
                     await Task.Delay(2000);
                     _logger.LogCritical("Starting to send !");
 
-                    var policy = Policy.Handle<TaskCanceledException>().RetryForeverAsync();
+                    var policy = Policy.Handle<Exception>().RetryForeverAsync();
                     var n = 1_000_000;
                     var tasks = new List<Task>();
                     for (var i = 0; i < n; i++)
                     {
                         var client = _grains.HelloGrain("name" + i % 200);
                         tasks.Add(policy.ExecuteAsync(() =>
-                                client.SayHello(new HelloRequest(), CancellationToken.None, options)
+                                client.SayHello(new HelloRequest(), new CancellationTokenSource(2000).Token, options)
                             )
                         );
                         if (tasks.Count % 1000 == 0)
@@ -79,6 +79,7 @@ namespace Client
 
                     Task.WaitAll(tasks.ToArray());
                     _logger.LogCritical("Done!");
+                    _appLifetime.StopApplication();
                 }, _appLifetime.ApplicationStopping
             );
         }

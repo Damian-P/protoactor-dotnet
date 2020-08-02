@@ -112,8 +112,8 @@ namespace Node2
             {
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("ponger", Props.FromProducer(() => new EchoActor()));
-                remote.RemoteConfig.EndpointWriterOptions.MaxRetries = 5;
-                remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan = TimeSpan.FromSeconds(10);
+                remote.RemoteConfig.EndpointWriterOptions.MaxRetries = 2;
+                remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan = TimeSpan.FromHours(1);
                 var s = new MyJsonSerializer();
                 s.RegisterTypeDeserializer<Messages.Ping>();
                 s.RegisterTypeDeserializer<Messages.Pong>();

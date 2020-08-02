@@ -29,7 +29,7 @@ class Program
 
         var messageCount = 1_000_000;
 
-        var remoteActor = new PID("127.0.0.1:12000", "ponger");
+        var remoteActor = new PID("127.0.0.1:12000", "remote");
 
         _ = Task.Run(async () =>
         {

@@ -45,10 +45,6 @@ namespace Node2
             var Remote = new SelfHostedRemoteServerOverGrpc(system, "127.0.0.1", 12000, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-                remote.RemoteKindRegistry.RegisterKnownKind("ponger", Props.FromProducer(() => new EchoActor()));
-                remote.RemoteConfig.EndpointWriterOptions.MaxRetries = 5;
-                remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan = TimeSpan.FromSeconds(10);
-                remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize = 10000;
             });
 
             Remote.Start();
