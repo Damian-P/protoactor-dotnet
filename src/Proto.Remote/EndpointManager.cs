@@ -28,6 +28,7 @@ namespace Proto.Remote
         private readonly Serialization _serialization;
         private Subscription<object> _endpointTermEvnSub;
         private Subscription<object> _endpointConnEvnSub;
+        private Subscription<object> _endpointCrashEvnSub;
         private readonly IChannelProvider _channelProvider;
 
         public EndpointManager(ActorSystem actorSystem, RemoteConfig remoteConfig, Serialization serialization, IChannelProvider channelProvider)
@@ -42,7 +43,7 @@ namespace Proto.Remote
         {
             _endpointTermEvnSub = _actorSystem.EventStream.Subscribe<EndpointTerminatedEvent>(OnEndpointTerminated);
             _endpointConnEvnSub = _actorSystem.EventStream.Subscribe<EndpointConnectedEvent>(OnEndpointConnected);
-            _endpointConnEvnSub = _actorSystem.EventStream.Subscribe<EndpointCrashedEvent>(OnEndpointCrashed);
+            _endpointCrashEvnSub = _actorSystem.EventStream.Subscribe<EndpointCrashedEvent>(OnEndpointCrashed);
             Logger.LogDebug("Started EndpointManager");
         }
 
