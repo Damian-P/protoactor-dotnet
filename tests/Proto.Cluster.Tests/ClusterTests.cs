@@ -7,6 +7,7 @@ using Divergic.Logging.Xunit;
 using Microsoft.Extensions.Logging;
 using Proto.Cluster.Testing;
 using Proto.Remote;
+using Proto.Remote.Tests.Messages;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -23,7 +24,7 @@ namespace Proto.Cluster.Tests
             Log.SetLoggerFactory(factory);
             _logger = Log.CreateLogger<ClusterTests>();
         }
-        
+
         [Fact]
         public void InMemAgentRegisterService()
         {
@@ -32,16 +33,16 @@ namespace Proto.Cluster.Tests
             {
                 ID = "abc",
                 Address = "LocalHost",
-                Kinds = new []{"SomeKind"},
+                Kinds = new[] { "SomeKind" },
                 Port = 8080
             });
 
             var services = agent.GetServicesHealth();
-            
-            Assert.True(services.Length == 1,"There should be only one service");
+
+            Assert.True(services.Length == 1, "There should be only one service");
 
         }
-        
+
         [Fact]
         public void InMemAgentServiceShouldBeAlive()
         {
@@ -50,7 +51,7 @@ namespace Proto.Cluster.Tests
             {
                 ID = "abc",
                 Address = "LocalHost",
-                Kinds = new []{"SomeKind"},
+                Kinds = new[] { "SomeKind" },
                 Port = 8080
             });
 
@@ -58,7 +59,7 @@ namespace Proto.Cluster.Tests
             var first = services.First();
             Assert.True(first.Alive);
         }
-        
+
         [Fact]
         public async Task InMemAgentServiceShouldNotBeAlive()
         {
@@ -67,7 +68,7 @@ namespace Proto.Cluster.Tests
             {
                 ID = "abc",
                 Address = "LocalHost",
-                Kinds = new []{"SomeKind"},
+                Kinds = new[] { "SomeKind" },
                 Port = 8080
             });
 
@@ -75,10 +76,10 @@ namespace Proto.Cluster.Tests
             var first = services.First();
 
             await Task.Delay(TimeSpan.FromSeconds(5));
-            
+
             Assert.False(first.Alive);
         }
-        
+
         [Fact]
         public async Task InMemAgentServiceShouldBeAliveAfterTTLRefresh()
         {
@@ -87,7 +88,7 @@ namespace Proto.Cluster.Tests
             {
                 ID = "abc",
                 Address = "LocalHost",
-                Kinds = new []{"SomeKind"},
+                Kinds = new[] { "SomeKind" },
                 Port = 8080
             });
 
@@ -97,82 +98,82 @@ namespace Proto.Cluster.Tests
 
             var services = agent.GetServicesHealth();
             var first = services.First();
-    
+
             Assert.True(first.Alive);
         }
-        
-        
+
+
         [Fact]
         public async Task ClusterShouldContainOneAliveNode()
         {
             var agent = new InMemAgent();
-            
-            var cluster = await NewCluster(agent,8080);
+
+            var cluster = await NewCluster(agent, 8080);
 
             var services = agent.GetServicesHealth();
             var first = services.First();
             Assert.True(first.Alive);
             Assert.True(services.Length == 1);
-            
+
             await cluster.Shutdown();
         }
-        
+
         [Fact]
         public async Task ClusterShouldRefreshServiceTTL()
         {
             var agent = new InMemAgent();
-            
-            var cluster = await NewCluster(agent,8080);
+
+            var cluster = await NewCluster(agent, 8080);
 
             var services = agent.GetServicesHealth();
             var first = services.First();
             var ttl1 = first.TTL;
             SpinWait.SpinUntil(() => ttl1 != first.TTL, TimeSpan.FromSeconds(10));
-            Assert.NotEqual(ttl1,first.TTL);
+            Assert.NotEqual(ttl1, first.TTL);
             await cluster.Shutdown();
         }
-        
+
         [Fact]
         public async Task ClusterShouldContainTwoAliveNodes()
         {
             var agent = new InMemAgent();
-            
-            var cluster1 = await NewCluster(agent,8080);
-            var cluster2 = await NewCluster(agent,8081);
+
+            var cluster1 = await NewCluster(agent, 8080);
+            var cluster2 = await NewCluster(agent, 8081);
 
             var services = agent.GetServicesHealth();
-  
+
             Assert.True(services.Length == 2);
             Assert.True(services.All(m => m.Alive));
-            
+
             await cluster1.Shutdown();
             await cluster2.Shutdown();
         }
-        
+
         [Fact]
         public async Task ClusterShouldContainOneAliveAfterShutdownOfNode1()
         {
             var agent = new InMemAgent();
-            
-            var cluster1 = await NewCluster(agent,8080);
-            var cluster2 = await NewCluster(agent,8081);
-            
+
+            var cluster1 = await NewCluster(agent, 8080);
+            var cluster2 = await NewCluster(agent, 8081);
+
             await cluster1.Shutdown();
 
             var services = agent.GetServicesHealth();
-  
-            Assert.True(services.Length == 1,"Expected 1 Node");
+
+            Assert.True(services.Length == 1, "Expected 1 Node");
             Assert.True(services.All(m => m.Alive));
-            
-            
+
+
             await cluster2.Shutdown();
         }
-        
+
         [Fact]
         public async Task ClusterShouldSpawnActors()
         {
             var agent = new InMemAgent();
-            
+
             var prop = Props.FromFunc(context =>
                 {
                     if (context.Message is string _)
@@ -183,25 +184,80 @@ namespace Proto.Cluster.Tests
                     return Actor.Done;
                 }
             );
-            
-            var cluster1 = await NewCluster(agent,8080,("echo", prop));
-            var cluster2 = await NewCluster(agent,8081,("echo", prop));
 
-     
+            var cluster1 = await NewCluster(agent, 8080, ("echo", prop));
+            var cluster2 = await NewCluster(agent, 8081, ("echo", prop));
 
-            var (pid,response) = await cluster1.GetAsync("myactor", "echo");
-            
-            _logger.LogDebug("Response = {0}",response);
-            _logger.LogDebug("PID = {0}",pid);
 
-            
-            Assert.Equal(ResponseStatusCode.OK,response);
+
+            var (pid, response) = await cluster1.GetAsync("myactor", "echo");
+
+            _logger.LogDebug("Response = {0}", response);
+            _logger.LogDebug("PID = {0}", pid);
+
+
+            Assert.Equal(ResponseStatusCode.OK, response);
             Assert.NotNull(pid);
-            
- 
 
-            await cluster1.Shutdown(false);
-            await cluster2.Shutdown(false);
+
+
+            await cluster1.Shutdown(true);
+            await cluster2.Shutdown(true);
+        }
+
+        [Fact]
+        public async Task ClusterShouldSendAndReceiveMessage()
+        {
+            var agent = new InMemAgent();
+
+            int msgCount = 0;
+
+            var prop = Props.FromFunc(context =>
+                {
+                    switch (context.Message)
+                    {
+                        case Ping ping:
+                            msgCount++;
+                            _logger.LogDebug("Received {0}", ping);
+                            context.Respond(new Pong { Message = "Pong" });
+                            break;
+                    }
+
+                    return Actor.Done;
+                }
+            );
+
+            List<Cluster> clusterMembers = new List<Cluster>();
+
+            var memberCount = 5;
+
+            for (int i = 0; i < memberCount; i++)
+            {
+                clusterMembers.Add(await NewCluster(agent, 8085 + i, ("echo", prop)));
+            }
+            foreach (var member in clusterMembers)
+            {
+
+                var (pid, response) = await member.GetAsync("myactor", "echo");
+
+                _logger.LogDebug("Response = {0}", response);
+                _logger.LogDebug("PID = {0}", pid);
+
+
+                Assert.Equal(ResponseStatusCode.OK, response);
+                Assert.NotNull(pid);
+
+                var pong = await member.System.Root.RequestAsync<Pong>(pid, new Ping { Message = "Ping" });
+                Assert.NotNull(pong);
+            }
+
+            Assert.Equal(memberCount, msgCount);
+
+            foreach (var member in clusterMembers)
+            {
+                await member.Shutdown(true);
+            }
+
         }
 
         private static async Task<Cluster> NewCluster(InMemAgent agent, int port,
@@ -209,18 +265,21 @@ namespace Proto.Cluster.Tests
         {
             var provider = new TestProvider(new TestProviderOptions(), agent);
             var system = new ActorSystem();
-            var serialization = new Serialization();
-            var cluster = new Cluster(system, serialization);
-
-            foreach (var (kind, prop) in kinds)
+            var remote = system.AddRemote("localhost", port, remote =>
             {
-                cluster.Remote.RegisterKnownKind(kind, prop);
-            }
+                remote.Serialization.RegisterFileDescriptor(Proto.Remote.Tests.Messages.ProtosReflection.Descriptor);
+                foreach (var (kind, prop) in kinds)
+                {
+                    remote.RemoteKindRegistry.RegisterKnownKind(kind, prop);
+                }
+            });
 
-            var config = new ClusterConfig("cluster1", "localhost", port, provider)
-                .WithPidCache(false);
+            var clusterConfig = new ClusterConfig("cluster1", provider)
+               .WithPidCache(false);
 
-            await cluster.Start(config);
+            var cluster = system.AddClustering(clusterConfig);
+
+            await system.StartCluster();
             return cluster;
         }
     }

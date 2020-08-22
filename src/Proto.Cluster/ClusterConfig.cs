@@ -15,8 +15,6 @@ namespace Proto.Cluster
     public class ClusterConfig
     {
         public string Name { get; }
-        public string Address { get; }
-        public int Port { get; }
         public IClusterProvider ClusterProvider { get; }
 
         public RemoteConfig RemoteConfig { get; private set; }
@@ -29,13 +27,11 @@ namespace Proto.Cluster
 
         public IIdentityLookup IdentityLookup { get; private set; } 
 
-        public ClusterConfig(string name, string address, int port, IClusterProvider cp)
+        public ClusterConfig(string name, IClusterProvider cp)
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
-            Address = address ?? throw new ArgumentNullException(nameof(address));
-            Port = port;
             ClusterProvider = cp ?? throw new ArgumentNullException(nameof(cp));
-            
+            IdentityLookup = new PartitionIdentityLookup();
             RemoteConfig = new RemoteConfig();
             TimeoutTimespan = TimeSpan.FromSeconds(5);
             MemberStatusValueSerializer = new NullMemberStatusValueSerializer();

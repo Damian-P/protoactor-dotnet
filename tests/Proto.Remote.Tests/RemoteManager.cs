@@ -6,13 +6,14 @@ namespace Proto.Remote.Tests
 {
     public class RemoteManager
     {
-        public const string RemoteAddress = "0.0.0.0:12000";
+        public const string RemoteAddress = "localhost:12000";
         static RemoteManager()
         {
             system = new ActorSystem();
-            var serialization = new Serialization();
-            serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
-            remote = new Remote(system, serialization);
+            remote = new SelfHostedRemote(system, "localhost", 12001, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
+            });
         }
 
         private static readonly Remote remote;
@@ -33,24 +34,15 @@ namespace Proto.Remote.Tests
                     RetryTimeSpan = TimeSpan.FromSeconds(120)
                 }
             };
-            
-            var service = new ProtoService(12000,"0.0.0.0");
+
+            var service = new ProtoService(12000, "localhost");
             service.StartAsync().Wait();
-            
-            remote.Start(GetLocalIp(), 12001, config);
-            
+
+            remote.Start();
+
             remoteStarted = true;
 
             return (remote, system);
-
-            static string GetLocalIp()
-            {
-                using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
-
-                socket.Connect("8.8.8.8", 65530);
-                var endPoint = socket.LocalEndPoint as IPEndPoint;
-                return endPoint?.Address.ToString();
-            }
         }
     }
 }

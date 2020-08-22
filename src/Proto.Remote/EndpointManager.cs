@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
@@ -30,12 +31,15 @@ namespace Proto.Remote
 
         private readonly ConnectionRegistry _connections = new ConnectionRegistry();
         private readonly ActorSystem _system;
-        private readonly Remote _remote;
+        private readonly IRemote _remote;
         private PID? _endpointSupervisor;
         private Subscription<object>? _endpointTermEvnSub;
         private Subscription<object>? _endpointConnEvnSub;
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
 
-        public EndpointManager(Remote remote, ActorSystem system)
+        public CancellationToken CancellationToken => _cancellationTokenSource.Token;
+
+        public EndpointManager(IRemote remote, ActorSystem system)
         {
             _remote = remote;
             _system = system;
@@ -57,6 +61,9 @@ namespace Proto.Remote
 
         public void Stop()
         {
+            if (_cancellationTokenSource.IsCancellationRequested) return;
+            _cancellationTokenSource.Cancel();
+            
             _system.EventStream.Unsubscribe(_endpointTermEvnSub);
             _system.EventStream.Unsubscribe(_endpointConnEvnSub);
 

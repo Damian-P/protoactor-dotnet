@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Core.Utils;
+using Grpc.Net.Client;
 using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
@@ -23,7 +24,7 @@ namespace Proto.Remote
         private readonly ChannelCredentials _channelCredentials;
         private readonly IEnumerable<ChannelOption> _channelOptions;
 
-        private Channel? _channel;
+        private ChannelBase? _channel;
         private Remoting.RemotingClient? _client;
         private AsyncDuplexStreamingCall<MessageBatch, Unit>? _stream;
         private IClientStreamWriter<MessageBatch>? _streamWriter;
@@ -123,8 +124,8 @@ namespace Proto.Remote
                 batch.Envelopes.AddRange(envelopes);
 
                 Logger.LogDebug(
-                    "[EndpointWriter] Sending {Count} envelopes for {Address} while channel status is {State}",
-                    envelopes.Count, _address, _channel?.State
+                    "[EndpointWriter] Sending {Count} envelopes for {Address}",
+                    envelopes.Count, _address
                 );
 
                 return SendEnvelopesAsync(batch, context);
@@ -159,13 +160,28 @@ namespace Proto.Remote
         //shutdown channel before stopping
         private Task StoppedAsync() => ShutDownChannel();
 
-        private Task ShutDownChannel() => _channel != null && _channel.State != ChannelState.Shutdown ? _channel.ShutdownAsync() : Actor.Done;
+        private async Task ShutDownChannel()
+        {
+            if (_stream != null)
+                await _stream.RequestStream.CompleteAsync();
+            if (_channel != null)
+            {
+                await _channel.ShutdownAsync();
+            }
+        }
 
         private async Task StartedAsync()
         {
             Logger.LogDebug("[EndpointWriter] Connecting to address {Address}", _address);
 
-            _channel = new Channel(_address, _channelCredentials, _channelOptions);
+            var addressWithProtocol =
+                           $"{(_channelCredentials == ChannelCredentials.Insecure ? "http://" : "https://")}{_address}";
+
+            var options = new GrpcChannelOptions
+            {
+                Credentials = _channelCredentials
+            };
+            _channel = GrpcChannel.ForAddress(addressWithProtocol, options);
             _client = new Remoting.RemotingClient(_channel);
 
             Logger.LogDebug("[EndpointWriter] Created channel and client for address {Address}", _address);
@@ -182,7 +198,21 @@ namespace Proto.Remote
                 {
                     try
                     {
-                        await _stream.ResponseStream.ForEachAsync(i => Actor.Done);
+                        await _stream.ResponseStream.ForEachAsync(unit =>
+                            {
+                                if (!unit.Alive)
+                                {
+                                    Logger.LogInformation("Lost connection to address {Address}", _address);
+                                    var terminated = new EndpointTerminatedEvent
+                                    {
+                                        Address = _address
+                                    };
+                                    _system.EventStream.Publish(terminated);
+                                }
+
+                                return Actor.Done;
+                            }
+                        ).ConfigureAwait(false);
                     }
                     catch (Exception x)
                     {
