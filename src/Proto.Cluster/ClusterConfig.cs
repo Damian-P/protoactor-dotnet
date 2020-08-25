@@ -17,8 +17,6 @@ namespace Proto.Cluster
         public ClusterConfig(string name, string address, int port, IClusterProvider cp)
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
-            Address = address ?? throw new ArgumentNullException(nameof(address));
-            Port = port;
             ClusterProvider = cp ?? throw new ArgumentNullException(nameof(cp));
 
             RemoteConfig = new RemoteConfig();
@@ -27,8 +25,6 @@ namespace Proto.Cluster
         }
 
         public string Name { get; }
-        public string Address { get; }
-        public int Port { get; }
         public IClusterProvider ClusterProvider { get; }
 
         public RemoteConfig RemoteConfig { get; private set; }
@@ -39,6 +35,16 @@ namespace Proto.Cluster
         public bool UsePidCache { get; private set; } = true;
 
         public IIdentityLookup IdentityLookup { get; private set; } = null!;
+
+        public ClusterConfig(string name, IClusterProvider cp)
+        {
+            Name = name ?? throw new ArgumentNullException(nameof(name));
+            ClusterProvider = cp ?? throw new ArgumentNullException(nameof(cp));
+
+            RemoteConfig = new RemoteConfig();
+            TimeoutTimespan = TimeSpan.FromSeconds(5);
+            MemberStrategyBuilder = kind => new SimpleMemberStrategy();
+        }
 
         public ClusterConfig WithRemoteConfig(RemoteConfig remoteConfig)
         {

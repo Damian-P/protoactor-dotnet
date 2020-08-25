@@ -9,8 +9,8 @@ namespace Proto.Remote.Tests
         private readonly ILogger<ProtoService> _logger;
         private readonly int _port;
         private readonly string _host;
-        private Remote _remote;
-        
+        private IRemote _remote;
+
         public ProtoService(int port, string host)
         {
             ILogger<ProtoService> log = NullLogger<ProtoService>.Instance;
@@ -25,12 +25,14 @@ namespace Proto.Remote.Tests
 
             var actorSystem = new ActorSystem();
             var serialization = new Serialization();
-            serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
-            _remote = new Remote(actorSystem, serialization);
-            _remote.Start(_host, _port);
+            _remote = new SelfHostedRemote(actorSystem, _host, _port, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
+            });
+            _remote.Start();
 
             var props = Props.FromProducer(() => new EchoActor(_host, _port));
-            _remote.RegisterKnownKind("EchoActor", props);
+            _remote.RemoteKindRegistry.RegisterKnownKind("EchoActor", props);
             actorSystem.Root.SpawnNamed(props, "EchoActorInstance");
 
             _logger.LogInformation("ProtoService started");

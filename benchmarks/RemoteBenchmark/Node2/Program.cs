@@ -7,6 +7,7 @@
 using System;
 using System.Threading.Tasks;
 using Messages;
+using Microsoft.Extensions.Logging;
 using Proto;
 using Proto.Remote;
 using ProtosReflection = Messages.ProtosReflection;
@@ -37,16 +38,25 @@ namespace Node2
 
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
+            Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole()
+                                                            .AddFilter("Proto.EventStream", LogLevel.Critical)
+                                                            .AddFilter("Microsoft", LogLevel.Critical)
+                                                            .AddFilter("Grpc.AspNetCore", LogLevel.Critical)
+                                                            .SetMinimumLevel(LogLevel.Information)));
+                                                            
             var system = new ActorSystem();
             var context = new RootContext(system);
             var serialization = new Serialization();
-            serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            var Remote = new Remote(system, serialization);
-            Remote.Start("127.0.0.1", 12000);
+            var Remote = new SelfHostedRemote(system, "127.0.0.1", 12000, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+            });
+            Remote.Start();
             context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
+            await Remote.Stop();
         }
     }
 }

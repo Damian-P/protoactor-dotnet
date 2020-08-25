@@ -19,9 +19,9 @@ namespace Proto.Remote
         private readonly Dictionary<string, HashSet<PID>> _watched = new Dictionary<string, HashSet<PID>>();
         private readonly string _address; //for logging
         private readonly ActorSystem _system;
-        private readonly Remote _remote;
+        private readonly IRemote _remote;
 
-        public EndpointWatcher(Remote remote, ActorSystem system, string address)
+        public EndpointWatcher(IRemote remote, ActorSystem system, string address)
         {
             _remote = remote;
             _system = system;

@@ -10,9 +10,9 @@ namespace Proto.Remote
     {
         private readonly PID _pid;
         private readonly EndpointManager _endpointManager;
-        private readonly Remote _remote;
+        private readonly IRemote _remote;
 
-        public RemoteProcess(Remote remote, ActorSystem system, EndpointManager endpointManager, PID pid) : base(system)
+        public RemoteProcess(IRemote remote, ActorSystem system, EndpointManager endpointManager, PID pid) : base(system)
         {
             _remote = remote;
             _endpointManager = endpointManager;

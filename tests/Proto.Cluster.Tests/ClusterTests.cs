@@ -23,7 +23,7 @@
 //             Log.SetLoggerFactory(factory);
 //             _logger = Log.CreateLogger<ClusterTests>();
 //         }
-//         
+//
 //         [Fact]
 //         public void InMemAgentRegisterService()
 //         {
@@ -37,11 +37,11 @@
 //             });
 //
 //             var services = agent.GetServicesHealth();
-//             
+//
 //             Assert.True(services.Length == 1,"There should be only one service");
 //
 //         }
-//         
+//
 //         [Fact]
 //         public void InMemAgentServiceShouldBeAlive()
 //         {
@@ -58,7 +58,7 @@
 //             var first = services.First();
 //             Assert.True(first.Alive);
 //         }
-//         
+//
 //         [Fact]
 //         public async Task InMemAgentServiceShouldNotBeAlive()
 //         {
@@ -75,10 +75,10 @@
 //             var first = services.First();
 //
 //             await Task.Delay(TimeSpan.FromSeconds(5));
-//             
+//
 //             Assert.False(first.Alive);
 //         }
-//         
+//
 //         [Fact]
 //         public async Task InMemAgentServiceShouldBeAliveAfterTTLRefresh()
 //         {
@@ -98,31 +98,31 @@
 //
 //             var services = agent.GetServicesHealth();
 //             var first = services.First();
-//     
+//
 //             Assert.True(first.Alive);
 //         }
-//         
-//         
+//
+//
 //         [Fact]
 //         public async Task ClusterShouldContainOneAliveNode()
 //         {
 //             var agent = new InMemAgent();
-//             
+//
 //             var cluster = await NewCluster(agent,8080);
 //
 //             var services = agent.GetServicesHealth();
 //             var first = services.First();
 //             Assert.True(first.Alive);
 //             Assert.True(services.Length == 1);
-//             
+//
 //             await cluster.ShutdownAsync();
 //         }
-//         
+//
 //         [Fact]
 //         public async Task ClusterShouldRefreshServiceTTL()
 //         {
 //             var agent = new InMemAgent();
-//             
+//
 //             var cluster = await NewCluster(agent,8080);
 //
 //             var services = agent.GetServicesHealth();
@@ -132,48 +132,48 @@
 //             Assert.NotEqual(ttl1,first.TTL);
 //             await cluster.ShutdownAsync();
 //         }
-//         
+//
 //         [Fact]
 //         public async Task ClusterShouldContainTwoAliveNodes()
 //         {
 //             var agent = new InMemAgent();
-//             
+//
 //             var cluster1 = await NewCluster(agent,8080);
 //             var cluster2 = await NewCluster(agent,8081);
 //
 //             var services = agent.GetServicesHealth();
-//   
+//
 //             Assert.True(services.Length == 2);
 //             Assert.True(services.All(m => m.Alive));
-//             
+//
 //             await cluster1.ShutdownAsync();
 //             await cluster2.ShutdownAsync();
 //         }
-//         
+//
 //         [Fact]
 //         public async Task ClusterShouldContainOneAliveAfterShutdownOfNode1()
 //         {
 //             var agent = new InMemAgent();
-//             
+//
 //             var cluster1 = await NewCluster(agent,8080);
 //             var cluster2 = await NewCluster(agent,8081);
-//             
+//
 //             await cluster1.ShutdownAsync();
 //
 //             var services = agent.GetServicesHealth();
-//   
+//
 //             Assert.True(services.Length == 1,"Expected 1 Node");
 //             Assert.True(services.All(m => m.Alive));
-//             
-//             
+//
+//
 //             await cluster2.ShutdownAsync();
 //         }
-//         
+//
 //         [Fact]
 //         public async Task ClusterShouldSpawnActors()
 //         {
 //             var agent = new InMemAgent();
-//             
+//
 //             var prop = Props.FromFunc(context =>
 //                 {
 //                     if (context.Message is string _)
@@ -184,22 +184,22 @@
 //                     return Actor.Done;
 //                 }
 //             );
-//             
+//
 //             var cluster1 = await NewCluster(agent,8080,("echo", prop));
 //             var cluster2 = await NewCluster(agent,8081,("echo", prop));
 //
-//      
+//
 //
 //             var (pid,response) = await cluster1.GetAsync("myactor", "echo");
-//             
+//
 //             _logger.LogDebug("Response = {0}",response);
 //             _logger.LogDebug("PID = {0}",pid);
 //
-//             
+//
 //             Assert.Equal(ResponseStatusCode.OK,response);
 //             Assert.NotNull(pid);
-//             
-//  
+//
+//
 //
 //             await cluster1.ShutdownAsync(false);
 //             await cluster2.ShutdownAsync(false);

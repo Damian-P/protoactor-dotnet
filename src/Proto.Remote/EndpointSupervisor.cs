@@ -18,14 +18,14 @@ namespace Proto.Remote
         private readonly int _maxNrOfRetries;
         private readonly Random _random = new Random();
         private readonly ActorSystem _system;
-        private readonly Remote _remote;
+        private readonly IRemote _remote;
         private readonly TimeSpan? _withinTimeSpan;
         private readonly long _backoff;
         
         private CancellationTokenSource? _cancelFutureRetries;
         private string? _address;
 
-        public EndpointSupervisor(Remote remote, ActorSystem system)
+        public EndpointSupervisor(IRemote remote, ActorSystem system)
         {
             if (remote.RemoteConfig == null)
                 throw new ArgumentException("[EndpointSupervisor] Router hasn't been configured", nameof(remote));
@@ -108,14 +108,14 @@ namespace Proto.Remote
             return false;
         }
 
-        private static PID SpawnWatcher(string address, ISpawnerContext context, ActorSystem system, Remote remote)
+        private static PID SpawnWatcher(string address, ISpawnerContext context, ActorSystem system, IRemote remote)
         {
             var watcherProps = Props.FromProducer(() => new EndpointWatcher(remote, system, address));
             var watcher = context.Spawn(watcherProps);
             return watcher;
         }
 
-        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, Remote remote)
+        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, IRemote remote)
         {
             if (remote.RemoteConfig == null)
                 throw new ArgumentException("Router hasn't been configured", nameof(remote));

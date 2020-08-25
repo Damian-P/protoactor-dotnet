@@ -4,7 +4,9 @@
 //   </copyright>
 // -----------------------------------------------------------------------
 
+using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Core.Utils;
@@ -17,7 +19,6 @@ namespace Proto.Remote
     {
         private static readonly ILogger Logger = Log.CreateLogger<EndpointReader>();
 
-        private bool _suspended;
         private readonly ActorSystem _system;
         private readonly EndpointManager _endpointManager;
         private readonly Serialization _serialization;
@@ -31,7 +32,7 @@ namespace Proto.Remote
 
         public override Task<ConnectResponse> Connect(ConnectRequest request, ServerCallContext context)
         {
-            if (_suspended)
+            if (_endpointManager.CancellationToken.IsCancellationRequested)
             {
                 Logger.LogWarning("[EndpointReader] Attempt to connect to the suspended reader has been rejected");
 
@@ -53,6 +54,20 @@ namespace Proto.Remote
             IServerStreamWriter<Unit> responseStream, ServerCallContext context
         )
         {
+            _endpointManager.CancellationToken.Register(() =>
+                {
+                    Logger.LogDebug("EndpointReader suspended");
+                    try
+                    {
+                        responseStream.WriteAsync(new Unit {Alive = false});
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.LogDebug(e, "");
+                    }
+                }
+            );
+            
             var targets = new PID[100];
 
             return requestStream.ForEachAsync(
@@ -60,7 +75,7 @@ namespace Proto.Remote
                 {
                     Logger.LogDebug("[EndpointReader] Received a batch of {Count} messages from {Remote}", batch.TargetNames.Count, context.Peer);
 
-                    if (_suspended)
+                    if (_endpointManager.CancellationToken.IsCancellationRequested)
                         return Actor.Done;
 
                     //only grow pid lookup if needed
@@ -118,12 +133,6 @@ namespace Proto.Remote
                     return Actor.Done;
                 }
             );
-        }
-
-        public void Suspend(bool suspended)
-        {
-            Logger.LogDebug("[EndpointReader] Suspended");
-            _suspended = suspended;
         }
     }
 }
