@@ -32,7 +32,7 @@ namespace Proto.Remote
         public override void Start()
         {
             if (IsStarted) return;
-            IServerAddressesFeature serverAddressesFeature = null;
+            IServerAddressesFeature? serverAddressesFeature = null;
             base.Start();
             // Allows tu use Grpc.Net over http
             if (RemoteConfig.ServerCredentials == ServerCredentials.Insecure)
@@ -77,7 +77,7 @@ namespace Proto.Remote
                 )
                 .Start();
 
-            var boundPort = serverAddressesFeature.Addresses.Select(a => int.Parse(a.Split(":")[2])).First();
+            var boundPort = serverAddressesFeature!.Addresses.Select(a => int.Parse(a.Split(":")[2])).First();
             _system.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? _hostname,
                 RemoteConfig.AdvertisedPort ?? boundPort
             );
