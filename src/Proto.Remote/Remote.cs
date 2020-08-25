@@ -42,7 +42,6 @@ namespace Proto.Remote
         public RemoteKindRegistry RemoteKindRegistry { get; } = new RemoteKindRegistry();
 
         public Serialization Serialization { get; } = new Serialization();
-        private HealthServiceImpl _healthCheck = null!;
         public Remote(ActorSystem system, string hostname, int port, Action<IRemoteConfiguration>? configure = null)
         {
             _system = system;
@@ -52,7 +51,6 @@ namespace Proto.Remote
             system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(this, system, EndpointManager, pid));
             _hostname = hostname;
             _port = port;
-            _healthCheck = new HealthServiceImpl();
         }
 
         /// <summary>

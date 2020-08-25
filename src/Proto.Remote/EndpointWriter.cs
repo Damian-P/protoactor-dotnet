@@ -163,7 +163,6 @@ namespace Proto.Remote
         //shutdown channel before stopping
         private Task StoppedAsync()
         {
-
             return ShutDownChannel();
         }
 
@@ -189,7 +188,16 @@ namespace Proto.Remote
             {
                 Credentials = _channelCredentials
             };
-            _channel = GrpcChannel.ForAddress(addressWithProtocol, options);
+            try
+            {
+                _channel = GrpcChannel.ForAddress(addressWithProtocol, options);
+            }
+            catch (Exception e)
+            {
+                Logger.LogError(e, $"Error connecting to {_address}.");
+                throw e;
+            }
+
             _client = new Remoting.RemotingClient(_channel);
 
             Logger.LogDebug("[EndpointWriter] Created channel and client for address {Address}", _address);

@@ -37,23 +37,31 @@ namespace ClusterExperiment1
                     var rnd = new Random();
                     while (true)
                     {
-                        var id = "myactor" + rnd.Next(0, 1000);
-                        //    Console.WriteLine($"Sending request {id}");
-                        var res = await requestNode.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
-                            CancellationToken.None
-                        );
-
-                        if (res == null)
+                        try
                         {
-                            logger.LogError("Got void response");
-                        }
-                        else
-                        {
-                            Console.Write(".");
-                            //      Console.WriteLine("Got response");
-                        }
+                            var id = "myactor" + rnd.Next(0, 10);
+                            //    Console.WriteLine($"Sending request {id}");
+                            var res = await requestNode.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
+                                CancellationToken.None
+                            );
 
-                        //await Task.Delay(0);
+                            if (res == null)
+                            {
+                                logger.LogError("Got void response");
+                                await Task.Delay(1000);
+                            }
+                            else
+                            {
+                                Console.Write(".");
+                                //      Console.WriteLine("Got response");
+                            }
+
+                            //await Task.Delay(0);
+                        }
+                        catch (Exception e)
+                        {
+                            logger.LogError(e, "An error occured");
+                        }
                     }
                 }
             );
@@ -63,8 +71,16 @@ namespace ClusterExperiment1
                 switch (Console.ReadKey().KeyChar)
                 {
                     case '-':
-                        if (workers.TryPop(out Cluster removedNode))
-                            await removedNode.ShutdownAsync();
+                        {
+                            if (workers.TryPop(out Cluster removedNode))
+                                await removedNode.ShutdownAsync();
+                        }
+                        break;
+                    case '*':
+                        {
+                            if (workers.TryPop(out Cluster removedNode))
+                                await removedNode.ShutdownAsync(false);
+                        }
                         break;
                     case '+':
                         workers.Push(await SpawnMember(0));

@@ -9,6 +9,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Grpc.Core;
+using Grpc.HealthCheck;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -71,7 +72,11 @@ namespace Proto.Remote
                 ).Configure(app =>
                     {
                         app.UseRouting();
-                        app.UseEndpoints(endpoints => { endpoints.MapGrpcService<Remoting.RemotingBase>(); });
+                        app.UseEndpoints(endpoints =>
+                        {
+                            endpoints.MapGrpcService<Remoting.RemotingBase>();
+                            endpoints.MapGrpcService<HealthServiceImpl>();
+                        });
                         serverAddressesFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
                     }
                 )

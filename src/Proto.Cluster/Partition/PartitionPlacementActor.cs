@@ -35,7 +35,7 @@ namespace Proto.Cluster.Partition
                 {
                     if (dl.Pid.Id.StartsWith(PartitionManager.PartitionPlacementActorName))
                     {
-                        var id = dl.Pid.Id.Substring(PartitionManager.PartitionPlacementActorName.Length + 1);
+                        var id = dl.Pid.Id.Substring(PartitionManager.PartitionPlacementActorName.Length);
 
                         if (dl.Message is Watch watch)
                         {

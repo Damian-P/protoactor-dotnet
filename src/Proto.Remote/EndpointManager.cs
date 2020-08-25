@@ -51,7 +51,7 @@ namespace Proto.Remote
         {
             if (_cancellationTokenSource.IsCancellationRequested) return;
             _cancellationTokenSource.Cancel();
-            
+
             _system.EventStream.Unsubscribe(_endpointTermEvnSub);
             _system.EventStream.Unsubscribe(_endpointConnEvnSub);
 
@@ -98,6 +98,9 @@ namespace Proto.Remote
 
         public void RemoteDeliver(RemoteDeliver msg)
         {
+            if (string.IsNullOrWhiteSpace(msg.Target.Address))
+                throw new ArgumentOutOfRangeException("Target");
+
             var endpoint = EnsureConnected(msg.Target.Address);
 
             Logger.LogDebug(

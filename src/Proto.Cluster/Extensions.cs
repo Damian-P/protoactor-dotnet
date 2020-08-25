@@ -8,50 +8,10 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Proto.Remote;
 
 namespace Proto.Cluster
 {
-    public class ClusterHostedService : IHostedService
-    {
-        private readonly ILogger _logger;
-        private readonly IHostApplicationLifetime _appLifetime;
-        private readonly Cluster _cluster;
-
-        public ClusterHostedService(
-            ILogger<ClusterHostedService> logger,
-            IHostApplicationLifetime appLifetime,
-            Cluster cluster)
-        {
-            _logger = logger;
-            _appLifetime = appLifetime;
-            _cluster = cluster;
-        }
-
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            _appLifetime.ApplicationStopping.Register(OnStopping);
-            _appLifetime.ApplicationStarted.Register(OnStarted);
-            return Task.CompletedTask;
-        }
-
-        private void OnStarted()
-        {
-            _cluster.StartAsync().GetAwaiter().GetResult();
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            return Task.CompletedTask;
-        }
-
-        private void OnStopping()
-        {
-            _cluster.ShutdownAsync().GetAwaiter().GetResult();
-        }
-    }
     public static class Extensions
     {
         public static IServiceCollection AddClustering(
@@ -60,7 +20,7 @@ namespace Proto.Cluster
             IClusterProvider clusterProvider,
             Action<Cluster>? configure = null)
         {
-            services.AddHostedService<ClusterHostedService>();
+            services.AddHostedService<HostedClusterService>();
 
             var actorSystem = services.AddSingleton<Cluster>(sp =>
             {

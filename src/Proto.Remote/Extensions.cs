@@ -6,6 +6,7 @@
 
 using System;
 using System.Threading.Tasks;
+using Grpc.HealthCheck;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -71,6 +72,7 @@ namespace Proto.Remote
 
         public static GrpcServiceEndpointConventionBuilder MapProtoRemoteService(this IEndpointRouteBuilder endpoints)
         {
+            endpoints.MapGrpcService<HealthServiceImpl>();
             return endpoints.MapGrpcService<Remoting.RemotingBase>();
         }
     }
