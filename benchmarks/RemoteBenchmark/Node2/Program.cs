@@ -45,7 +45,7 @@ namespace Node2
                                                             .AddFilter("Microsoft", LogLevel.Critical)
                                                             .AddFilter("Grpc.AspNetCore", LogLevel.Critical)
                                                             .SetMinimumLevel(LogLevel.Information)));
-                                                            
+
             var system = new ActorSystem();
             var context = new RootContext(system);
             var serialization = new Serialization();
@@ -56,7 +56,7 @@ namespace Node2
             Remote.Start();
             context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
-            await Remote.Stop();
+            await Remote.ShutdownAsync();
         }
     }
 }

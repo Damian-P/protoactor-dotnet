@@ -15,28 +15,31 @@ namespace ClusterExperiment1
         public static async Task Main()
         {
             Log.SetLoggerFactory(LoggerFactory.Create(l => l.AddConsole().SetMinimumLevel(LogLevel.Information)));
+            var workers = new System.Collections.Concurrent.ConcurrentStack<Cluster>();
             var logger = Log.CreateLogger(nameof(Program));
 
-            var system1 = new ActorSystem();
-            var consul1 = new ConsulProvider(new ConsulProviderOptions());
-            var serialization1 = new Serialization();
-            serialization1.RegisterFileDescriptor(MessagesReflection.Descriptor);
-            var cluster1 = new Cluster(system1, serialization1);
-            await cluster1.StartAsync(new ClusterConfig("mycluster", "127.0.0.1", 8090, consul1).WithPidCache(false));
-            SpawnMember(8091);
-            SpawnMember(8092);
-            SpawnMember(8093);
+            var system = new ActorSystem();
+            var remote = system.AddRemote("localhost", 8090, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
+            });
+            var consulProvider = new ConsulProvider(new ConsulProviderOptions());
+            var requestNode = system.AddClustering(new ClusterConfig("mycluster", "127.0.0.1", 8090, consulProvider).WithPidCache(false));
+
+            await requestNode.StartAsync();
+
+            workers.Push(await SpawnMember(0));
 
             await Task.Delay(1000);
 
-            Task.Run(async () =>
+            _ = Task.Run(async () =>
                 {
                     var rnd = new Random();
                     while (true)
                     {
                         var id = "myactor" + rnd.Next(0, 1000);
                         //    Console.WriteLine($"Sending request {id}");
-                        var res = await cluster1.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
+                        var res = await requestNode.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
                             CancellationToken.None
                         );
 
@@ -54,31 +57,48 @@ namespace ClusterExperiment1
                     }
                 }
             );
-
-            int port = 8094;
-
-            while (true)
+            var run = true;
+            while (run)
             {
-                Console.ReadLine();
-                Console.WriteLine(
-                    "-----------------------------------------------------------------------------------------"
-                );
-                SpawnMember(port++);
+                switch (Console.ReadKey().KeyChar)
+                {
+                    case '-':
+                        if (workers.TryPop(out Cluster removedNode))
+                            await removedNode.ShutdownAsync();
+                        break;
+                    case '+':
+                        workers.Push(await SpawnMember(0));
+                        break;
+                    case 'e':
+                        run = false;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            await requestNode.ShutdownAsync();
+            foreach (var node in workers)
+            {
+                await node.ShutdownAsync();
             }
         }
 
 
-        private static Cluster SpawnMember(int port)
+        private static async Task<Cluster> SpawnMember(int port)
         {
-            var system2 = new ActorSystem();
-            var consul2 = new ConsulProvider(new ConsulProviderOptions());
-            var serialization2 = new Serialization();
-            serialization2.RegisterFileDescriptor(MessagesReflection.Descriptor);
-            var cluster2 = new Cluster(system2, serialization2);
             var helloProps = Props.FromProducer(() => new HelloActor());
-            cluster2.Remote.RegisterKnownKind("hello", helloProps);
-            cluster2.StartAsync(new ClusterConfig("mycluster", "127.0.0.1", port, consul2).WithPidCache(false));
-            return cluster2;
+
+            var system = new ActorSystem();
+            var remote = system.AddRemote("localhost", port, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
+                remote.RemoteKindRegistry.RegisterKnownKind("hello", helloProps);
+            });
+            var consulProvider = new ConsulProvider(new ConsulProviderOptions());
+            var clusterNode = system.AddClustering(new ClusterConfig("mycluster", "localhost", port, consulProvider).WithPidCache(false));
+
+            await clusterNode.StartAsync();
+            return clusterNode;
         }
     }
 

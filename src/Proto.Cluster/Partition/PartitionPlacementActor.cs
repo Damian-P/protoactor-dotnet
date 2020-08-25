@@ -20,7 +20,7 @@ namespace Proto.Cluster.Partition
         private readonly Dictionary<string, (PID pid, string kind)> _myActors =
             new Dictionary<string, (PID pid, string kind)>();
 
-        private readonly Remote.Remote _remote;
+        private readonly IRemote _remote;
         private readonly ActorSystem _system;
 
         private readonly Rendezvous _rdv = new Rendezvous();
@@ -41,10 +41,10 @@ namespace Proto.Cluster.Partition
                         {
                             //we got a deadletter watch, reply with a terminated event
                             _system.Root.Send(watch.Watcher, new Terminated
-                                {
-                                    AddressTerminated = false,
-                                    Who = dl.Pid
-                                }
+                            {
+                                AddressTerminated = false,
+                                Who = dl.Pid
+                            }
                             );
                         }
                         else if (dl.Sender != null)
@@ -108,7 +108,7 @@ namespace Proto.Cluster.Partition
                 _logger.LogDebug("TRANSFER {Identity} TO {newOwnerAddress} -- {EventId}", identity, ownerAddress,
                     msg.EventId
                 );
-                var actor = new TakeOwnership {Name = identity, Kind = kind, Pid = pid, EventId = msg.EventId};
+                var actor = new TakeOwnership { Name = identity, Kind = kind, Pid = pid, EventId = msg.EventId };
                 response.Actors.Add(actor);
                 count++;
             }
@@ -122,7 +122,7 @@ namespace Proto.Cluster.Partition
 
         private void HandleActorPidRequest(IContext context, ActorPidRequest msg)
         {
-            var props = _remote.GetKnownKind(msg.Kind);
+            var props = _remote.RemoteKindRegistry.GetKnownKind(msg.Kind);
             var name = msg.Name;
             if (string.IsNullOrEmpty(name))
             {
@@ -135,7 +135,7 @@ namespace Proto.Cluster.Partition
                 var pid = context.SpawnNamed(props, name);
                 _myActors[name] = (pid, msg.Kind);
 
-                var response = new ActorPidResponse {Pid = pid};
+                var response = new ActorPidResponse { Pid = pid };
                 context.Respond(response);
             }
             catch (ProcessNameExistException ex)
@@ -143,7 +143,7 @@ namespace Proto.Cluster.Partition
                 var response = new ActorPidResponse
                 {
                     Pid = ex.Pid,
-                    StatusCode = (int) ResponseStatusCode.ProcessNameAlreadyExist
+                    StatusCode = (int)ResponseStatusCode.ProcessNameAlreadyExist
                 };
                 context.Respond(response);
             }
@@ -151,7 +151,7 @@ namespace Proto.Cluster.Partition
             {
                 var response = new ActorPidResponse
                 {
-                    StatusCode = (int) ResponseStatusCode.Error
+                    StatusCode = (int)ResponseStatusCode.Error
                 };
                 context.Respond(response);
 

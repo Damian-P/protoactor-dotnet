@@ -27,10 +27,10 @@ namespace Proto.Remote
             remote.Start();
         }
 
-        public static Task StopRemote(this ActorSystem actorSystem, bool graceful = true)
+        public static Task ShutdownRemoteAsync(this ActorSystem actorSystem, bool graceful = true)
         {
             var remote = actorSystem.Plugins.GetPlugin<IRemote>();
-            return remote.Stop(graceful);
+            return remote.ShutdownAsync(graceful);
         }
 
         public static Task<ActorPidResponse> SpawnAsync(this ActorSystem actorSystem, string address, string kind,

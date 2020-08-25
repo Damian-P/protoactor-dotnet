@@ -76,7 +76,7 @@ class Program
         });
 
         Console.ReadLine();
-        await Remote.Stop();
+        await Remote.ShutdownAsync();
     }
 
     public class LocalActor : IActor

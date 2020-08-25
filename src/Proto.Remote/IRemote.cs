@@ -15,7 +15,7 @@ namespace Proto.Remote
         Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout);
         Task<ActorPidResponse> SpawnNamedAsync(string address, string name, string kind, TimeSpan timeout);
         void Start();
-        Task Stop(bool graceful = true);
+        Task ShutdownAsync(bool graceful = true);
         void SendMessage(PID pid, object msg, int serializerId);
     }
 }

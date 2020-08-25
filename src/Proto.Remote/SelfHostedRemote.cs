@@ -86,7 +86,7 @@ namespace Proto.Remote
             );
         }
 
-        public override async Task Stop(bool graceful = true)
+        public override async Task ShutdownAsync(bool graceful = true)
         {
             using (_host)
             {
@@ -94,7 +94,7 @@ namespace Proto.Remote
                 {
                     if (graceful)
                     {
-                        await base.Stop();
+                        await base.ShutdownAsync();
                     }
 
                     Logger.LogDebug(

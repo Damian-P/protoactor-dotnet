@@ -80,7 +80,7 @@ namespace Proto.Remote
             SpawnActivator();
         }
 
-        public Task Stop(bool graceful = true)
+        public Task ShutdownAsync(bool graceful = true)
         {
             if (!IsStarted) return Task.CompletedTask;
             IsStarted = false;

@@ -46,7 +46,7 @@ namespace Proto.Remote
 
         private void OnStopping()
         {
-            _remote.Stop().GetAwaiter().GetResult();
+            _remote.ShutdownAsync().GetAwaiter().GetResult();
         }
     }
 }

@@ -50,18 +50,12 @@ namespace Proto.Cluster
 
         private IIdentityLookup? IdentityLookup { get; set; }
 
-        public Task StartAsync(string clusterName, string address, int port, IClusterProvider cp)
-            => StartAsync(new ClusterConfig(clusterName, address, port, cp));
-
-
-        private IIdentityLookup? IdentityLookup { get; set; }
-
-        public async Task Start()
+        public async Task StartAsync()
         {
 
 
             //default to partition identity lookup
-            IdentityLookup = config.IdentityLookup ?? new PartitionIdentityLookup();
+            IdentityLookup = Config.IdentityLookup ?? new PartitionIdentityLookup();
             Remote.Start();
             Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             _logger = Log.CreateLogger($"Cluster-{LoggerId}");

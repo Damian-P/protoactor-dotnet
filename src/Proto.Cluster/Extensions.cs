@@ -39,7 +39,7 @@ namespace Proto.Cluster
 
         private void OnStarted()
         {
-            _cluster.Start().GetAwaiter().GetResult();
+            _cluster.StartAsync().GetAwaiter().GetResult();
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -49,7 +49,7 @@ namespace Proto.Cluster
 
         private void OnStopping()
         {
-            _cluster.Shutdown().GetAwaiter().GetResult();
+            _cluster.ShutdownAsync().GetAwaiter().GetResult();
         }
     }
     public static class Extensions
@@ -86,11 +86,11 @@ namespace Proto.Cluster
         }
         public static Task StartCluster(this ActorSystem actorSystem)
         {
-            return actorSystem.Plugins.GetPlugin<Cluster>().Start();
+            return actorSystem.Plugins.GetPlugin<Cluster>().StartAsync();
         }
-        public static Task StopCluster(this ActorSystem actorSystem, bool graceful = true)
+        public static Task ShutdownClusterAsync(this ActorSystem actorSystem, bool graceful = true)
         {
-            return actorSystem.Plugins.GetPlugin<Cluster>().Shutdown(graceful);
+            return actorSystem.Plugins.GetPlugin<Cluster>().ShutdownAsync(graceful);
         }
         public static Task<(PID?, ResponseStatusCode)> GetAsync(this ActorSystem actorSystem, string name, string kind)
         {
