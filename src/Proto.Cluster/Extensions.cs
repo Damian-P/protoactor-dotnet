@@ -62,5 +62,11 @@ namespace Proto.Cluster
             var cluster = actorSystem.Plugins.GetPlugin<Cluster>();
             return cluster.GetAsync(name, kind, ct);
         }
+
+         public static Task<T> RequestAsync<T>(this ActorSystem actorSystem, string name, string kind, object request, CancellationToken ct)
+        {
+            var cluster = actorSystem.Plugins.GetPlugin<Cluster>();
+            return cluster.RequestAsync<T>(name, kind, request, ct);
+        }
     }
 }

@@ -1,19 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>netcoreapp5</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Grpc.AspNetCore" Version="2.30.0" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.31.0" />
     <PackageReference Include="Seq.Extensions.Logging" Version="4.0.2" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Messages\Messages.csproj" />
-    <ProjectReference Include="..\..\..\src\ClusterProviders\Proto.Cluster.Consul\Proto.Cluster.Consul.csproj" />
+    <ProjectReference Include="..\..\..\src\cluster-playground\Proto.Cluster.Consul\Proto.Cluster.Consul.csproj" />
     <ProjectReference Include="..\..\..\src\Proto.Remote\Proto.Remote.csproj" />
-    <ProjectReference Include="..\..\..\..\..\protoactor-dotnet-contrib\src\clustering\Proto.Cluster.Consul\Proto.Cluster.Consul.csproj" />
     <ProjectReference Include="..\..\..\..\..\protoactor-dotnet-contrib\src\extensions\Proto.Actor.Extensions\Proto.Actor.Extensions.csproj" />
   </ItemGroup>
 

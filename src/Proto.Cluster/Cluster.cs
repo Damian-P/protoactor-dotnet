@@ -22,6 +22,7 @@ namespace Proto.Cluster
 
         public Cluster(ActorSystem system, ClusterConfig clusterConfig)
         {
+            system.Plugins.AddPlugin(this);
             Config = clusterConfig;
             System = system;
             Remote = system.Plugins.GetPlugin<IRemote>();

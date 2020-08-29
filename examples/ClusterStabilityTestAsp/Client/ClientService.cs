@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using System.Threading;
 using Polly;
 using System.Collections.Generic;
+using Proto.Cluster;
 
 namespace Client
 {
@@ -40,22 +41,6 @@ namespace Client
         {
             _ = Task.Run(async () =>
                 {
-                    _actorSystem.EventStream.Subscribe<ClusterTopologyEvent>(e =>
-                        _logger.LogInformation("Topology changed {@Event}", e)
-                    );
-                    _actorSystem.EventStream.Subscribe<MemberStatusEvent>(e =>
-                        _logger.LogInformation("Member status {@Event}", e)
-                    );
-
-                    var options = new GrainCallOptions
-                    {
-                        RetryCount = 10,
-                        RetryAction = i =>
-                        {
-                            _logger.LogCritical("!");
-                            return Task.Delay(50);
-                        }
-                    };
 
                     await Task.Delay(2000);
                     _logger.LogCritical("Starting to send !");
@@ -65,18 +50,16 @@ namespace Client
                     var tasks = new List<Task>();
                     for (var i = 0; i < n; i++)
                     {
-                        var client = _grains.HelloGrain("name" + i % 200);
+                        var response = _actorSystem.RequestAsync<HelloResponse>("name" + (i % 200), "HelloActor", new HelloRequest(), new CancellationTokenSource(2000).Token);
                         tasks.Add(policy.ExecuteAsync(() =>
-                                client.SayHello(new HelloRequest(), new CancellationTokenSource(2000).Token, options)
-                            )
-                        );
+                            _actorSystem.RequestAsync<HelloResponse>("name" + (i % 200), "HelloActor", new HelloRequest(), new CancellationTokenSource(2000).Token)
+                        ));
                         if (tasks.Count % 1000 == 0)
                         {
                             Task.WaitAll(tasks.ToArray());
                             tasks.Clear();
                         }
                     }
-
                     Task.WaitAll(tasks.ToArray());
                     _logger.LogCritical("Done!");
                     _appLifetime.StopApplication();

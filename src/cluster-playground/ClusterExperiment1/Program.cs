@@ -94,9 +94,6 @@ namespace ClusterExperiment1
                         }
                         break;
                     case '+':
-                        Console.WriteLine(
-                       "-----------------------------------------------------------------------------------------"
-                   );
                         workers.Enqueue(SpawnMember(port++));
                         break;
                     case '/':
