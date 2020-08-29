@@ -23,8 +23,7 @@ namespace ClusterExperiment1
                         .AddFilter("Proto.Remote", LogLevel.Information)
                         .AddFilter("Microsoft", LogLevel.Critical)
                         .AddFilter("Grpc", LogLevel.Critical)
-                        .AddFilter("Proto.Cluster.Partition.PartitionIdentityLookup", LogLevel.Information)
-                        .SetMinimumLevel(LogLevel.Debug)
+                        .SetMinimumLevel(LogLevel.Information)
                         ));
             var logger = Log.CreateLogger(nameof(Program));
 
@@ -47,7 +46,7 @@ namespace ClusterExperiment1
                     try
                     {
                         if (i > 1000) i = 1;
-                        var id = "myactor" + i++;
+                        var id = "myactor" + i;
                         if (requesters.TryPeek(out var node))
                         {
                             var res = await node.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
@@ -69,7 +68,10 @@ namespace ClusterExperiment1
                     {
                         logger.LogError(e, "");
                     }
-
+                    finally
+                    {
+                        i++;
+                    }
                 }
             }
             );
@@ -92,7 +94,7 @@ namespace ClusterExperiment1
                         {
                             if (workers.TryDequeue(out Cluster removedNode))
                             {
-                                await removedNode.ShutdownAsync(false);
+                                _ = removedNode.ShutdownAsync(false);
                             }
                         }
                         break;
