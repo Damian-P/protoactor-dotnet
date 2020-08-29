@@ -10,6 +10,7 @@
       <ProjectReference Include="..\..\experimental\Proto.Cluster.MongoIdentityLookup\Proto.Cluster.MongoIdentityLookup.csproj" />
       <ProjectReference Include="..\..\Proto.Cluster\Proto.Cluster.csproj" />
       <ProjectReference Include="..\Proto.Cluster.Consul\Proto.Cluster.Consul.csproj" />
+      <ProjectReference Include="..\..\Proto.Cluster.TestProvider\Proto.Cluster.TestProvider.csproj" />
     </ItemGroup>
 
     <ItemGroup>

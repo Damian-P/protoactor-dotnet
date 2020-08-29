@@ -6,7 +6,7 @@ namespace Proto.Cluster.Testing
 {
     public class AgentServiceStatus
     {
-        public Guid ID { get; set; }
+        public string ID { get; set; }
         public DateTimeOffset TTL { get; set; }
         public bool Alive => DateTimeOffset.Now - TTL <= TimeSpan.FromSeconds(5);
 
@@ -17,15 +17,16 @@ namespace Proto.Cluster.Testing
         public string[] Kinds { get; set; }
         public string StatusValue { get; set; } //what goes here?
     }
+    public delegate void StatusUpdateDelegate(ulong waitIndex);
     public sealed class InMemAgent
     {
-        public event EventHandler StatusUpdate;
+        public event StatusUpdateDelegate StatusUpdate;
+        private ulong waitIndex = 0ul;
+        private void OnStatusUpdate() => StatusUpdate?.Invoke(waitIndex++);
 
-        private void OnStatusUpdate(EventArgs e) => StatusUpdate?.Invoke(this, e);
-       
 
-        private readonly ConcurrentDictionary<Guid,AgentServiceStatus> _services = new ConcurrentDictionary<Guid, AgentServiceStatus>();
-        public  AgentServiceStatus[] GetServicesHealth()
+        private readonly ConcurrentDictionary<string, AgentServiceStatus> _services = new ConcurrentDictionary<string, AgentServiceStatus>();
+        public AgentServiceStatus[] GetServicesHealth()
         {
             return _services.Values.ToArray();
         }
@@ -40,19 +41,19 @@ namespace Proto.Cluster.Testing
                 Host = registration.Address,
                 Port = registration.Port,
             });
-            OnStatusUpdate(EventArgs.Empty);
+            OnStatusUpdate();
         }
 
-        public void DeregisterService(Guid id)
+        public void DeregisterService(string id)
         {
-            _services.TryRemove(id,out _);
-            OnStatusUpdate(EventArgs.Empty);
+            _services.TryRemove(id, out _);
+            OnStatusUpdate();
         }
 
-        public void RefreshServiceTTL(Guid id)
+        public void RefreshServiceTTL(string id)
         {
             //TODO: this is racy, but yolo for now
-            if (_services.TryGetValue(id,out var service))
+            if (_services.TryGetValue(id, out var service))
             {
                 service.TTL = DateTimeOffset.Now;
             }

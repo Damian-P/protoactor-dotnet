@@ -52,12 +52,12 @@ namespace Proto.Cluster
         {
             return actorSystem.Plugins.GetPlugin<Cluster>().ShutdownAsync(graceful);
         }
-        public static Task<(PID?, ResponseStatusCode)> GetAsync(this ActorSystem actorSystem, string name, string kind)
+        public static Task<PID?> GetAsync(this ActorSystem actorSystem, string name, string kind)
         {
             var cluster = actorSystem.Plugins.GetPlugin<Cluster>();
             return cluster.GetAsync(name, kind);
         }
-        public static Task<(PID?, ResponseStatusCode)> GetAsync(this ActorSystem actorSystem, string name, string kind, CancellationToken ct)
+        public static Task<PID?> GetAsync(this ActorSystem actorSystem, string name, string kind, CancellationToken ct)
         {
             var cluster = actorSystem.Plugins.GetPlugin<Cluster>();
             return cluster.GetAsync(name, kind, ct);

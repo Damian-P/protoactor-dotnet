@@ -166,7 +166,7 @@ namespace Proto.Cluster.Partition
 
         private Task HandleActivationRequest(IContext context, ActivationRequest msg)
         {
-            var props = _remote.GetKnownKind(msg.Kind);
+            var props = _remote.RemoteKindRegistry.GetKnownKind(msg.Kind);
             var identity = msg.Identity;
             if (string.IsNullOrEmpty(identity))
             {
