@@ -40,6 +40,7 @@ namespace Proto.Remote
         public RemoteConfig RemoteConfig { get; } = new RemoteConfig();
 
         public RemoteKindRegistry RemoteKindRegistry { get; } = new RemoteKindRegistry();
+        public PID ActivatorPid { get; private set; }
 
         public Serialization Serialization { get; } = new Serialization();
         public Remote(ActorSystem system, string hostname, int port, Action<IRemoteConfiguration>? configure = null)
@@ -53,8 +54,26 @@ namespace Proto.Remote
             _port = port;
         }
 
+        public virtual void Start()
+        {
+            if (IsStarted) return;
+            IsStarted = true;
+            EndpointManager.Start();
+            SpawnActivator();
+        }
+
+        public virtual Task ShutdownAsync(bool graceful = true)
+        {
+            if (graceful)
+            {
+                EndpointManager.Stop();
+                StopActivator();
+            }
+            return Task.CompletedTask;
+        }
+
         /// <summary>
-        /// Span a remote actor with auto-generated name
+        ///     Span a remote actor with auto-generated name
         /// </summary>
         /// <param name="address">Remote node address</param>
         /// <param name="kind">Actor kind, must be known on the remote node</param>
@@ -77,41 +96,25 @@ namespace Proto.Remote
 
             return res;
         }
-        private PID _activatorPid;
-        private void SpawnActivator()
-        {
-            var props = Props.FromProducer(() => new Activator(RemoteKindRegistry, _system))
-                .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
-            _activatorPid = _system.Root.SpawnNamed(props, "activator");
-        }
-
-        private void StopActivator() => _system.Root.Stop(_activatorPid);
 
         private PID ActivatorForAddress(string address) => new PID(address, "activator");
 
-        public virtual void Start()
-        {
-            if (IsStarted) return;
-            IsStarted = true;
-            EndpointManager.Start();
-            SpawnActivator();
-        }
 
-        public virtual Task ShutdownAsync(bool graceful = true)
-        {
-            if (graceful)
-            {
-                EndpointManager.Stop();
-                StopActivator();
-            }
-            return Task.CompletedTask;
-        }
         public void SendMessage(PID pid, object msg, int serializerId)
         {
             var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
 
-            var env = new RemoteDeliver(header, message, pid, sender, serializerId);
+            var env = new RemoteDeliver(header!, message, pid, sender!, serializerId);
             EndpointManager.RemoteDeliver(env);
         }
+
+        private void SpawnActivator()
+        {
+            var props = Props.FromProducer(() => new Activator(RemoteKindRegistry, _system))
+                .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
+            ActivatorPid = _system.Root.SpawnNamed(props, "activator");
+        }
+
+        private void StopActivator() => _system.Root.Stop(ActivatorPid);
     }
 }

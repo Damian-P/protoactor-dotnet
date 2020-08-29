@@ -18,7 +18,7 @@ namespace Proto.Remote
             _remoteKindRegistry = remoteKindRegistry;
             _system = system;
         }
-        
+
         public Task ReceiveAsync(IContext context)
         {
             switch (context.Message)
@@ -34,7 +34,7 @@ namespace Proto.Remote
                     try
                     {
                         var pid = _system.Root.SpawnNamed(props, name);
-                        var response = new ActorPidResponse { Pid = pid };
+                        var response = new ActorPidResponse {Pid = pid};
                         context.Respond(response);
                     }
                     catch (ProcessNameExistException ex)
@@ -42,7 +42,7 @@ namespace Proto.Remote
                         var response = new ActorPidResponse
                         {
                             Pid = ex.Pid,
-                            StatusCode = (int)ResponseStatusCode.ProcessNameAlreadyExist
+                            StatusCode = (int) ResponseStatusCode.ProcessNameAlreadyExist
                         };
                         context.Respond(response);
                     }
@@ -50,14 +50,16 @@ namespace Proto.Remote
                     {
                         var response = new ActorPidResponse
                         {
-                            StatusCode = (int)ResponseStatusCode.Error
+                            StatusCode = (int) ResponseStatusCode.Error
                         };
                         context.Respond(response);
 
                         throw;
                     }
+
                     break;
             }
+
             return Actor.Done;
         }
     }

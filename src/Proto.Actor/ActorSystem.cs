@@ -5,16 +5,7 @@ namespace Proto
     [PublicAPI]
     public class ActorSystem
     {
-        public ProcessRegistry ProcessRegistry { get; }
-        public RootContext Root { get; }
-
-        public Guardians Guardians { get; }
-
-        public DeadLetterProcess DeadLetter { get; }
-
-        public EventStream EventStream { get; }
-        public Plugins Plugins { get; }
-
+        public static readonly ActorSystem Default = new ActorSystem();
         public ActorSystem()
         {
             ProcessRegistry = new ProcessRegistry(this);
@@ -26,7 +17,11 @@ namespace Proto
             ProcessRegistry.TryAdd("eventstream", eventStreamProcess);
             Plugins = new Plugins();
         }
-
-        public static readonly ActorSystem Default = new ActorSystem();
+        public ProcessRegistry ProcessRegistry { get; }
+        public RootContext Root { get; }
+        public Guardians Guardians { get; }
+        public DeadLetterProcess DeadLetter { get; }
+        public EventStream EventStream { get; }
+        public Plugins Plugins { get; }
     }
 }

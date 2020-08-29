@@ -14,22 +14,24 @@ namespace Proto.Remote
     public class EndpointSupervisor : IActor, ISupervisorStrategy
     {
         private static readonly ILogger Logger = Log.CreateLogger<EndpointSupervisor>();
+        private readonly long _backoff;
 
         private readonly int _maxNrOfRetries;
         private readonly Random _random = new Random();
-        private readonly ActorSystem _system;
         private readonly IRemote _remote;
+        private readonly ActorSystem _system;
         private readonly TimeSpan? _withinTimeSpan;
-        private readonly long _backoff;
-        
-        private CancellationTokenSource? _cancelFutureRetries;
         private string? _address;
+
+        private CancellationTokenSource? _cancelFutureRetries;
 
         public EndpointSupervisor(IRemote remote, ActorSystem system)
         {
             if (remote.RemoteConfig == null)
-                throw new ArgumentException("[EndpointSupervisor] Router hasn't been configured", nameof(remote));
-            
+            {
+                throw new ArgumentException("RemoteConfig may not be null", nameof(remote));
+            }
+
             _system = system;
             _remote = remote;
             _maxNrOfRetries = remote.RemoteConfig.EndpointWriterOptions.MaxRetries;
@@ -58,8 +60,8 @@ namespace Proto.Remote
         {
             if (ShouldStop(rs))
             {
-                Logger.LogWarning(
-                    "[EndpointSupervisor] Stopping connection to address {Address} after retries expired because of {Reason}",
+                Logger.LogError(
+                    "Stopping connection to address {Address} after retries expired because of {Reason}",
                     _address, reason.GetType().Name
                 );
 
@@ -68,7 +70,7 @@ namespace Proto.Remote
                 supervisor.StopChildren(child);
                 _system.ProcessRegistry.Remove(child); //TODO: work out why this hangs around in the process registry
 
-                var terminated = new EndpointTerminatedEvent { Address = _address! };
+                var terminated = new EndpointTerminatedEvent {Address = _address!};
                 _system.EventStream.Publish(terminated);
             }
             else
@@ -77,17 +79,17 @@ namespace Proto.Remote
                 var noise = _random.Next(500);
                 var duration = TimeSpan.FromMilliseconds(TimeConvert.ToMilliseconds(backoff + noise));
 
-                Task.Delay(duration)
-                    .ContinueWith(
-                        t =>
-                        {
-                            Logger.LogWarning(
-                                "[EndpointSupervisor] Restarting {Actor} after {Duration} because of {Reason}",
-                                child.ToShortString(), duration, reason.GetType().Name
-                            );
-                            supervisor.RestartChildren(reason, child);
-                        }, _cancelFutureRetries!.Token
-                    );
+                _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(duration);
+                        Logger.LogWarning(
+                            "Restarting {Actor} after {Duration} because of {Reason}",
+                            child.ToShortString(), duration, reason.GetType().Name
+                        );
+                        supervisor.RestartChildren(reason, child);
+                    }
+                    , _cancelFutureRetries!.Token
+                );
             }
         }
 
@@ -119,15 +121,22 @@ namespace Proto.Remote
         private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, IRemote remote)
         {
             if (remote.RemoteConfig == null)
-                throw new ArgumentException("Router hasn't been configured", nameof(remote));
-            
+            {
+                throw new ArgumentException("RemoteConfig may not be null", nameof(remote));
+            }
+
             var writerProps =
                 Props.FromProducer(
                         () => new EndpointWriter(system, remote.Serialization,
-                            address, remote.RemoteConfig.ChannelOptions, remote.RemoteConfig.CallOptions, remote.RemoteConfig.ChannelCredentials
+                            address, remote.RemoteConfig.ChannelOptions, remote.RemoteConfig.CallOptions,
+                            remote.RemoteConfig.ChannelCredentials
                         )
                     )
-                    .WithMailbox(() => new EndpointWriterMailbox(system, remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize));
+                    .WithMailbox(() =>
+                        new EndpointWriterMailbox(system,
+                            remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize
+                        )
+                    );
             var writer = context.Spawn(writerProps);
             return writer;
         }

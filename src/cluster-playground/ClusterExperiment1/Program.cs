@@ -16,7 +16,10 @@ namespace ClusterExperiment1
         public static async Task Main()
         {
             Log.SetLoggerFactory(LoggerFactory.Create(l => l
-                        .AddConsole()
+                        .AddConsole(o =>
+                        {
+                            o.IncludeScopes = true;
+                        })
                         .AddFilter("Proto.Remote", LogLevel.Information)
                         .AddFilter("Microsoft", LogLevel.Critical)
                         .AddFilter("Grpc", LogLevel.Critical)
