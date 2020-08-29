@@ -20,61 +20,58 @@ namespace Proto.Cluster
     {
         private static ILogger _logger = null!;
 
-        internal ClusterConfig Config { get; private set; }
+        public Cluster(ActorSystem system, ClusterConfig clusterConfig)
+        {
+            Config = clusterConfig;
+            System = system;
+            Remote = system.Plugins.GetPlugin<IRemote>();
+            PidCache = new PidCache();
+            PidCacheUpdater = new PidCacheUpdater(this, PidCache);
+            //default to partition identity lookup
+            IdentityLookup = clusterConfig.IdentityLookup ?? new PartitionIdentityLookup();
 
-        public ActorSystem System { get; }
-
-        public IRemote Remote { get; }
+            MemberList = new MemberList(this);
+            Provider = clusterConfig.ClusterProvider;
+        }
 
         public Cluster(ActorSystem system, string clusterName, IClusterProvider cp)
             : this(system, new ClusterConfig(clusterName, cp))
         {
         }
 
-        public Cluster(ActorSystem system, ClusterConfig config)
-        {
-            System = system;
-            Remote = system.Plugins.GetPlugin<IRemote>();
-            System.Plugins.AddPlugin(this);
-            Config = config;
-            PidCache = new PidCache();
-            MemberList = new MemberList(this);
-            PidCacheUpdater = new PidCacheUpdater(this, PidCache);
-        }
-
         public Guid Id { get; } = Guid.NewGuid();
+
+        internal ClusterConfig Config { get; }
+
+        public ActorSystem System { get; }
+
+        public IRemote Remote { get; }
+
 
         internal MemberList MemberList { get; }
         internal PidCache PidCache { get; }
         internal PidCacheUpdater PidCacheUpdater { get; }
 
-        private IIdentityLookup? IdentityLookup { get; set; }
+        private IIdentityLookup IdentityLookup { get; }
+
+        internal IClusterProvider Provider { get; set; }
+
+        public string LoggerId => System.ProcessRegistry.Address;
 
         public async Task StartAsync()
         {
-
-
-            //default to partition identity lookup
-            IdentityLookup = Config.IdentityLookup ?? new PartitionIdentityLookup();
             Remote.Start();
             Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             _logger = Log.CreateLogger($"Cluster-{LoggerId}");
             _logger.LogInformation("Starting");
 
+            var (host, port) = System.ProcessRegistry.GetAddress();
             var kinds = Remote.RemoteKindRegistry.GetKnownKinds();
             IdentityLookup.Setup(this, kinds);
-
-
-
             if (Config.UsePidCache)
             {
                 PidCacheUpdater.Setup();
             }
-
-            var (host, port) = System.ProcessRegistry.GetAddress();
-
-            Provider = Config.ClusterProvider;
-
             await Provider.StartAsync(
                 this,
                 Config.Name,
@@ -86,8 +83,6 @@ namespace Proto.Cluster
 
             _logger.LogInformation("Started");
         }
-
-        internal IClusterProvider Provider { get; set; }
 
         public async Task ShutdownAsync(bool graceful = true)
         {
@@ -104,17 +99,17 @@ namespace Proto.Cluster
             _logger.LogInformation("Stopped");
         }
 
-        public Task<(PID?, ResponseStatusCode)> GetAsync(string identity, string kind) =>
+        public Task<PID?> GetAsync(string identity, string kind) =>
             GetAsync(identity, kind, CancellationToken.None);
 
-        public Task<(PID?, ResponseStatusCode)> GetAsync(string identity, string kind, CancellationToken ct)
+        public Task<PID?> GetAsync(string identity, string kind, CancellationToken ct)
         {
             if (Config.UsePidCache)
             {
                 //Check Cache
                 if (PidCache.TryGetCache(identity, out var pid))
                 {
-                    return Task.FromResult<(PID?, ResponseStatusCode)>((pid, ResponseStatusCode.OK));
+                    return Task.FromResult<PID?>(pid);
                 }
             }
 
@@ -123,11 +118,14 @@ namespace Proto.Cluster
 
         public async Task<T> RequestAsync<T>(string identity, string kind, object message, CancellationToken ct)
         {
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 20; i++)
             {
-                var (pid, status) = await GetAsync(identity, kind, ct);
-                if (status != ResponseStatusCode.OK && status != ResponseStatusCode.ProcessNameAlreadyExist)
+                var delay = i * 10;
+                var pid = await GetAsync(identity, kind, ct);
+                if (pid == null)
                 {
+                    _logger.LogDebug("Got null pid for {Identity}", identity);
+                    await Task.Delay(delay, CancellationToken.None);
                     continue;
                 }
 
@@ -137,12 +135,12 @@ namespace Proto.Cluster
                     return res;
                 }
 
-                await Task.Delay(i * 10, ct);
+                _logger.LogDebug("Got null response from request to {Identity}", identity);
+
+                await Task.Delay(delay, CancellationToken.None);
             }
 
             return default!;
         }
-
-        public string LoggerId => System.ProcessRegistry.Address;
     }
 }

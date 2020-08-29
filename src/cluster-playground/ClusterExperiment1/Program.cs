@@ -12,7 +12,7 @@ namespace ClusterExperiment1
 {
     public static class Program
     {
-        public static async Task Main()
+        private static async Task RunFollower()
         {
             Log.SetLoggerFactory(LoggerFactory.Create(l => l.AddConsole().SetMinimumLevel(LogLevel.Information)));
             var workers = new System.Collections.Concurrent.ConcurrentStack<Cluster>();
@@ -120,14 +120,15 @@ namespace ClusterExperiment1
 
     public class HelloActor : IActor
     {
-        private readonly ILogger _log = Log.CreateLogger<HelloActor>();
+     //   private readonly ILogger _log = Log.CreateLogger<HelloActor>();
 
         public Task ReceiveAsync(IContext ctx)
         {
             if (ctx.Message is Started)
             {
+                Console.Write("#");
                 //just to highlight when this happens
-                _log.LogError("I started " + ctx.Self);
+             //   _log.LogError("I started " + ctx.Self);
             }
 
             if (ctx.Message is HelloRequest)
@@ -138,7 +139,7 @@ namespace ClusterExperiment1
             if (ctx.Message is Stopped)
             {
                 //just to highlight when this happens
-                _log.LogError("IM STOPPING!! " + ctx.Self);
+            //    _log.LogError("IM STOPPING!! " + ctx.Self);
             }
 
             return Actor.Done;

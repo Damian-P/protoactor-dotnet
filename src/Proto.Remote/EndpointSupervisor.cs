@@ -60,8 +60,9 @@ namespace Proto.Remote
             {
                 Logger.LogWarning(
                     "[EndpointSupervisor] Stopping connection to address {Address} after retries expired because of {Reason}",
-                    _address, reason
+                    _address, reason.GetType().Name
                 );
+
 
                 _cancelFutureRetries?.Cancel();
                 supervisor.StopChildren(child);
@@ -82,7 +83,7 @@ namespace Proto.Remote
                         {
                             Logger.LogWarning(
                                 "[EndpointSupervisor] Restarting {Actor} after {Duration} because of {Reason}",
-                                child.ToShortString(), duration, reason
+                                child.ToShortString(), duration, reason.GetType().Name
                             );
                             supervisor.RestartChildren(reason, child);
                         }, _cancelFutureRetries!.Token

@@ -5,7 +5,6 @@
 // -----------------------------------------------------------------------
 
 using System.Linq;
-using Proto.Cluster.Events;
 
 namespace Proto.Cluster.Partition
 {
@@ -38,7 +37,7 @@ namespace Proto.Cluster.Partition
             _partitionActor = _context.SpawnNamed(partitionActorProps, PartitionIdentityActorName);
 
             var partitionActivatorProps =
-                Props.FromProducer(() => new PartitionPlacementActor(_cluster));
+                Props.FromProducer(() => new PartitionPlacementActor(_cluster, this));
             _partitionActivator = _context.SpawnNamed(partitionActivatorProps, PartitionPlacementActorName);
 
             //synchronous subscribe to keep accurate
@@ -51,7 +50,7 @@ namespace Proto.Cluster.Partition
                     {
                         eventId = e.EventId;
                         _cluster.MemberList.BroadcastEvent(e);
-                        
+
                         Selector.Update(e.Members.ToArray());
                         _context.Send(_partitionActor, e);
                         _context.Send(_partitionActivator, e);
