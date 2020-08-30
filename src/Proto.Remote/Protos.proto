@@ -35,7 +35,7 @@ message ActorPidResponse {
 }
 
 message Unit {
-  bool alive = 1;
+  bool Disconnected = 1;
 }
 
 message ConnectRequest {}

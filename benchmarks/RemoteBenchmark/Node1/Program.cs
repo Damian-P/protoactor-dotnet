@@ -21,12 +21,10 @@ class Program
     {
         Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole()
                                                             .AddFilter("Proto.EventStream", LogLevel.Critical)
-                                                            .AddFilter("Microsoft", LogLevel.Critical)
-                                                            .AddFilter("Grpc.AspNetCore", LogLevel.Critical)
+                                                            .AddFilter("Microsoft", LogLevel.Error)
+                                                            .AddFilter("Grpc.AspNetCore", LogLevel.Error)
                                                             .SetMinimumLevel(LogLevel.Information)));
         var system = new ActorSystem();
-        var context = new RootContext(system);
-
         var Remote = new SelfHostedRemote(system, "127.0.0.1", 12001, remote =>
         {
             remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
@@ -43,16 +41,16 @@ class Program
                 {
                     var wg = new AutoResetEvent(false);
                     var props = Props.FromProducer(() => new LocalActor(0, messageCount, wg));
-                    pid = context.Spawn(props);
+                    pid = system.Root.Spawn(props);
 
-                    await context.RequestAsync<Start>(remoteActor, new StartRemote { Sender = pid }).ConfigureAwait(false);
+                    await system.Root.RequestAsync<Start>(remoteActor, new StartRemote { Sender = pid }).ConfigureAwait(false);
 
                     var start = DateTime.Now;
                     Console.WriteLine("Starting to send");
                     var msg = new Ping();
                     for (var i = 0; i < messageCount; i++)
                     {
-                        context.Send(remoteActor, msg);
+                        system.Root.Send(remoteActor, msg);
                     }
                     wg.WaitOne();
                     var elapsed = DateTime.Now - start;
@@ -70,7 +68,7 @@ class Program
                 {
                     await Task.Delay(2000);
                     if (pid != null)
-                        context.Stop(pid);
+                        system.Root.Stop(pid);
                 }
             }
         });

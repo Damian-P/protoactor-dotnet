@@ -20,12 +20,13 @@ namespace Proto.Remote
         private readonly Random _random = new Random();
         private readonly IRemote _remote;
         private readonly ActorSystem _system;
+        private readonly IChannelProvider _channelProvider;
         private readonly TimeSpan? _withinTimeSpan;
         private string? _address;
 
         private CancellationTokenSource? _cancelFutureRetries;
 
-        public EndpointSupervisor(IRemote remote, ActorSystem system)
+        public EndpointSupervisor(IRemote remote, ActorSystem system, IChannelProvider channelProvider)
         {
             if (remote.RemoteConfig == null)
             {
@@ -33,6 +34,7 @@ namespace Proto.Remote
             }
 
             _system = system;
+            _channelProvider = channelProvider;
             _remote = remote;
             _maxNrOfRetries = remote.RemoteConfig.EndpointWriterOptions.MaxRetries;
             _withinTimeSpan = remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan;
@@ -45,7 +47,7 @@ namespace Proto.Remote
             {
                 _address = address;
                 var watcher = SpawnWatcher(address, context, _system, _remote);
-                var writer = SpawnWriter(address, context, _system, _remote);
+                var writer = SpawnWriter(address, context, _system, _remote, _channelProvider);
                 _cancelFutureRetries = new CancellationTokenSource();
                 context.Respond(new Endpoint(writer, watcher));
             }
@@ -118,7 +120,7 @@ namespace Proto.Remote
             return watcher;
         }
 
-        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, IRemote remote)
+        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, IRemote remote, IChannelProvider channelProvider)
         {
             if (remote.RemoteConfig == null)
             {
@@ -128,7 +130,7 @@ namespace Proto.Remote
             var writerProps =
                 Props.FromProducer(
                         () => new EndpointWriter(system, remote.Serialization,
-                            address, remote.RemoteConfig.ChannelOptions, remote.RemoteConfig.CallOptions,
+                            address, channelProvider, remote.RemoteConfig.ChannelOptions, remote.RemoteConfig.CallOptions,
                             remote.RemoteConfig.ChannelCredentials
                         )
                     )

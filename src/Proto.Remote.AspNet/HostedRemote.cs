@@ -25,11 +25,11 @@ namespace Proto.Remote
 
         public Serialization Serialization { get; } = new Serialization();
 
-        public HostedRemote(ActorSystem actorSystem, ILogger<HostedRemote> logger)
+        public HostedRemote(ActorSystem actorSystem, ILogger<HostedRemote> logger, IChannelProvider channelProvider)
         {
             actorSystem.Plugins.AddPlugin<IRemote>(this);
             _actorSystem = actorSystem;
-            EndpointManager = new EndpointManager(this, actorSystem);
+            EndpointManager = new EndpointManager(this, actorSystem, channelProvider);
             Logger = logger;
         }
 

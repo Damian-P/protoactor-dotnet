@@ -51,8 +51,7 @@ namespace ClusterExperiment1
                         if (requesters.TryPeek(out var node))
                         {
                             var res = await node.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
-                                                        // new CancellationTokenSource(2000).Token
-                                                        CancellationToken.None
+                                                        new CancellationTokenSource(2000).Token
                                                     );
 
                             if (res == null)

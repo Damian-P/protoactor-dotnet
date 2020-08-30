@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Grpc" Version="2.27.0" />
+    <PackageReference Include="Grpc.HealthCheck" Version="2.31.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.23.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Proto.Remote\Proto.Remote.csproj" />
+  </ItemGroup>
+
+</Project>

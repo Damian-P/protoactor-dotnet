@@ -19,16 +19,18 @@ namespace Proto.Remote
         private readonly ConnectionRegistry _connections = new ConnectionRegistry();
         private readonly IRemote _remote;
         private readonly ActorSystem _system;
+        private readonly IChannelProvider _channelProvider;
         private Subscription<object>? _endpointConnEvnSub;
         private PID? _endpointSupervisor;
         private Subscription<object>? _endpointTermEvnSub;
         private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
-        public EndpointManager(IRemote remote, ActorSystem system)
+        public EndpointManager(IRemote remote, ActorSystem system, IChannelProvider channelProvider)
         {
             _remote = remote;
             _system = system;
+            _channelProvider = channelProvider;
         }
 
         public void Start()
@@ -36,7 +38,7 @@ namespace Proto.Remote
             Logger.LogDebug("[EndpointManager] Started");
 
             var props = Props
-                .FromProducer(() => new EndpointSupervisor(_remote, _system))
+                .FromProducer(() => new EndpointSupervisor(_remote, _system, _channelProvider))
                 .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy)
                 .WithDispatcher(Dispatchers.SynchronousDispatcher);
 

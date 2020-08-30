@@ -1,11 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <IsPackable>true</IsPackable>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Grpc.AspNetCore" Version="2.31.0" />
     <PackageReference Include="Grpc.Core" Version="2.31.0" />
     <PackageReference Include="Grpc.HealthCheck" Version="2.31.0" />
     <PackageReference Include="Grpc.Tools" Version="2.31.0" PrivateAssets="All" />

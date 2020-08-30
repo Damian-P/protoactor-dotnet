@@ -13,25 +13,46 @@ using Proto.Cluster;
 using Proto.Cluster.Consul;
 using Messages;
 using Microsoft.Extensions.Logging;
-using System.Threading;
+using Microsoft.Extensions.Configuration;
 
-namespace Client
+namespace Worker
 {
+    public class HelloGrain : IHelloGrain
+    {
+        public Task<HelloResponse> SayHello(HelloRequest request) => Task.FromResult(new HelloResponse { Message = "" });
+    }
+
     public class Startup
     {
+        public Startup(IConfiguration configuration, IHostEnvironment hostingEnvironment)
+        {
+            Configuration = configuration;
+            HostingEnvironment = hostingEnvironment;
+        }
+
+        public IConfiguration Configuration { get; }
+        public IHostEnvironment HostingEnvironment { get; }
+
         // This method gets called by the runtime. Use this method to add services to the container.
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddLogging(loggingBuilder =>
+            {
+                loggingBuilder.AddSeq(Configuration.GetSection("Seq"));
+            });
             services.AddGrpc();
             services.AddProtoActor();
             services.AddRemote(remote =>
                 {
-                    remote.RemoteConfig.AdvertisedHostname = "client";
+                    remote.RemoteConfig.AdvertisedHostname =
+                        Configuration.GetValue<string>("Proto_Hostname", Environment.MachineName);
                     remote.RemoteConfig.AdvertisedPort = 80;
                     remote.RemoteConfig.EndpointWriterOptions.MaxRetries = 2;
                     remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan = TimeSpan.FromHours(1);
                     remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
+                    var helloProps = Props.FromProducer(() => new HelloActor());
+                    remote.RemoteKindRegistry.RegisterKnownKind("HelloActor", helloProps);
                 }
             );
             services.AddClustering(
@@ -40,11 +61,14 @@ namespace Client
                 {
                     DeregisterCritical = TimeSpan.FromSeconds(2)
                 },
-                    c => { c.Address = new Uri("http://consul:8500/"); }
-                )
+                    c => { c.Address = new Uri($"http://consul:8500/"); }
+                ), cluster =>
+                {
+                    var grains = new Grains(cluster);
+                    grains.HelloGrainFactory(() => new HelloGrain());
+                    services.AddSingleton(grains);
+                }
             );
-            services.AddSingleton<Grains>();
-            services.AddHostedService<ClientService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -71,6 +95,31 @@ namespace Client
                     );
                 }
             );
+        }
+    }
+
+    public class HelloActor : IActor
+    {
+        //   private readonly ILogger _log = Log.CreateLogger<HelloActor>();
+
+        public Task ReceiveAsync(IContext ctx)
+        {
+            if (ctx.Message is Started)
+            {
+                Console.Write("#");
+            }
+
+            if (ctx.Message is HelloRequest)
+            {
+                ctx.Respond(new HelloResponse());
+            }
+
+            if (ctx.Message is Stopped)
+            {
+                Console.Write("T");
+            }
+
+            return Actor.Done;
         }
     }
 }

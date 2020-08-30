@@ -22,8 +22,6 @@ namespace Proto.Remote
         private readonly Serialization _serialization;
         private readonly ActorSystem _system;
 
-        private bool _suspended;
-
         public EndpointReader(ActorSystem system, EndpointManager endpointManager, Serialization serialization)
         {
             _system = system;
@@ -52,28 +50,28 @@ namespace Proto.Remote
             );
         }
 
-        public override Task Receive(
+        public override async Task Receive(
             IAsyncStreamReader<MessageBatch> requestStream,
             IServerStreamWriter<Unit> responseStream, ServerCallContext context
         )
         {
-            _endpointManager.CancellationToken.Register(() =>
+            using var cancellationTokenRegistration = _endpointManager.CancellationToken.Register(() =>
+            {
+                Logger.LogDebug("EndpointReader suspended");
+                try
                 {
-                    Logger.LogDebug("EndpointReader suspended");
-                    try
-                    {
-                        responseStream.WriteAsync(new Unit {Alive = false});
-                    }
-                    catch (Exception e)
-                    {
-                        Logger.LogDebug(e, "");
-                    }
+                    responseStream.WriteAsync(new Unit { Disconnected = true });
                 }
+                catch (Exception e)
+                {
+                    Logger.LogError(e, "EndpointReader suspended");
+                }
+            }
             );
-            
+
             var targets = new PID[100];
 
-            return requestStream.ForEachAsync(
+            await requestStream.ForEachAsync(
                 batch =>
                 {
                     Logger.LogDebug("[EndpointReader] Received a batch of {Count} messages from {Remote}",
@@ -81,8 +79,11 @@ namespace Proto.Remote
                     );
 
                     if (_endpointManager.CancellationToken.IsCancellationRequested)
+                    {
                         return Actor.Done;
-                    
+                    }
+
+
 
                     //only grow pid lookup if needed
                     if (batch.TargetNames.Count > targets.Length)
@@ -106,16 +107,16 @@ namespace Proto.Remote
                         switch (message)
                         {
                             case Terminated msg:
-                            {
-                                Logger.LogDebug(
-                                    "[EndpointReader] Forwarding remote endpoint termination request for {Who}", msg.Who
-                                );
+                                {
+                                    Logger.LogDebug(
+                                        "[EndpointReader] Forwarding remote endpoint termination request for {Who}", msg.Who
+                                    );
 
-                                var rt = new RemoteTerminate(target, msg.Who);
-                                _endpointManager.RemoteTerminate(rt);
+                                    var rt = new RemoteTerminate(target, msg.Who);
+                                    _endpointManager.RemoteTerminate(rt);
 
-                                break;
-                            }
+                                    break;
+                                }
                             case SystemMessage sys:
                                 Logger.LogDebug(
                                     "[EndpointReader] Forwarding remote system message {@MessageType}:{@Message}",
@@ -125,25 +126,25 @@ namespace Proto.Remote
                                 target.SendSystemMessage(_system, sys);
                                 break;
                             default:
-                            {
-                                Proto.MessageHeader? header = null;
-
-                                if (envelope.MessageHeader != null)
                                 {
-                                    header = new Proto.MessageHeader(envelope.MessageHeader.HeaderData);
-                                }
+                                    Proto.MessageHeader? header = null;
 
-                                Logger.LogDebug("[EndpointReader] Forwarding remote user message {@Message}", message);
-                                var localEnvelope = new Proto.MessageEnvelope(message, envelope.Sender, header);
-                                _system.Root.Send(target, localEnvelope);
-                                break;
-                            }
+                                    if (envelope.MessageHeader != null)
+                                    {
+                                        header = new Proto.MessageHeader(envelope.MessageHeader.HeaderData);
+                                    }
+
+                                    Logger.LogDebug("[EndpointReader] Forwarding remote user message {@Message}", message);
+                                    var localEnvelope = new Proto.MessageEnvelope(message, envelope.Sender, header);
+                                    _system.Root.Send(target, localEnvelope);
+                                    break;
+                                }
                         }
                     }
 
                     return Actor.Done;
                 }
-            );
+            ).ConfigureAwait(false);
         }
     }
 }

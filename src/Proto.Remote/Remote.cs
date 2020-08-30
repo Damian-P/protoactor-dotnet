@@ -43,12 +43,12 @@ namespace Proto.Remote
         public PID ActivatorPid { get; private set; }
 
         public Serialization Serialization { get; } = new Serialization();
-        public Remote(ActorSystem system, string hostname, int port, Action<IRemoteConfiguration>? configure = null)
+        public Remote(ActorSystem system, string hostname, int port, IChannelProvider channelProvider, Action<IRemoteConfiguration>? configure = null)
         {
             _system = system;
             _system.Plugins.AddPlugin<IRemote>(this);
             configure?.Invoke(this);
-            EndpointManager = new EndpointManager(this, system);
+            EndpointManager = new EndpointManager(this, system, channelProvider);
             system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(this, system, EndpointManager, pid));
             _hostname = hostname;
             _port = port;

@@ -26,7 +26,7 @@ namespace Proto.Remote
 
         public SelfHostedRemote(ActorSystem system, string hostname, int port,
             Action<IRemoteConfiguration>? configure = null)
-            : base(system, hostname, port, configure)
+            : base(system, hostname, port, new ChannelProvider(), configure)
         {
         }
 

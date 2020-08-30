@@ -5,25 +5,41 @@ services:
     build: ./Worker
     environment:
       - Proto_Hostname=alpha
+    depends_on:
+      - consul
+      - seq
   beta:
     build: ./Worker
     environment:
       - Proto_Hostname=beta
+    depends_on:
+      - consul
+      - seq
   gamma:
     build: ./Worker
     environment:
       - Proto_Hostname=gamma
+    depends_on:
+      - consul
+      - seq
   delta:
     build: ./Worker
     environment:
       - Proto_Hostname=delta
+    depends_on:
+      - consul
+      - seq
   epsilon:
     build: ./Worker
     environment:
       - Proto_Hostname=epsilon
+    depends_on:
+      - consul
+      - seq
   client:
     build: ./Client
     depends_on:
+      - consul
       - alpha
       - beta
       - gamma

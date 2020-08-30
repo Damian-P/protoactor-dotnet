@@ -9,15 +9,19 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Core.Utils;
-using Grpc.Net.Client;
 using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
+    public interface IChannelProvider
+    {
+        ChannelBase GetChannel(ChannelCredentials channelCredentials, string address, IEnumerable<ChannelOption> channelOptions);
+    }
     public class EndpointWriter : IActor
     {
         private static readonly ILogger Logger = Log.CreateLogger<EndpointWriter>();
         private readonly string _address;
+        private readonly IChannelProvider _channelProvider;
         private readonly CallOptions _callOptions;
         private readonly ChannelCredentials _channelCredentials;
         private readonly IEnumerable<ChannelOption> _channelOptions;
@@ -35,6 +39,7 @@ namespace Proto.Remote
             ActorSystem system,
             Serialization serialization,
             string address,
+            IChannelProvider channelProvider,
             IEnumerable<ChannelOption> channelOptions,
             CallOptions callOptions,
             ChannelCredentials channelCredentials
@@ -43,6 +48,7 @@ namespace Proto.Remote
             _system = system;
             _serialization = serialization;
             _address = address;
+            this._channelProvider = channelProvider;
             _channelOptions = channelOptions;
             _callOptions = callOptions;
             _channelCredentials = channelCredentials;
@@ -184,17 +190,9 @@ namespace Proto.Remote
         private async Task StartedAsync()
         {
             Logger.LogDebug("[EndpointWriter] Connecting to address {Address}", _address);
-
-            var addressWithProtocol =
-                           $"{(_channelCredentials == ChannelCredentials.Insecure ? "http://" : "https://")}{_address}";
-
-            var options = new GrpcChannelOptions
-            {
-                Credentials = _channelCredentials
-            };
             try
             {
-                _channel = GrpcChannel.ForAddress(addressWithProtocol, options);
+                _channel = _channelProvider.GetChannel(_channelCredentials, _address, _channelOptions);
             }
             catch (Exception e)
             {
@@ -220,7 +218,7 @@ namespace Proto.Remote
                     {
                         await _stream.ResponseStream.ForEachAsync(unit =>
                             {
-                                if (!unit.Alive)
+                                if (unit.Disconnected)
                                 {
                                     Logger.LogInformation("Lost connection to address {Address}", _address);
                                     var terminated = new EndpointTerminatedEvent
@@ -229,7 +227,6 @@ namespace Proto.Remote
                                     };
                                     _system.EventStream.Publish(terminated);
                                 }
-
                                 return Actor.Done;
                             }
                         ).ConfigureAwait(false);

@@ -42,19 +42,16 @@ namespace Node2
         {
             Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole()
                                                             .AddFilter("Proto.EventStream", LogLevel.Critical)
-                                                            .AddFilter("Microsoft", LogLevel.Critical)
-                                                            .AddFilter("Grpc.AspNetCore", LogLevel.Critical)
+                                                            .AddFilter("Microsoft", LogLevel.Error)
+                                                            .AddFilter("Grpc.AspNetCore", LogLevel.Error)
                                                             .SetMinimumLevel(LogLevel.Information)));
-
             var system = new ActorSystem();
-            var context = new RootContext(system);
-            var serialization = new Serialization();
             var Remote = new SelfHostedRemote(system, "127.0.0.1", 12000, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             });
             Remote.Start();
-            context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
+            system.Root.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
             await Remote.ShutdownAsync();
         }
