@@ -10,6 +10,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.HealthCheck;
+using Grpc.Net.Client;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -25,8 +26,8 @@ namespace Proto.Remote
         private IWebHost? _host;
 
         public SelfHostedRemote(ActorSystem system, string hostname, int port,
-            Action<IRemoteConfiguration>? configure = null)
-            : base(system, hostname, port, new ChannelProvider(), configure)
+            Action<IRemoteConfiguration>? configure = null, Action<GrpcChannelOptions>? configureChannelOptions = null)
+            : base(system, hostname, port, new ChannelProvider(configureChannelOptions), configure)
         {
         }
 

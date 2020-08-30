@@ -7,7 +7,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Grpc.Core;
 using Grpc.HealthCheck;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.Builder;
@@ -17,34 +16,12 @@ using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class ChannelProvider : IChannelProvider
-    {
-        public ChannelBase GetChannel(ChannelCredentials channelCredentials, string address, IEnumerable<ChannelOption> channelOptions)
-        {
-            var addressWithProtocol =
-                $"{(channelCredentials == ChannelCredentials.Insecure ? "http://" : "https://")}{address}";
-            if (channelOptions != null)
-                foreach (var channelOption in channelOptions)
-                {
-                    switch (channelOption.Name)
-                    {
-                        case ChannelOptions.Census:
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            var channel = GrpcChannel.ForAddress(addressWithProtocol);
-
-            return channel;
-        }
-    }
     public static class Extensions
     {
         public static IRemote AddRemote(this ActorSystem actorSystem, string hostname, int port,
-            Action<IRemoteConfiguration>? configure = null)
+            Action<IRemoteConfiguration>? configure = null, Action<GrpcChannelOptions>? configureChannelOptions = null)
         {
-            var remote = new SelfHostedRemote(actorSystem, hostname, port, configure);
+            var remote = new SelfHostedRemote(actorSystem, hostname, port, configure, configureChannelOptions);
             return remote;
         }
         public static void StartRemote(this ActorSystem actorSystem)
@@ -73,7 +50,7 @@ namespace Proto.Remote
             return remote.SpawnNamedAsync(address, name, kind, timeout);
         }
         public static IServiceCollection AddRemote(this IServiceCollection services,
-            Action<IRemoteConfiguration, IServiceProvider> configure)
+            Action<IRemoteConfiguration, IServiceProvider> configure, Action<GrpcChannelOptions>? configureChannelOptions = null)
         {
             services.AddHostedService<RemoteHostedService>();
             services.AddSingleton<IRemote, HostedRemote>(sp =>
@@ -93,12 +70,12 @@ namespace Proto.Remote
             services.AddSingleton<RemoteKindRegistry>(sp => sp.GetRequiredService<IRemote>().RemoteKindRegistry);
             services.AddSingleton<RemoteConfig>(sp => sp.GetRequiredService<IRemote>().RemoteConfig);
             services.AddSingleton<Remoting.RemotingBase, EndpointReader>();
-            services.AddSingleton<IChannelProvider, ChannelProvider>();
+            services.AddSingleton<IChannelProvider>(sp => new ChannelProvider(configureChannelOptions));
             return services;
         }
 
         public static IServiceCollection AddRemote(this IServiceCollection services,
-            Action<IRemoteConfiguration> configure)
+            Action<IRemoteConfiguration> configure, Action<GrpcChannelOptions>? configureChannelOptions = null)
         {
             services.AddHostedService<RemoteHostedService>();
             services.AddSingleton<IRemote, HostedRemote>(sp =>
@@ -118,7 +95,7 @@ namespace Proto.Remote
             services.AddSingleton<RemoteKindRegistry>(sp => sp.GetRequiredService<IRemote>().RemoteKindRegistry);
             services.AddSingleton<RemoteConfig>(sp => sp.GetRequiredService<IRemote>().RemoteConfig);
             services.AddSingleton<Remoting.RemotingBase, EndpointReader>();
-            services.AddSingleton<IChannelProvider, ChannelProvider>();
+            services.AddSingleton<IChannelProvider>(sp => new ChannelProvider(configureChannelOptions));
             return services;
         }
 

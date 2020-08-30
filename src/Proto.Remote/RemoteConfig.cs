@@ -13,11 +13,6 @@ namespace Proto.Remote
     public class RemoteConfig
     {
         /// <summary>
-        ///     Gets or sets the ChannelOptions for the gRPC channel.
-        /// </summary>
-        public IEnumerable<ChannelOption> ChannelOptions { get; set; } = null!;
-
-        /// <summary>
         ///     Gets or sets the CallOptions for the gRPC channel.
         /// </summary>
         public CallOptions CallOptions { get; set; }

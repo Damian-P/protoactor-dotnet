@@ -15,7 +15,7 @@ namespace Proto.Remote
 {
     public interface IChannelProvider
     {
-        ChannelBase GetChannel(ChannelCredentials channelCredentials, string address, IEnumerable<ChannelOption> channelOptions);
+        ChannelBase GetChannel(ChannelCredentials channelCredentials, string address);
     }
     public class EndpointWriter : IActor
     {
@@ -24,7 +24,6 @@ namespace Proto.Remote
         private readonly IChannelProvider _channelProvider;
         private readonly CallOptions _callOptions;
         private readonly ChannelCredentials _channelCredentials;
-        private readonly IEnumerable<ChannelOption> _channelOptions;
         private readonly Serialization _serialization;
         private readonly ActorSystem _system;
 
@@ -40,7 +39,6 @@ namespace Proto.Remote
             Serialization serialization,
             string address,
             IChannelProvider channelProvider,
-            IEnumerable<ChannelOption> channelOptions,
             CallOptions callOptions,
             ChannelCredentials channelCredentials
         )
@@ -49,7 +47,6 @@ namespace Proto.Remote
             _serialization = serialization;
             _address = address;
             this._channelProvider = channelProvider;
-            _channelOptions = channelOptions;
             _callOptions = callOptions;
             _channelCredentials = channelCredentials;
         }
@@ -192,7 +189,7 @@ namespace Proto.Remote
             Logger.LogDebug("[EndpointWriter] Connecting to address {Address}", _address);
             try
             {
-                _channel = _channelProvider.GetChannel(_channelCredentials, _address, _channelOptions);
+                _channel = _channelProvider.GetChannel(_channelCredentials, _address);
             }
             catch (Exception e)
             {

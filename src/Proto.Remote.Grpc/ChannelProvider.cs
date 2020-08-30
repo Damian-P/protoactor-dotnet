@@ -12,8 +12,16 @@ namespace Proto.Remote
 {
     public class ChannelProvider : IChannelProvider
     {
-        public ChannelBase GetChannel(ChannelCredentials channelCredentials, string address, IEnumerable<ChannelOption> channelOptions)
+        private readonly Action<List<ChannelOption>>? _configureChannelOptions;
+
+        public ChannelProvider(Action<List<ChannelOption>>? configureChannelOptions = null)
         {
+            _configureChannelOptions = configureChannelOptions;
+        }
+        public ChannelBase GetChannel(ChannelCredentials channelCredentials, string address)
+        {
+            var channelOptions = new List<ChannelOption>();
+            _configureChannelOptions?.Invoke(channelOptions);
             return new Channel(address, channelCredentials, channelOptions);
         }
     }

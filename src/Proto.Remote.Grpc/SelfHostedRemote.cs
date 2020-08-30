@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -22,8 +23,8 @@ namespace Proto.Remote
         private HealthServiceImpl _healthCheck = null!;
 
         public SelfHostedRemote(ActorSystem system, string hostname, int port,
-            Action<IRemoteConfiguration>? configure = null)
-            : base(system, hostname, port, new ChannelProvider(), configure)
+            Action<IRemoteConfiguration>? configure = null, Action<List<ChannelOption>>? configureChannelOptions = null)
+            : base(system, hostname, port, new ChannelProvider(configureChannelOptions), configure)
         {
             _endpointReader = new EndpointReader(_system, EndpointManager, Serialization);
             _healthCheck = new HealthServiceImpl();

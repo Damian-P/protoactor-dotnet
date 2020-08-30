@@ -130,9 +130,7 @@ namespace Proto.Remote
             var writerProps =
                 Props.FromProducer(
                         () => new EndpointWriter(system, remote.Serialization,
-                            address, channelProvider, remote.RemoteConfig.ChannelOptions, remote.RemoteConfig.CallOptions,
-                            remote.RemoteConfig.ChannelCredentials
-                        )
+                            address, channelProvider, remote.RemoteConfig.CallOptions, remote.RemoteConfig.ChannelCredentials)
                     )
                     .WithMailbox(() =>
                         new EndpointWriterMailbox(system,

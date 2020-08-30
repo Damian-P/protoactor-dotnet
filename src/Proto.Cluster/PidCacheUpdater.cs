@@ -22,7 +22,7 @@ namespace Proto.Cluster
 
         internal void Shutdown()
         {
-            // Cluster.System.Root.Stop(_watcher);
+            Cluster.System.Root.Stop(_watcher);
         }
 
         internal void Watch(PID pid)

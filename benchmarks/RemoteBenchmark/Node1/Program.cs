@@ -7,6 +7,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Grpc.Core;
 using Messages;
 using Microsoft.Extensions.Logging;
 using Proto;
@@ -28,7 +29,7 @@ class Program
         var Remote = new SelfHostedRemote(system, "127.0.0.1", 12001, remote =>
         {
             remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-        });
+        }, c => { c.Credentials = ChannelCredentials.Insecure; });
         Remote.Start();
 
         var messageCount = 1000000;

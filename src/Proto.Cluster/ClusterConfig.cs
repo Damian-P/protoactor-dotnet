@@ -18,16 +18,12 @@ namespace Proto.Cluster
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             ClusterProvider = cp ?? throw new ArgumentNullException(nameof(cp));
-
-            RemoteConfig = new RemoteConfig();
             TimeoutTimespan = TimeSpan.FromSeconds(5);
             MemberStrategyBuilder = kind => new SimpleMemberStrategy();
         }
 
         public string Name { get; }
         public IClusterProvider ClusterProvider { get; }
-
-        public RemoteConfig RemoteConfig { get; private set; }
         public TimeSpan TimeoutTimespan { get; private set; }
 
         public Func<string, IMemberStrategy> MemberStrategyBuilder { get; private set; }
@@ -40,16 +36,8 @@ namespace Proto.Cluster
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             ClusterProvider = cp ?? throw new ArgumentNullException(nameof(cp));
-
-            RemoteConfig = new RemoteConfig();
             TimeoutTimespan = TimeSpan.FromSeconds(5);
             MemberStrategyBuilder = kind => new SimpleMemberStrategy();
-        }
-
-        public ClusterConfig WithRemoteConfig(RemoteConfig remoteConfig)
-        {
-            RemoteConfig = remoteConfig;
-            return this;
         }
 
         public ClusterConfig WithTimeoutSeconds(int timeoutSeconds)
