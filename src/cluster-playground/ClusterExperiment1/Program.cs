@@ -37,12 +37,12 @@ namespace ClusterExperiment1
                 workers.Enqueue(SpawnMember(port++));
             }
 
-
+            var run = true;
             _ = Task.Run(async () =>
             {
                 var rnd = new Random();
                 int i = 1;
-                while (true)
+                while (run)
                 {
                     try
                     {
@@ -77,7 +77,7 @@ namespace ClusterExperiment1
             );
 
 
-            var run = true;
+
             while (run)
             {
                 switch (Console.ReadKey().KeyChar)
@@ -141,8 +141,6 @@ namespace ClusterExperiment1
     }
     public class HelloActor : IActor
     {
-        //   private readonly ILogger _log = Log.CreateLogger<HelloActor>();
-
         public Task ReceiveAsync(IContext ctx)
         {
             if (ctx.Message is Started)
