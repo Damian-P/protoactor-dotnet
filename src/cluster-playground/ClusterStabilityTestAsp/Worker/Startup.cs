@@ -42,17 +42,17 @@ namespace Worker
                 loggingBuilder.AddSeq(Configuration.GetSection("Seq"));
             });
             services.AddGrpc();
-            services.AddProtoActor();
-            services.AddRemote(remote =>
+            services.AddProtoActor(registry =>
+            {
+                registry.RegisterProps<HelloActor>(props => props);
+            });
+            services.AddRemote((remote, sp) =>
                 {
-                    remote.RemoteConfig.AdvertisedHostname =
-                        Configuration.GetValue<string>("Proto_Hostname", Environment.MachineName);
+                    var actorFactory = sp.GetRequiredService<IActorFactory>();
+                    remote.RemoteConfig.AdvertisedHostname = Configuration.GetValue<string>("Proto_Hostname", Environment.MachineName);
                     remote.RemoteConfig.AdvertisedPort = 80;
-                    remote.RemoteConfig.EndpointWriterOptions.MaxRetries = 2;
-                    remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan = TimeSpan.FromHours(1);
                     remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
-                    var helloProps = Props.FromProducer(() => new HelloActor());
-                    remote.RemoteKindRegistry.RegisterKnownKind("HelloActor", helloProps);
+                    remote.RemoteKindRegistry.RegisterKnownKind("HelloActor", actorFactory.GetProps<HelloActor>());
                 }
             );
             services.AddClustering(
@@ -100,13 +100,19 @@ namespace Worker
 
     public class HelloActor : IActor
     {
-        //   private readonly ILogger _log = Log.CreateLogger<HelloActor>();
+        private readonly ILogger<HelloActor> logger;
+
+        public HelloActor(ILogger<HelloActor> logger)
+        {
+            this.logger = logger;
+        }
 
         public Task ReceiveAsync(IContext ctx)
         {
             if (ctx.Message is Started)
             {
                 Console.Write("#");
+                logger.LogInformation($"Started {ctx.Self}");
             }
 
             if (ctx.Message is HelloRequest)
@@ -117,6 +123,7 @@ namespace Worker
             if (ctx.Message is Stopped)
             {
                 Console.Write("T");
+                logger.LogInformation($"Stopped {ctx.Self}");
             }
 
             return Actor.Done;

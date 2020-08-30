@@ -73,6 +73,31 @@ namespace Proto.Remote
             return remote.SpawnNamedAsync(address, name, kind, timeout);
         }
         public static IServiceCollection AddRemote(this IServiceCollection services,
+            Action<IRemoteConfiguration, IServiceProvider> configure)
+        {
+            services.AddHostedService<RemoteHostedService>();
+            services.AddSingleton<IRemote, HostedRemote>(sp =>
+                {
+                    var actorSystem = sp.GetRequiredService<ActorSystem>();
+                    var logger = sp.GetRequiredService<ILogger<HostedRemote>>();
+                    var channelProvider = sp.GetRequiredService<IChannelProvider>();
+                    var remote = new HostedRemote(actorSystem, logger, channelProvider);
+                    configure.Invoke(remote, sp);
+                    return remote;
+                }
+            );
+            services.AddSingleton<EndpointManager>(sp =>
+                (sp.GetRequiredService<IRemote>() as HostedRemote)!.EndpointManager
+            );
+            services.AddSingleton<Serialization>(sp => sp.GetRequiredService<IRemote>().Serialization);
+            services.AddSingleton<RemoteKindRegistry>(sp => sp.GetRequiredService<IRemote>().RemoteKindRegistry);
+            services.AddSingleton<RemoteConfig>(sp => sp.GetRequiredService<IRemote>().RemoteConfig);
+            services.AddSingleton<Remoting.RemotingBase, EndpointReader>();
+            services.AddSingleton<IChannelProvider, ChannelProvider>();
+            return services;
+        }
+
+        public static IServiceCollection AddRemote(this IServiceCollection services,
             Action<IRemoteConfiguration> configure)
         {
             services.AddHostedService<RemoteHostedService>();

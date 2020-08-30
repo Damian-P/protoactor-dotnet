@@ -31,6 +31,9 @@ namespace Proto.Remote
             _actorSystem = actorSystem;
             EndpointManager = new EndpointManager(this, actorSystem, channelProvider);
             Logger = logger;
+            var props = Props.FromProducer(() => new Activator(RemoteKindRegistry, _actorSystem))
+                .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
+            _activatorPid = _actorSystem.Root.SpawnNamed(props, "activator");
         }
 
         public Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout) =>
@@ -77,7 +80,7 @@ namespace Proto.Remote
             );
             IsStarted = true;
             EndpointManager.Start();
-            SpawnActivator();
+            // SpawnActivator();
         }
 
         public Task ShutdownAsync(bool graceful = true)

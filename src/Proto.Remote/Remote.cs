@@ -52,6 +52,9 @@ namespace Proto.Remote
             system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(this, system, EndpointManager, pid));
             _hostname = hostname;
             _port = port;
+            var props = Props.FromProducer(() => new Activator(RemoteKindRegistry, _system))
+               .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
+            ActivatorPid = _system.Root.SpawnNamed(props, "activator");
         }
 
         public virtual void Start()
@@ -59,7 +62,7 @@ namespace Proto.Remote
             if (IsStarted) return;
             IsStarted = true;
             EndpointManager.Start();
-            SpawnActivator();
+            // SpawnActivator();
         }
 
         public virtual Task ShutdownAsync(bool graceful = true)

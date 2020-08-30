@@ -33,5 +33,15 @@
         /// <returns></returns>
         PID RegisterActor<T>(T actor, string id = null, string address = null, IContext parent = null)
             where T : IActor;
+
+        /// <summary>
+        /// Get Actor Props
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="address"></param>
+        /// <param name="parent"></param>
+        /// <returns></returns>
+        Props GetProps<T>()
+            where T : IActor;
     }
 }

@@ -69,5 +69,17 @@ namespace Proto
             }
             return parent.SpawnNamed(props2, id);
         }
+
+        public Props GetProps<T>()
+            where T : IActor
+        {
+            Func<Props> producer = () => new Props().WithProducer(() => ActivatorUtilities.GetServiceOrCreateInstance<T>(_serviceProvider));
+            if (!_actorPropsRegistry.RegisteredProps.TryGetValue(typeof(T), out var props))
+            {
+                props = x => x;
+            }
+            var props2 = props(producer());
+            return props2;
+        }
     }
 }

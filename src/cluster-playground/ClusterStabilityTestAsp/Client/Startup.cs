@@ -41,8 +41,6 @@ namespace Client
                 {
                     remote.RemoteConfig.AdvertisedHostname = "client";
                     remote.RemoteConfig.AdvertisedPort = 80;
-                    remote.RemoteConfig.EndpointWriterOptions.MaxRetries = 2;
-                    remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan = TimeSpan.FromHours(1);
                     remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
                 }
             );
