@@ -130,8 +130,8 @@ namespace Proto.Remote
             var writerProps =
                 Props.FromProducer(
                         () => new EndpointWriter(system, remote.Serialization,
-
                             address,
+                            channelProvider,
                             remote.RemoteConfig.CallOptions,
                             remote.RemoteConfig.ChannelCredentials
                         )
