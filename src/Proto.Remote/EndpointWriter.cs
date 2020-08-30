@@ -13,10 +13,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public interface IChannelProvider
-    {
-        ChannelBase GetChannel(ChannelCredentials channelCredentials, string address);
-    }
     public class EndpointWriter : IActor
     {
         private static readonly ILogger Logger = Log.CreateLogger<EndpointWriter>();
@@ -46,7 +42,7 @@ namespace Proto.Remote
             _system = system;
             _serialization = serialization;
             _address = address;
-            this._channelProvider = channelProvider;
+            _channelProvider = channelProvider;
             _callOptions = callOptions;
             _channelCredentials = channelCredentials;
         }
@@ -117,7 +113,7 @@ namespace Proto.Remote
             batch.TypeNames.AddRange(typeNameList);
             batch.Envelopes.AddRange(envelopes);
 
-            Logger.LogDebug("[EndpointWriter] Sending {Count} envelopes for {Address} while channel status is {State}", envelopes.Count, _address, _channel?.State);
+            Logger.LogDebug("[EndpointWriter] Sending {Count} envelopes for {Address}", envelopes.Count, _address);
 
             return SendEnvelopesAsync(batch, context);
         }
