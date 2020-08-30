@@ -18,7 +18,8 @@ namespace ClusterExperiment1
             Log.SetLoggerFactory(LoggerFactory.Create(l => l
                         .AddConsole(o =>
                         {
-                            o.IncludeScopes = true;
+                            o.IncludeScopes = false;
+                            o.TimestampFormat = "hh:mm:ss:fff - ";
                         })
                         .AddFilter("Proto.Remote", LogLevel.Information)
                         .AddFilter("Microsoft", LogLevel.Critical)
