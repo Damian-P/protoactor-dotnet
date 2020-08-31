@@ -6,6 +6,8 @@ namespace Proto
     public class ActorSystem
     {
         public static readonly ActorSystem Default = new ActorSystem();
+
+
         public ActorSystem()
         {
             ProcessRegistry = new ProcessRegistry(this);

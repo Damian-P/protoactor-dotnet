@@ -1,9 +1,8 @@
 ﻿// -----------------------------------------------------------------------
-//   <copyright file="ConsulProvider.cs" company="Asynkron AB">
+//   <copyright file="TestProvider.cs" company="Asynkron AB">
 //       Copyright (C) 2015-2020 Asynkron AB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
-
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -52,7 +51,7 @@ namespace Proto.Cluster.Testing
             _agent.RegisterService(new AgentServiceRegistration
             {
                 Address = address,
-                ID = _id.ToString(),
+                ID = _id,
                 Kinds = kinds,
                 Port = port,
             });
@@ -72,7 +71,7 @@ namespace Proto.Cluster.Testing
                         {
                             var member = new Member
                             {
-                                Id = x.ID,
+                                Id = x.ID.ToString(),
                                 Host = x.Host,
                                 Port = x.Port
                             };
@@ -99,7 +98,7 @@ namespace Proto.Cluster.Testing
 
         private void RefreshTTL()
         {
-            _agent.RefreshServiceTTL(_id.ToString());
+            _agent.RefreshServiceTTL(_id);
         }
 
 
@@ -108,7 +107,7 @@ namespace Proto.Cluster.Testing
             Logger.LogDebug("Unregistering service {Service}", _id);
             _agent.StatusUpdate -= AgentOnStatusUpdate;
             _ttlReportTimer.Stop();
-            _agent.DeregisterService(_id.ToString());
+            _agent.DeregisterService(_id);
             return Task.CompletedTask;
         }
 

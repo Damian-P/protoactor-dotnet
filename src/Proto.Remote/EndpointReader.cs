@@ -83,8 +83,6 @@ namespace Proto.Remote
                         return Actor.Done;
                     }
 
-
-
                     //only grow pid lookup if needed
                     if (batch.TargetNames.Count > targets.Length)
                     {

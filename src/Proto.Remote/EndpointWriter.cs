@@ -20,6 +20,7 @@ namespace Proto.Remote
         private readonly IChannelProvider _channelProvider;
         private readonly CallOptions _callOptions;
         private readonly ChannelCredentials _channelCredentials;
+        private readonly IEnumerable<ChannelOption> _channelOptions;
         private readonly Serialization _serialization;
         private readonly ActorSystem _system;
 
@@ -35,6 +36,7 @@ namespace Proto.Remote
             Serialization serialization,
             string address,
             IChannelProvider channelProvider,
+            IEnumerable<ChannelOption> channelOptions,
             CallOptions callOptions,
             ChannelCredentials channelCredentials
         )
@@ -43,6 +45,7 @@ namespace Proto.Remote
             _serialization = serialization;
             _address = address;
             _channelProvider = channelProvider;
+            _channelOptions = channelOptions;
             _callOptions = callOptions;
             _channelCredentials = channelCredentials;
         }
@@ -50,12 +53,12 @@ namespace Proto.Remote
         public Task ReceiveAsync(IContext context) =>
             context.Message switch
             {
-                Started _ => StartedAsync(),
-                Stopped _ => StoppedAsync(),
-                Restarting _ => RestartingAsync(),
-                EndpointTerminatedEvent _ => EndpointTerminatedEvent(context),
+                Started _                    => StartedAsync(),
+                Stopped _                    => StoppedAsync(),
+                Restarting _                 => RestartingAsync(),
+                EndpointTerminatedEvent _    => EndpointTerminatedEvent(context),
                 IEnumerable<RemoteDeliver> m => RemoteDeliver(m, context),
-                _ => Actor.Done
+                _                            => Actor.Done
             };
 
         private Task RemoteDeliver(IEnumerable<RemoteDeliver> m, IContext context)

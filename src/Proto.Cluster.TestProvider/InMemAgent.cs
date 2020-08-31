@@ -6,7 +6,7 @@ namespace Proto.Cluster.Testing
 {
     public class AgentServiceStatus
     {
-        public string ID { get; set; }
+        public Guid ID { get; set; }
         public DateTimeOffset TTL { get; set; }
         public bool Alive => DateTimeOffset.Now - TTL <= TimeSpan.FromSeconds(5);
 
@@ -25,11 +25,8 @@ namespace Proto.Cluster.Testing
         private void OnStatusUpdate() => StatusUpdate?.Invoke(waitIndex++);
 
 
-        private readonly ConcurrentDictionary<string, AgentServiceStatus> _services = new ConcurrentDictionary<string, AgentServiceStatus>();
-        public AgentServiceStatus[] GetServicesHealth()
-        {
-            return _services.Values.ToArray();
-        }
+        private readonly ConcurrentDictionary<Guid, AgentServiceStatus> _services = new ConcurrentDictionary<Guid, AgentServiceStatus>();
+        public AgentServiceStatus[] GetServicesHealth() => _services.Values.ToArray();
 
         public void RegisterService(AgentServiceRegistration registration)
         {
@@ -44,13 +41,13 @@ namespace Proto.Cluster.Testing
             OnStatusUpdate();
         }
 
-        public void DeregisterService(string id)
+        public void DeregisterService(Guid id)
         {
             _services.TryRemove(id, out _);
             OnStatusUpdate();
         }
 
-        public void RefreshServiceTTL(string id)
+        public void RefreshServiceTTL(Guid id)
         {
             //TODO: this is racy, but yolo for now
             if (_services.TryGetValue(id, out var service))
