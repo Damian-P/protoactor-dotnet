@@ -17,7 +17,6 @@ namespace ClusterExperiment1
             Log.SetLoggerFactory(LoggerFactory.Create(l => l.AddConsole(o =>
                         {
                             o.IncludeScopes = false;
-                            o.UseUtcTimestamp = false;
                             o.TimestampFormat = "hh:mm:ss:fff - ";
                         }
                     ).SetMinimumLevel(LogLevel.Information)
@@ -34,7 +33,6 @@ namespace ClusterExperiment1
             Log.SetLoggerFactory(LoggerFactory.Create(l => l.AddConsole(o =>
                         {
                             o.IncludeScopes = false;
-                            o.UseUtcTimestamp = false;
                             o.TimestampFormat = "hh:mm:ss:fff - ";
                         }
                     ).SetMinimumLevel(LogLevel.Information)
@@ -50,13 +48,14 @@ namespace ClusterExperiment1
             Console.WriteLine("Enter spawns a new node in the cluster");
             Console.ReadLine();
 
-            var system1 = new ActorSystem();
-            var consul1 = new ConsulProvider(new ConsulProviderOptions());
-            var serialization1 = new Serialization();
-            serialization1.RegisterFileDescriptor(MessagesReflection.Descriptor);
-            var c1 = new Cluster(system1, serialization1);
-            await c1.StartAsync(new ClusterConfig("mycluster", "127.0.0.1", 8090, consul1).WithPidCache(false));
-
+            var system = new ActorSystem();
+            var consulProvider = new ConsulProvider(new ConsulProviderOptions());
+            var remote = system.AddRemote("localhost", 8090, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
+            });
+            var c1 = new Cluster(system, new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
+            await c1.StartAsync();
 
             _ = Task.Run(async () =>
                 {
@@ -106,15 +105,17 @@ namespace ClusterExperiment1
 
         private static Cluster SpawnMember(int port)
         {
-            var system2 = new ActorSystem();
-            var consul2 = new ConsulProvider(new ConsulProviderOptions());
-            var serialization2 = new Serialization();
-            serialization2.RegisterFileDescriptor(MessagesReflection.Descriptor);
-            var cluster2 = new Cluster(system2, serialization2);
             var helloProps = Props.FromProducer(() => new HelloActor());
-            cluster2.Remote.RegisterKnownKind("hello", helloProps);
-            cluster2.StartAsync(new ClusterConfig("mycluster", "127.0.0.1", port, consul2).WithPidCache(false));
-            return cluster2;
+            var system = new ActorSystem();
+            var consulProvider = new ConsulProvider(new ConsulProviderOptions());
+            var remote = new SelfHostedRemote(system, "localhost", port, remote =>
+            {
+                remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
+                remote.RemoteKindRegistry.RegisterKnownKind("hello", helloProps);
+            });
+            var member = new Cluster(system, new ClusterConfig("mycluster", "127.0.0.1", port, consulProvider).WithPidCache(false));
+            _ = member.StartAsync();
+            return member;
         }
     }
 
