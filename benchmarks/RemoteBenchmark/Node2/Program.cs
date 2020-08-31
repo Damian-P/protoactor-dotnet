@@ -23,7 +23,7 @@ namespace Node2
             switch (context.Message)
             {
                 case StartRemote sr:
-                    Console.WriteLine("Starting");
+                    // Console.WriteLine("Starting");
                     _sender = sr.Sender;
                     context.Respond(new Start());
                     return Actor.Done;

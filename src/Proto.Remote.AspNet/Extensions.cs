@@ -24,31 +24,6 @@ namespace Proto.Remote
             var remote = new SelfHostedRemote(actorSystem, hostname, port, configure, configureChannelOptions);
             return remote;
         }
-        public static void StartRemote(this ActorSystem actorSystem)
-        {
-            var remote = actorSystem.Plugins.GetPlugin<IRemote>();
-            remote.Start();
-        }
-
-        public static Task ShutdownRemoteAsync(this ActorSystem actorSystem, bool graceful = true)
-        {
-            var remote = actorSystem.Plugins.GetPlugin<IRemote>();
-            return remote.ShutdownAsync(graceful);
-        }
-
-        public static Task<ActorPidResponse> SpawnAsync(this ActorSystem actorSystem, string address, string kind,
-            TimeSpan timeout)
-        {
-            var remote = actorSystem.Plugins.GetPlugin<IRemote>();
-            return remote.SpawnAsync(address, kind, timeout);
-        }
-
-        public static Task<ActorPidResponse> SpawnNamedAsync(this ActorSystem actorSystem, string address, string name,
-            string kind, TimeSpan timeout)
-        {
-            var remote = actorSystem.Plugins.GetPlugin<IRemote>();
-            return remote.SpawnNamedAsync(address, name, kind, timeout);
-        }
         public static IServiceCollection AddRemote(this IServiceCollection services,
             Action<IRemoteConfiguration, IServiceProvider> configure, Action<GrpcChannelOptions>? configureChannelOptions = null)
         {

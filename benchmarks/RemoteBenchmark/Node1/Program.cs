@@ -26,10 +26,10 @@ class Program
                                                             .AddFilter("Grpc.AspNetCore", LogLevel.Error)
                                                             .SetMinimumLevel(LogLevel.Information)));
         var system = new ActorSystem();
-        var Remote = new SelfHostedRemote(system, "127.0.0.1", 12001, remote =>
+        var Remote = system.AddRemote("127.0.0.1", 12001, remote =>
         {
             remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-        }, c => { c.Credentials = ChannelCredentials.Insecure; });
+        });
         Remote.Start();
 
         var messageCount = 1000000;
