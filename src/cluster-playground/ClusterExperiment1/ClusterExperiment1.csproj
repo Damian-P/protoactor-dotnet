@@ -21,8 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="messages.proto" />
-      <Protobuf Include="messages.proto" />
+        <Protobuf Include="messages.proto" GrpcServices="Server"/>
     </ItemGroup>
 
 </Project>

@@ -90,7 +90,10 @@ namespace Proto.Cluster
             if (graceful)
             {
                 if (Config.UsePidCache)
-                    PidCacheUpdater!.Shutdown();
+                {
+                    PidCacheUpdater.Shutdown();
+                }
+
                 IdentityLookup!.Shutdown();
             }
 
