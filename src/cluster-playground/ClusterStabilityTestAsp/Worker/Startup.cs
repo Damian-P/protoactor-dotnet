@@ -55,16 +55,16 @@ namespace Worker
                     remote.RemoteKindRegistry.RegisterKnownKind("HelloActor", actorFactory.GetProps<HelloActor>());
                 }
             );
+            ConsulProviderOptions options = new ConsulProviderOptions
+            {
+                DeregisterCritical = TimeSpan.FromSeconds(2)
+            };
+            ConsulProvider clusterProvider = new ConsulProvider(options, c => { c.Address = new Uri($"http://consul:8500/"); });
             services.AddClustering(
                 "StabilityTestAsp",
-                new ConsulProvider(new ConsulProviderOptions
+                clusterProvider, cluster =>
                 {
-                    DeregisterCritical = TimeSpan.FromSeconds(2)
-                },
-                    c => { c.Address = new Uri($"http://consul:8500/"); }
-                ), cluster =>
-                {
-                    var grains = new Grains(cluster);
+                    var grains = cluster.AddGrains();
                     grains.HelloGrainFactory(() => new HelloGrain());
                     services.AddSingleton(grains);
                 }
@@ -111,7 +111,6 @@ namespace Worker
         {
             if (ctx.Message is Started)
             {
-                Console.Write("#");
                 logger.LogInformation($"Started {ctx.Self}");
             }
 
@@ -122,7 +121,6 @@ namespace Worker
 
             if (ctx.Message is Stopped)
             {
-                Console.Write("T");
                 logger.LogInformation($"Stopped {ctx.Self}");
             }
 

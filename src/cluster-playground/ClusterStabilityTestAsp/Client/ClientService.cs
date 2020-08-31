@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using System.Threading;
 using Polly;
 using System.Collections.Generic;
-using Proto.Cluster;
 
 namespace Client
 {
@@ -42,27 +41,39 @@ namespace Client
             _ = Task.Run(async () =>
                 {
 
-                    await Task.Delay(2000);
-                    _logger.LogCritical("Starting to send !");
-
-                    var policy = Policy.Handle<Exception>().RetryForeverAsync();
-                    var n = 1_000_000;
-                    var tasks = new List<Task>();
-                    for (var i = 0; i < n; i++)
+                    try
                     {
-                        var response = _actorSystem.RequestAsync<HelloResponse>("name" + (i % 200), "HelloActor", new HelloRequest(), new CancellationTokenSource(2000).Token);
-                        tasks.Add(policy.ExecuteAsync(() =>
-                            _actorSystem.RequestAsync<HelloResponse>("name" + (i % 200), "HelloActor", new HelloRequest(), new CancellationTokenSource(2000).Token)
-                        ));
-                        if (tasks.Count % 1000 == 0)
+                        await Task.Delay(2000);
+                        _logger.LogCritical("Starting to send !");
+
+                        var policy = Policy.Handle<Exception>().WaitAndRetryForeverAsync(i => TimeSpan.FromMilliseconds(1000), (e, t) =>
                         {
-                            Task.WaitAll(tasks.ToArray());
-                            tasks.Clear();
+                            Console.WriteLine($"{t} -> {e.Message}");
+                        });
+                        var n = 1_000_000;
+                        var tasks = new List<Task>();
+                        for (var i = 0; i < n; i++)
+                        {
+                            tasks.Add(policy.ExecuteAsync(() =>
+                                // _grains.HelloGrain("name" + (i % 2000)).SayHello(new HelloRequest())
+                                _actorSystem.RequestAsync<HelloResponse>("name" + (i % 200), "HelloActor", new HelloRequest(), new CancellationTokenSource(2000).Token)
+                            ));
+                            if (tasks.Count % 1000 == 0)
+                            {
+                                Task.WaitAll(tasks.ToArray());
+                                tasks.Clear();
+                            }
                         }
+                        Task.WaitAll(tasks.ToArray());
+                        _logger.LogCritical("Done!");
+                        await Task.Delay(1000);
+                        _appLifetime.StopApplication();
                     }
-                    Task.WaitAll(tasks.ToArray());
-                    _logger.LogCritical("Done!");
-                    _appLifetime.StopApplication();
+                    catch (System.Exception e)
+                    {
+                        _logger.LogError(e, "");
+                        throw;
+                    }
                 }, _appLifetime.ApplicationStopping
             );
         }

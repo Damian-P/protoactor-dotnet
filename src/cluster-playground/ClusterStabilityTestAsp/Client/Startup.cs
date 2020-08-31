@@ -44,14 +44,19 @@ namespace Client
                     remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
                 }
             );
+            ConsulProviderOptions options = new ConsulProviderOptions
+            {
+                DeregisterCritical = TimeSpan.FromSeconds(2)
+            };
+            ConsulProvider clusterProvider = new ConsulProvider(options, c => { c.Address = new Uri("http://consul:8500/"); });
             services.AddClustering(
                 "StabilityTestAsp",
-                new ConsulProvider(new ConsulProviderOptions
+                clusterProvider,
+                cluster =>
                 {
-                    DeregisterCritical = TimeSpan.FromSeconds(2)
-                },
-                    c => { c.Address = new Uri("http://consul:8500/"); }
-                )
+                    var grains = cluster.AddGrains();
+                    services.AddSingleton(grains);
+                }
             );
             services.AddSingleton<Grains>();
             services.AddHostedService<ClientService>();

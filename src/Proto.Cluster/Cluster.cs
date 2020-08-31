@@ -30,9 +30,9 @@ namespace Proto.Cluster
             PidCacheUpdater = new PidCacheUpdater(this, PidCache);
             //default to partition identity lookup
             IdentityLookup = clusterConfig.IdentityLookup ?? new PartitionIdentityLookup();
-
             MemberList = new MemberList(this);
             Provider = clusterConfig.ClusterProvider;
+            Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         }
 
         public Cluster(ActorSystem system, string clusterName, IClusterProvider cp)
@@ -62,7 +62,6 @@ namespace Proto.Cluster
         public async Task StartAsync()
         {
             Remote.Start();
-            Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             _logger = Log.CreateLogger($"Cluster-{LoggerId}");
             _logger.LogInformation("Starting");
 
