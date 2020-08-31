@@ -102,7 +102,6 @@ namespace Proto.Remote
                     {
                         await base.ShutdownAsync();
                     }
-
                     Logger.LogDebug(
                         "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
                         _system.ProcessRegistry.Address, graceful

@@ -125,18 +125,17 @@ namespace ClusterExperiment1
         private static InMemAgent agent = new InMemAgent();
         private static Cluster SpawnMember(int port, bool isWorker = true)
         {
-            var system2 = new ActorSystem();
-            var consul2 = new TestProvider(new TestProviderOptions(), agent);
-            var helloProps = Props.FromProducer(() => new HelloActor());
-            var remote = system2.AddRemote("localhost", port, remote =>
+            var system = new ActorSystem();
+            var clusterProvider = new TestProvider(new TestProviderOptions(), agent);
+            var remote = system.AddRemote("localhost", port, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
                 if (isWorker)
-                    remote.RemoteKindRegistry.RegisterKnownKind("hello", helloProps);
+                    remote.RemoteKindRegistry.RegisterKnownKind("hello", Props.FromProducer(() => new HelloActor()));
             });
-            var cluster2 = system2.AddClustering(new ClusterConfig("mycluster", "127.0.0.1", port, consul2).WithPidCache(false));
-            _ = cluster2.StartAsync().ConfigureAwait(false);
-            return cluster2;
+            var clusterNode = system.AddClustering(new ClusterConfig("mycluster", "127.0.0.1", port, clusterProvider).WithPidCache(false));
+            _ = clusterNode.StartAsync().ConfigureAwait(false);
+            return clusterNode;
         }
     }
     public class HelloActor : IActor
