@@ -50,12 +50,12 @@ namespace Proto.Remote
         public Task ReceiveAsync(IContext context) =>
             context.Message switch
             {
-                Started _                    => StartedAsync(),
-                Stopped _                    => StoppedAsync(),
-                Restarting _                 => RestartingAsync(),
-                EndpointTerminatedEvent _    => EndpointTerminatedEvent(context),
+                Started _ => StartedAsync(),
+                Stopped _ => StoppedAsync(),
+                Restarting _ => RestartingAsync(),
+                EndpointTerminatedEvent _ => EndpointTerminatedEvent(context),
                 IEnumerable<RemoteDeliver> m => RemoteDeliver(m, context),
-                _                            => Actor.Done
+                _ => Actor.Done
             };
 
         private Task RemoteDeliver(IEnumerable<RemoteDeliver> m, IContext context)
@@ -206,15 +206,13 @@ namespace Proto.Remote
                     {
                         await _stream.ResponseStream.ForEachAsync(unit =>
                             {
-                                if (unit.Disconnected)
+
+                                Logger.LogInformation("Lost connection to address {Address}", _address);
+                                var terminated = new EndpointTerminatedEvent
                                 {
-                                    Logger.LogInformation("Lost connection to address {Address}", _address);
-                                    var terminated = new EndpointTerminatedEvent
-                                    {
-                                        Address = _address
-                                    };
-                                    _system.EventStream.Publish(terminated);
-                                }
+                                    Address = _address
+                                };
+                                _system.EventStream.Publish(terminated);
                                 return Actor.Done;
                             }
                         ).ConfigureAwait(false);
