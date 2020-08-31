@@ -60,7 +60,7 @@ namespace Proto.Remote
                 Logger.LogDebug("EndpointReader suspended");
                 try
                 {
-                    responseStream.WriteAsync(new Unit { Disconnected = true });
+                    responseStream.WriteAsync(new Unit());
                 }
                 catch (Exception e)
                 {
