@@ -66,59 +66,56 @@ namespace Proto.Remote
                 {
                     Logger.LogError(e, "EndpointReader suspended");
                 }
-            }
+            }, true
             );
 
             var targets = new PID[100];
 
-            await requestStream.ForEachAsync(
-                batch =>
-                {
-                    Logger.LogDebug("[EndpointReader] Received a batch of {Count} messages from {Remote}",
+            while (await requestStream.MoveNext())
+            {
+                var batch = requestStream.Current;
+                Logger.LogDebug("[EndpointReader] Received a batch of {Count} messages from {Remote}",
                         batch.TargetNames.Count, context.Peer
                     );
 
-                    if (_endpointManager.CancellationToken.IsCancellationRequested)
-                    {
-                        return Actor.Done;
-                    }
-
-                    //only grow pid lookup if needed
-                    if (batch.TargetNames.Count > targets.Length)
-                    {
-                        targets = new PID[batch.TargetNames.Count];
-                    }
-
-                    for (var i = 0; i < batch.TargetNames.Count; i++)
-                    {
-                        targets[i] = new PID(_system.ProcessRegistry.Address, batch.TargetNames[i]);
-                    }
-
-                    var typeNames = batch.TypeNames.ToArray();
-
-                    foreach (var envelope in batch.Envelopes)
-                    {
-                        var target = targets[envelope.Target];
-                        var typeName = typeNames[envelope.TypeId];
-                        var message = _serialization.Deserialize(typeName, envelope.MessageData, envelope.SerializerId);
-
-                        switch (message)
-                        {
-                            case Terminated msg:
-                                Terminated(msg, target);
-                                break;
-                            case SystemMessage sys:
-                                SystemMessage(sys, target);
-                                break;
-                            default:
-                                ReceiveMessages(envelope, message, target);
-                                break;
-                        }
-                    }
-
-                    return Actor.Done;
+                if (_endpointManager.CancellationToken.IsCancellationRequested)
+                {
+                    break;
                 }
-            );
+
+                //only grow pid lookup if needed
+                if (batch.TargetNames.Count > targets.Length)
+                {
+                    targets = new PID[batch.TargetNames.Count];
+                }
+
+                for (var i = 0; i < batch.TargetNames.Count; i++)
+                {
+                    targets[i] = new PID(_system.ProcessRegistry.Address, batch.TargetNames[i]);
+                }
+
+                var typeNames = batch.TypeNames.ToArray();
+
+                foreach (var envelope in batch.Envelopes)
+                {
+                    var target = targets[envelope.Target];
+                    var typeName = typeNames[envelope.TypeId];
+                    var message = _serialization.Deserialize(typeName, envelope.MessageData, envelope.SerializerId);
+
+                    switch (message)
+                    {
+                        case Terminated msg:
+                            Terminated(msg, target);
+                            break;
+                        case SystemMessage sys:
+                            SystemMessage(sys, target);
+                            break;
+                        default:
+                            ReceiveMessages(envelope, message, target);
+                            break;
+                    }
+                }
+            }
         }
 
         private void ReceiveMessages(MessageEnvelope envelope, object message, PID target)

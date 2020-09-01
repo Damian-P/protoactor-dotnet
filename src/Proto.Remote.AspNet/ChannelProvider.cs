@@ -19,12 +19,11 @@ namespace Proto.Remote
         {
             this.configureChannelOptions = configure;
         }
-        public ChannelBase GetChannel(ChannelCredentials channelCredentials, string address)
+        public ChannelBase GetChannel(string address)
         {
             var addressWithProtocol =
-                $"{(channelCredentials == ChannelCredentials.Insecure ? "http://" : "https://")}{address}";
+                $"{(configureChannelOptions == null ? "http://" : "https://")}{address}";
             var grpcChannelOptions = new GrpcChannelOptions();
-            grpcChannelOptions.Credentials = channelCredentials;
             configureChannelOptions?.Invoke(grpcChannelOptions);
             var channel = GrpcChannel.ForAddress(addressWithProtocol, grpcChannelOptions);
             return channel;

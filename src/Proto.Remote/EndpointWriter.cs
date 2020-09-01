@@ -19,8 +19,6 @@ namespace Proto.Remote
         private readonly string _address;
         private readonly IChannelProvider _channelProvider;
         private readonly CallOptions _callOptions;
-        private readonly ChannelCredentials _channelCredentials;
-        private readonly IEnumerable<ChannelOption> _channelOptions;
         private readonly Serialization _serialization;
         private readonly ActorSystem _system;
 
@@ -36,29 +34,25 @@ namespace Proto.Remote
             Serialization serialization,
             string address,
             IChannelProvider channelProvider,
-            IEnumerable<ChannelOption> channelOptions,
-            CallOptions callOptions,
-            ChannelCredentials channelCredentials
+            CallOptions callOptions
         )
         {
             _system = system;
             _serialization = serialization;
             _address = address;
             _channelProvider = channelProvider;
-            _channelOptions = channelOptions;
             _callOptions = callOptions;
-            _channelCredentials = channelCredentials;
         }
 
         public Task ReceiveAsync(IContext context) =>
             context.Message switch
             {
-                Started _                    => StartedAsync(),
-                Stopped _                    => StoppedAsync(),
-                Restarting _                 => RestartingAsync(),
-                EndpointTerminatedEvent _    => EndpointTerminatedEvent(context),
+                Started _ => StartedAsync(),
+                Stopped _ => StoppedAsync(),
+                Restarting _ => RestartingAsync(),
+                EndpointTerminatedEvent _ => EndpointTerminatedEvent(context),
                 IEnumerable<RemoteDeliver> m => RemoteDeliver(m, context),
-                _                            => Actor.Done
+                _ => Actor.Done
             };
 
         private Task RemoteDeliver(IEnumerable<RemoteDeliver> m, IContext context)
@@ -183,7 +177,7 @@ namespace Proto.Remote
             Logger.LogDebug("[EndpointWriter] Connecting to address {Address}", _address);
             try
             {
-                _channel = _channelProvider.GetChannel(_channelCredentials, _address);
+                _channel = _channelProvider.GetChannel(_address);
             }
             catch (Exception e)
             {
@@ -207,18 +201,15 @@ namespace Proto.Remote
                 {
                     try
                     {
-                        await _stream.ResponseStream.ForEachAsync(unit =>
+                        while (await _stream.ResponseStream.MoveNext())
+                        {
+                            Logger.LogInformation("Lost connection to address {Address}", _address);
+                            var terminated = new EndpointTerminatedEvent
                             {
-
-                                Logger.LogInformation("Lost connection to address {Address}", _address);
-                                var terminated = new EndpointTerminatedEvent
-                                {
-                                    Address = _address
-                                };
-                                _system.EventStream.Publish(terminated);
-                                return Actor.Done;
-                            }
-                        ).ConfigureAwait(false);
+                                Address = _address
+                            };
+                            _system.EventStream.Publish(terminated);
+                        };
                     }
                     catch (Exception x)
                     {

@@ -1,10 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
+using System.Net.Http;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using ClusterExperiment1.Messages;
 using Grpc.Core;
+using Grpc.Net.Client;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Logging;
 using Proto;
 using Proto.Cluster;
@@ -22,7 +30,10 @@ namespace ClusterExperiment1
                             o.IncludeScopes = false;
                             o.TimestampFormat = "hh:mm:ss:fff - ";
                         }
-                    ).SetMinimumLevel(LogLevel.Information)
+                    )
+                    // .AddFilter("Microsoft.AspNetCore", LogLevel.Warning)
+                    // .AddFilter("Grpc.AspNetCore.Server.ServerCallHandler", LogLevel.Critical)
+                    .SetMinimumLevel(LogLevel.Information)
                 )
             );
 
@@ -31,7 +42,6 @@ namespace ClusterExperiment1
             Console.ReadLine();
             await cluster.ShutdownAsync();
         }
-
         private static async Task RunLeader()
         {
             Log.SetLoggerFactory(LoggerFactory.Create(l => l.AddConsole(o =>
@@ -39,7 +49,10 @@ namespace ClusterExperiment1
                             o.IncludeScopes = false;
                             o.TimestampFormat = "hh:mm:ss:fff - ";
                         }
-                    ).SetMinimumLevel(LogLevel.Information)
+                    )
+                    // .AddFilter("Microsoft.AspNetCore", LogLevel.Warning)
+                    // .AddFilter("Grpc.AspNetCore.Server.ServerCallHandler", LogLevel.Critical)
+                    .SetMinimumLevel(LogLevel.Information)
                 )
             );
             var logger = Log.CreateLogger(nameof(Program));
@@ -52,12 +65,33 @@ namespace ClusterExperiment1
             Console.WriteLine("Enter spawns a new node in the cluster");
             Console.ReadLine();
 
+            Action<GrpcChannelOptions> configureChannel = c =>
+            {
+                var cert = new X509Certificate2(Path.Combine(Environment.CurrentDirectory, "client.pfx"), "1111");
+                var handler = new HttpClientHandler();
+
+                handler.ServerCertificateCustomValidationCallback = (req, cert, chain, policy) => true;
+                handler.ClientCertificates.Add(cert);
+                var httpClient = new HttpClient(handler);
+                httpClient.Timeout = Timeout.InfiniteTimeSpan;
+                c.HttpClient = httpClient;
+            };
+            Action<ListenOptions> configureKestrel = listenOptions =>
+            {
+                var serverCert = new X509Certificate2(Path.Combine(Environment.CurrentDirectory, "server.pfx"), "1111");
+                listenOptions.UseHttps(serverCert, c =>
+                {
+                    c.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
+                    c.ClientCertificateValidation = (cert, chain, policy) => cert.Issuer == serverCert.Issuer;
+                });
+            };
+
             var system = new ActorSystem();
             var consulProvider = new ConsulProvider(new ConsulProviderOptions());
             var remote = system.AddRemote("localhost", 8090, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
-            });
+            }, configureChannel, configureKestrel);
             var c1 = new Cluster(system, new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
             await c1.StartAsync();
 
@@ -113,40 +147,35 @@ namespace ClusterExperiment1
             var helloProps = Props.FromProducer(() => new HelloActor());
             var system = new ActorSystem();
             var consulProvider = new ConsulProvider(new ConsulProviderOptions());
-            var remote = new SelfHostedRemote(system, "localhost", port, remote =>
+            Action<IRemoteConfiguration> configureRemote = remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("hello", helloProps);
-            });
+            };
+
+            Action<GrpcChannelOptions> configureChannel = c =>
+            {
+                var cert = new X509Certificate2(Path.Combine(Environment.CurrentDirectory, "client.pfx"), "1111");
+                var handler = new HttpClientHandler();
+                handler.ServerCertificateCustomValidationCallback = (req, cert, chain, policy) => true;
+                handler.ClientCertificates.Add(cert);
+                var httpClient = new HttpClient(handler);
+                httpClient.Timeout = Timeout.InfiniteTimeSpan;
+                c.HttpClient = httpClient;
+            };
+            Action<ListenOptions> configureKestrel = listenOptions =>
+            {
+                var serverCert = new X509Certificate2(Path.Combine(Environment.CurrentDirectory, "server.pfx"), "1111");
+                listenOptions.UseHttps(serverCert, c =>
+                {
+                    c.ClientCertificateMode = ClientCertificateMode.RequireCertificate;
+                    c.ClientCertificateValidation = (cert, chain, policy) => cert.Issuer == serverCert.Issuer;
+                });
+            };
+            var remote = new SelfHostedRemote(system, "localhost", port, configureRemote, configureChannel, configureKestrel);
             var member = new Cluster(system, new ClusterConfig("mycluster", "127.0.0.1", port, consulProvider).WithPidCache(false));
             _ = member.StartAsync();
             return member;
-        }
-
-        static SslServerCredentials GetCerts()
-        {
-            var certsFolder = Environment.CurrentDirectory;
-            var cacert = File.ReadAllText(Path.Combine(certsFolder, "ca.crt"));
-            var cert = File.ReadAllText(Path.Combine(certsFolder, "server.crt"));
-            var key = File.ReadAllText(Path.Combine(certsFolder, "server.key"));
-
-            var certificateCollection = new List<KeyCertificatePair>
-            {
-                new KeyCertificatePair(cert, key)
-            };
-            var servCred = new SslServerCredentials(certificateCollection, cacert, SslClientCertificateRequestType.RequestAndRequireButDontVerify);
-            return servCred;
-        }
-        static SslCredentials GetSslCredentials()
-        {
-            var CERT_PATH = Environment.CurrentDirectory;
-            var cacert = File.ReadAllText(Path.Combine(CERT_PATH, "ca.crt"));
-            var cert = File.ReadAllText(Path.Combine(CERT_PATH, "client.crt"));
-            var key = File.ReadAllText(Path.Combine(CERT_PATH, "client.key"));
-
-            var keyPair = new KeyCertificatePair(cert, key);
-            var Creds = new SslCredentials(cacert, keyPair);
-            return Creds;
         }
     }
 

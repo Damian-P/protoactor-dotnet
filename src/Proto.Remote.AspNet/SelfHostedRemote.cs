@@ -5,8 +5,12 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.HealthCheck;
@@ -24,11 +28,13 @@ namespace Proto.Remote
     public class SelfHostedRemote : Remote
     {
         private IWebHost? _host;
+        private readonly Action<ListenOptions>? configureKestrel;
 
         public SelfHostedRemote(ActorSystem system, string hostname, int port,
-            Action<IRemoteConfiguration>? configure = null, Action<GrpcChannelOptions>? configureChannelOptions = null)
+            Action<IRemoteConfiguration>? configure = null, Action<GrpcChannelOptions>? configureChannelOptions = null, Action<ListenOptions>? configureKestrel = null)
             : base(system, hostname, port, new ChannelProvider(configureChannelOptions), configure)
         {
+            this.configureKestrel = configureKestrel;
         }
 
         public override void Start()
@@ -37,7 +43,7 @@ namespace Proto.Remote
             IServerAddressesFeature? serverAddressesFeature = null;
             base.Start();
             // Allows tu use Grpc.Net over http
-            if (RemoteConfig.ServerCredentials == ServerCredentials.Insecure)
+            if (configureKestrel == null)
                 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
             var endpointReader = new EndpointReader(_system, EndpointManager, Serialization);
             if (_host != null) throw new InvalidOperationException("Already started");
@@ -46,17 +52,13 @@ namespace Proto.Remote
                 .UseKestrel()
                 .ConfigureKestrel(serverOptions =>
                     {
-                        if (RemoteConfig.ServerCredentials
-                            == ServerCredentials.Insecure)
+                        if (configureKestrel == null)
                             serverOptions.Listen(IPAddress.Any, _port,
                                 listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; }
                             );
                         else
-                            serverOptions.Listen(IPAddress.Any, _port, listenOptions =>
-                                {
-                                    listenOptions.Protocols = HttpProtocols.Http2;
-                                    listenOptions.UseHttps();
-                                }
+                            serverOptions.Listen(IPAddress.Any, _port,
+                                listenOptions => configureKestrel(listenOptions)
                             );
                     }
                 )
@@ -85,8 +87,8 @@ namespace Proto.Remote
 
             var boundPort = serverAddressesFeature!.Addresses.Select(a => int.Parse(a.Split(":")[2])).First();
             _system.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? _hostname,
-                RemoteConfig.AdvertisedPort ?? boundPort
-            );
+                    RemoteConfig.AdvertisedPort ?? boundPort
+                );
             Logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", _hostname, boundPort,
                 _system.ProcessRegistry.Address
             );
@@ -100,7 +102,7 @@ namespace Proto.Remote
                 {
                     if (graceful)
                     {
-                        await base.ShutdownAsync();
+                        await base.ShutdownAsync(graceful);
                     }
                     Logger.LogDebug(
                         "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",

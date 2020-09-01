@@ -14,9 +14,9 @@ namespace Proto.Remote
     public static class Extensions
     {
         public static IRemote AddRemote(this ActorSystem actorSystem, string hostname, int port,
-            Action<IRemoteConfiguration>? configure = null, Action<List<ChannelOption>>? configureChannelOptions = null)
+            Action<IRemoteConfiguration>? configure = null, GrpcRemoteConfig? grpcRemoteConfig = null)
         {
-            var remote = new SelfHostedRemote(actorSystem, hostname, port, configure, configureChannelOptions);
+            var remote = new SelfHostedRemote(actorSystem, hostname, port, configure, grpcRemoteConfig);
             return remote;
         }
     }

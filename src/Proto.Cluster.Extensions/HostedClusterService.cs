@@ -27,8 +27,8 @@ namespace Proto.Cluster
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _appLifetime.ApplicationStopping.Register(OnStopping);
-            _appLifetime.ApplicationStarted.Register(OnStarted);
+            _appLifetime.ApplicationStopping.Register(OnStopping, true);
+            _appLifetime.ApplicationStarted.Register(OnStarted, true);
             return Task.CompletedTask;
         }
 

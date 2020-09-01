@@ -30,7 +30,6 @@ namespace Proto.Cluster
             PidCacheUpdater = new PidCacheUpdater(this, PidCache);
             //default to partition identity lookup
             IdentityLookup = clusterConfig.IdentityLookup ?? new PartitionIdentityLookup();
-            MemberList = new MemberList(this);
             Provider = clusterConfig.ClusterProvider;
             Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         }
@@ -49,7 +48,7 @@ namespace Proto.Cluster
         public IRemote Remote { get; }
 
 
-        internal MemberList MemberList { get; }
+        internal MemberList? MemberList { get; private set; }
         internal PidCache PidCache { get; }
         internal PidCacheUpdater PidCacheUpdater { get; }
 
@@ -64,6 +63,7 @@ namespace Proto.Cluster
             Remote.Start();
             _logger = Log.CreateLogger($"Cluster-{LoggerId}");
             _logger.LogInformation("Starting");
+            MemberList = new MemberList(this);
 
             var (host, port) = System.ProcessRegistry.GetAddress();
             var kinds = Remote.RemoteKindRegistry.GetKnownKinds();

@@ -132,9 +132,7 @@ namespace Proto.Remote
                         () => new EndpointWriter(system, remote.Serialization,
                             address,
                             channelProvider,
-                            remote.RemoteConfig.ChannelOptions,
-                            remote.RemoteConfig.CallOptions,
-                            remote.RemoteConfig.ChannelCredentials
+                            remote.RemoteConfig.CallOptions
                         )
                     )
                     .WithMailbox(() =>

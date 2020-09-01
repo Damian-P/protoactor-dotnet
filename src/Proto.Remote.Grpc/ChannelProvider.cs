@@ -12,17 +12,15 @@ namespace Proto.Remote
 {
     public class ChannelProvider : IChannelProvider
     {
-        private readonly Action<List<ChannelOption>>? _configureChannelOptions;
+        private readonly GrpcRemoteConfig _grpcRemoteConfig;
 
-        public ChannelProvider(Action<List<ChannelOption>>? configureChannelOptions = null)
+        public ChannelProvider(GrpcRemoteConfig? grpcRemoteConfig = null)
         {
-            _configureChannelOptions = configureChannelOptions;
+            _grpcRemoteConfig = grpcRemoteConfig?? new GrpcRemoteConfig();
         }
-        public ChannelBase GetChannel(ChannelCredentials channelCredentials, string address)
+        public ChannelBase GetChannel(string address)
         {
-            var channelOptions = new List<ChannelOption>();
-            _configureChannelOptions?.Invoke(channelOptions);
-            return new Channel(address, channelCredentials, channelOptions);
+            return new Channel(address, _grpcRemoteConfig.ChannelCredentials, _grpcRemoteConfig.ChannelOptions);
         }
     }
 }

@@ -21,14 +21,15 @@ namespace Proto.Remote
         private Server _server = null!;
         private EndpointReader _endpointReader;
         private HealthServiceImpl _healthCheck = null!;
+        private readonly GrpcRemoteConfig? _grpcRemoteConfig;
 
         public SelfHostedRemote(ActorSystem system, string hostname, int port,
-            Action<IRemoteConfiguration>? configure = null, Action<List<ChannelOption>>? configureChannelOptions = null)
-            : base(system, hostname, port, new ChannelProvider(configureChannelOptions), configure)
+            Action<IRemoteConfiguration>? configure = null, GrpcRemoteConfig? grpcRemoteConfig = null)
+            : base(system, hostname, port, new ChannelProvider(grpcRemoteConfig), configure)
         {
+            _grpcRemoteConfig = grpcRemoteConfig?? new GrpcRemoteConfig();
             _endpointReader = new EndpointReader(_system, EndpointManager, Serialization);
             _healthCheck = new HealthServiceImpl();
-
             _server = new Server
             {
                 Services =
@@ -36,7 +37,7 @@ namespace Proto.Remote
                     Remoting.BindService(_endpointReader),
                     Health.BindService(_healthCheck)
                 },
-                Ports = {new ServerPort(hostname, port, RemoteConfig.ServerCredentials)}
+                Ports = {new ServerPort(hostname, port, _grpcRemoteConfig.ServerCredentials)}
             };
         }
 
@@ -60,10 +61,9 @@ namespace Proto.Remote
         {
             try
             {
-                await base.ShutdownAsync();
+                await base.ShutdownAsync(graceful);
                 if (graceful)
                 {
-                    await base.ShutdownAsync();
                     await _server.KillAsync(); //TODO: was ShutdownAsync but that never returns?
                 }
                 else

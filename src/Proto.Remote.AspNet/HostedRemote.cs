@@ -15,7 +15,7 @@ namespace Proto.Remote
     {
         private readonly ILogger Logger;
         public bool IsStarted { get; private set; }
-        private PID _activatorPid;
+        private PID? _activatorPid;
         private readonly ActorSystem _actorSystem;
         public EndpointManager EndpointManager { get; }
 
@@ -31,9 +31,6 @@ namespace Proto.Remote
             _actorSystem = actorSystem;
             EndpointManager = new EndpointManager(this, actorSystem, channelProvider);
             Logger = logger;
-            var props = Props.FromProducer(() => new Activator(RemoteKindRegistry, _actorSystem))
-                .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
-            _activatorPid = _actorSystem.Root.SpawnNamed(props, "activator");
         }
 
         public Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout) =>
@@ -60,7 +57,7 @@ namespace Proto.Remote
                 .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
             _activatorPid = _actorSystem.Root.SpawnNamed(props, "activator");
         }
-
+        
         private void StopActivator() => _actorSystem.Root.Stop(_activatorPid);
 
         private PID ActivatorForAddress(string address) => new PID(address, "activator");
@@ -68,8 +65,6 @@ namespace Proto.Remote
         public void Start()
         {
             if (IsStarted) return;
-            if (RemoteConfig.ServerCredentials == ServerCredentials.Insecure)
-                AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
             Logger.LogDebug("Starting Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
             );
             _actorSystem.ProcessRegistry.RegisterHostResolver(
@@ -80,7 +75,7 @@ namespace Proto.Remote
             );
             IsStarted = true;
             EndpointManager.Start();
-            // SpawnActivator();
+            SpawnActivator();
         }
 
         public Task ShutdownAsync(bool graceful = true)

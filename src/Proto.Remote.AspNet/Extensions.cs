@@ -11,6 +11,7 @@ using Grpc.HealthCheck;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -19,9 +20,9 @@ namespace Proto.Remote
     public static class Extensions
     {
         public static IRemote AddRemote(this ActorSystem actorSystem, string hostname, int port,
-            Action<IRemoteConfiguration>? configure = null, Action<GrpcChannelOptions>? configureChannelOptions = null)
+            Action<IRemoteConfiguration>? configure = null, Action<GrpcChannelOptions>? configureChannelOptions = null, Action<ListenOptions>? configureKestrel = null)
         {
-            var remote = new SelfHostedRemote(actorSystem, hostname, port, configure, configureChannelOptions);
+            var remote = new SelfHostedRemote(actorSystem, hostname, port, configure, configureChannelOptions, configureKestrel);
             return remote;
         }
         public static IServiceCollection AddRemote(this IServiceCollection services,
