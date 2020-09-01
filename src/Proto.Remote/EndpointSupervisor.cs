@@ -62,7 +62,7 @@ namespace Proto.Remote
         {
             if (ShouldStop(rs))
             {
-                Logger.LogError(
+                Logger.LogError(reason,
                     "Stopping connection to address {Address} after retries expired because of {Reason}",
                     _address, reason.GetType().Name
                 );
@@ -84,7 +84,7 @@ namespace Proto.Remote
                 _ = Task.Run(async () =>
                     {
                         await Task.Delay(duration);
-                        Logger.LogWarning(
+                        Logger.LogWarning(reason,
                             "Restarting {Actor} after {Duration} because of {Reason}",
                             child.ToShortString(), duration, reason.GetType().Name
                         );

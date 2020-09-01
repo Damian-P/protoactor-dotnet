@@ -65,13 +65,13 @@ namespace Proto.Remote
         public void Start()
         {
             if (IsStarted) return;
+             _actorSystem.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? throw new ArgumentException("AdvertisedHostname missing"),
+                RemoteConfig.AdvertisedPort ?? throw new ArgumentException("AdvertisedPort missing")
+            );
             Logger.LogDebug("Starting Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
             );
             _actorSystem.ProcessRegistry.RegisterHostResolver(
                 pid => new RemoteProcess(this, _actorSystem, EndpointManager, pid)
-            );
-            _actorSystem.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? throw new ArgumentException("AdvertisedHostname missing"),
-                RemoteConfig.AdvertisedPort ?? throw new ArgumentException("AdvertisedPort missing")
             );
             IsStarted = true;
             EndpointManager.Start();
