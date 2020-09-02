@@ -61,7 +61,7 @@ namespace ClusterExperiment1
             Console.ReadLine();
             var system = new ActorSystem();
             var consulProvider = new ConsulProvider(new ConsulProviderOptions());
-            var remote = system.AddRemote("localhost", 8090, remote =>
+            var remote = system.AddRemote(8090, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
                 remote.RemoteConfig.UseHttps = true;
@@ -141,7 +141,7 @@ namespace ClusterExperiment1
             var system = new ActorSystem();
             var consulProvider = new ConsulProvider(new ConsulProviderOptions());
             ClusterConfig clusterConfig = new ClusterConfig("mycluster", consulProvider).WithPidCache(false);
-            var remote = new SelfHostedRemote(system, "localhost", port, remote =>
+            var remote = new SelfHostedRemote(system, port, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("hello", helloProps);

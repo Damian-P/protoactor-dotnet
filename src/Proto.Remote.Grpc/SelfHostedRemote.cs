@@ -16,50 +16,68 @@ using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class SelfHostedRemote : Remote<GrpcRemoteConfig>
+    public class SelfHostedRemote : IRemote
     {
+        private readonly ILogger _logger = Log.CreateLogger<Remote>();
         private Server _server = null!;
-        private EndpointReader _endpointReader;
-        private HealthServiceImpl _healthCheck = null!;
+        private readonly Remote _remote;
+        private readonly ActorSystem _system;
+        private readonly string _hostname;
+        private readonly int _port;
+        private readonly GrpcRemoteConfig _remoteConfig;
+        public bool IsStarted { get; private set; }
+        public Serialization Serialization { get; }
+        public RemoteKindRegistry RemoteKindRegistry { get; }
 
-        public SelfHostedRemote(ActorSystem system, string hostname, int port,
-            Action<IRemoteConfiguration<GrpcRemoteConfig>>? configure = null)
-            : base(system, hostname, port, configure)
+        public SelfHostedRemote(ActorSystem system, string hostname = "localhost", int port = 0,
+            Action<RemoteConfiguration>? configure = null)
         {
-            _endpointReader = new EndpointReader(_system, EndpointManager, Serialization);
-            _healthCheck = new HealthServiceImpl();
+            system.Plugins.AddPlugin<IRemote>(this);
+            _remoteConfig = new GrpcRemoteConfig();
+            Serialization = new Serialization();
+            RemoteKindRegistry = new RemoteKindRegistry();
+            var remoteConfiguration = new RemoteConfiguration(Serialization, RemoteKindRegistry, _remoteConfig);
+            configure?.Invoke(remoteConfiguration);
+            var channelProvider = new ChannelProvider(_remoteConfig);
+            var endpointManager = new EndpointManager(_remoteConfig, Serialization, system, channelProvider);
+            var endpointReader = new EndpointReader(system, endpointManager, Serialization);
+            var healthCheck = new HealthServiceImpl();
             _server = new Server
             {
                 Services =
                 {
-                    Remoting.BindService(_endpointReader),
-                    Health.BindService(_healthCheck)
+                    Remoting.BindService(endpointReader),
+                    Health.BindService(healthCheck)
                 },
-                Ports = {new ServerPort(hostname, port, RemoteConfig.ServerCredentials)}
+                Ports = { new ServerPort(hostname, port, _remoteConfig.ServerCredentials) }
             };
+            _remote = new Remote(system, _remoteConfig, RemoteKindRegistry, endpointManager, channelProvider, endpointReader);
+            _system = system;
+            _hostname = hostname;
+            _port = port;
         }
 
-        public override void Start()
+        public void Start()
         {
             if (IsStarted) return;
-            base.Start();
-            
             _server.Start();
-
             var boundPort = _server.Ports.Single().BoundPort;
-            _system.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? _hostname,
-                RemoteConfig.AdvertisedPort ?? boundPort
+            _system.ProcessRegistry.SetAddress(_remoteConfig.AdvertisedHostname ?? _hostname,
+                _remoteConfig.AdvertisedPort ?? boundPort
             );
-            Logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", _hostname, boundPort,
+            _remote.Start();
+            _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", _hostname, boundPort,
                 _system.ProcessRegistry.Address
             );
         }
 
-        public override async Task ShutdownAsync(bool graceful = true)
+        public async Task ShutdownAsync(bool graceful = true)
         {
+            if (!IsStarted) return;
+            else IsStarted = false;
             try
             {
-                await base.ShutdownAsync(graceful);
+                await _remote.ShutdownAsync(graceful);
                 if (graceful)
                 {
                     await _server.KillAsync(); //TODO: was ShutdownAsync but that never returns?
@@ -69,7 +87,7 @@ namespace Proto.Remote
                     await _server.KillAsync();
                 }
 
-                Logger.LogDebug(
+                _logger.LogDebug(
                     "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
                     _system.ProcessRegistry.Address, graceful
                 );
@@ -78,16 +96,26 @@ namespace Proto.Remote
             {
                 await _server.KillAsync();
 
-                Logger.LogError(
+                _logger.LogError(
                     ex, "Proto.Actor server stopped on {Address} with error: {Message}",
                     _system.ProcessRegistry.Address, ex.Message
                 );
             }
         }
 
-        protected override IChannelProvider GetChannelProvider()
+        public Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout)
         {
-            return new ChannelProvider(RemoteConfig);
+            return _remote.SpawnAsync(address, kind, timeout);
+        }
+
+        public Task<ActorPidResponse> SpawnNamedAsync(string address, string name, string kind, TimeSpan timeout)
+        {
+            return _remote.SpawnNamedAsync(address, name, kind, timeout);
+        }
+
+        public void SendMessage(PID pid, object msg, int serializerId)
+        {
+            _remote.SendMessage(pid, msg, serializerId);
         }
     }
 }

@@ -16,64 +16,50 @@
 // limitations under the License.
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
-using Grpc.Core;
-using Grpc.Health.V1;
-using Grpc.HealthCheck;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    [PublicAPI]
-    public abstract class Remote<TRemoteConfig> : IRemote<TRemoteConfig>
-    where TRemoteConfig : RemoteConfig, new()
+    public class Remote
     {
-        protected static readonly ILogger Logger = Log.CreateLogger<IRemote>();
-        protected readonly ActorSystem _system;
-        protected readonly string _hostname;
-        protected readonly int _port;
-        public EndpointManager EndpointManager { get; }
-
+        private PID _activatorPid;
         public bool IsStarted { get; private set; }
+        private readonly ILogger _logger = Log.CreateLogger<Remote>();
+        private readonly ActorSystem _system;
+        private readonly EndpointManager _endpointManager;
+        private readonly IChannelProvider _channelProvider;
+        private readonly RemoteKindRegistry _remoteKindRegistry;
+        private readonly RemoteConfig _remoteConfig;
+        private readonly EndpointReader _endpointReader;
 
-        public TRemoteConfig RemoteConfig { get; } = new TRemoteConfig();
-
-        public RemoteKindRegistry RemoteKindRegistry { get; } = new RemoteKindRegistry();
-        public PID ActivatorPid { get; private set; }
-
-        public Serialization Serialization { get; } = new Serialization();
-
-        RemoteConfig IRemoteConfiguration.RemoteConfig => RemoteConfig;
-
-        public Remote(ActorSystem system, string hostname, int port, Action<IRemoteConfiguration<TRemoteConfig>>? configure = null)
+        public Remote(ActorSystem system, RemoteConfig remoteConfig, RemoteKindRegistry remoteKindRegistry, EndpointManager endpointManager, IChannelProvider channelProvider, EndpointReader endpointReader)
         {
             _system = system;
-            _system.Plugins.AddPlugin<IRemote>(this);
-            configure?.Invoke(this);
-            var channelProvider = GetChannelProvider();
-            EndpointManager = new EndpointManager(this, system, channelProvider);
-            system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(this, system, EndpointManager, pid));
-            _hostname = hostname;
-            _port = port;
+            _remoteConfig = remoteConfig;
+            _remoteKindRegistry = remoteKindRegistry;
+            _endpointManager = endpointManager;
+            _channelProvider = channelProvider;
+            _endpointReader = endpointReader;
+            system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(system, _endpointManager, pid));
         }
-
-        protected abstract IChannelProvider GetChannelProvider();
 
         public virtual void Start()
         {
             if (IsStarted) return;
             IsStarted = true;
-            EndpointManager.Start();
+            _endpointManager.Start();
             SpawnActivator();
         }
 
         public virtual Task ShutdownAsync(bool graceful = true)
         {
+            if (!IsStarted) return Task.CompletedTask;
+            else IsStarted = false;
             if (graceful)
             {
-                EndpointManager.Stop();
+                _endpointManager.Stop();
                 StopActivator();
             }
             return Task.CompletedTask;
@@ -105,23 +91,18 @@ namespace Proto.Remote
         }
 
         private PID ActivatorForAddress(string address) => new PID(address, "activator");
+        private void SpawnActivator()
+        {
+            var props = Props.FromProducer(() => new Activator(_remoteKindRegistry, _system))
+                .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
+            _activatorPid = _system.Root.SpawnNamed(props, "activator");
+        }
 
+        private void StopActivator() => _system.Root.Stop(_activatorPid);
 
         public void SendMessage(PID pid, object msg, int serializerId)
         {
-            var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
-
-            var env = new RemoteDeliver(header!, message, pid, sender!, serializerId);
-            EndpointManager.RemoteDeliver(env);
+            _endpointManager.SendMessage(pid, msg, serializerId);
         }
-
-        private void SpawnActivator()
-        {
-            var props = Props.FromProducer(() => new Activator(RemoteKindRegistry, _system))
-                .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
-            ActivatorPid = _system.Root.SpawnNamed(props, "activator");
-        }
-
-        private void StopActivator() => _system.Root.Stop(ActivatorPid);
     }
 }

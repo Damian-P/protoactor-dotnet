@@ -86,6 +86,7 @@ namespace Proto.Cluster.Partition
             var ownerPid = _partitionManager.RemotePartitionIdentityActor(ownerAddress);
 
             context.Send(ownerPid, activationTerminated);
+            _myActors.Remove(identity);
             return Actor.Done;
         }
 

@@ -18,27 +18,26 @@ namespace Proto.Remote
 
         private readonly int _maxNrOfRetries;
         private readonly Random _random = new Random();
-        private readonly IRemote _remote;
+        private readonly EndpointManager _endpointManager;
+        private readonly RemoteConfig _remoteConfig;
         private readonly ActorSystem _system;
+        private readonly Serialization _serialization;
         private readonly IChannelProvider _channelProvider;
         private readonly TimeSpan? _withinTimeSpan;
         private string? _address;
 
         private CancellationTokenSource? _cancelFutureRetries;
 
-        public EndpointSupervisor(IRemote remote, ActorSystem system, IChannelProvider channelProvider)
+        public EndpointSupervisor(EndpointManager endpointManager, RemoteConfig remoteConfig, ActorSystem system, Serialization serialization, IChannelProvider channelProvider)
         {
-            if (remote.RemoteConfig == null)
-            {
-                throw new ArgumentException("RemoteConfig may not be null", nameof(remote));
-            }
-
+            _endpointManager = endpointManager;
+            _remoteConfig = remoteConfig;
             _system = system;
+            _serialization = serialization;
             _channelProvider = channelProvider;
-            _remote = remote;
-            _maxNrOfRetries = remote.RemoteConfig.EndpointWriterOptions.MaxRetries;
-            _withinTimeSpan = remote.RemoteConfig.EndpointWriterOptions.RetryTimeSpan;
-            _backoff = TimeConvert.ToNanoseconds(remote.RemoteConfig.EndpointWriterOptions.RetryBackOffms);
+            _maxNrOfRetries = remoteConfig.EndpointWriterOptions.MaxRetries;
+            _withinTimeSpan = remoteConfig.EndpointWriterOptions.RetryTimeSpan;
+            _backoff = TimeConvert.ToNanoseconds(remoteConfig.EndpointWriterOptions.RetryBackOffms);
         }
 
         public Task ReceiveAsync(IContext context)
@@ -46,8 +45,8 @@ namespace Proto.Remote
             if (context.Message is string address)
             {
                 _address = address;
-                var watcher = SpawnWatcher(address, context, _system, _remote);
-                var writer = SpawnWriter(address, context, _system, _remote, _channelProvider);
+                var watcher = SpawnWatcher(address, context, _system, _endpointManager);
+                var writer = SpawnWriter(address, context, _system, _endpointManager, _serialization, _remoteConfig, _channelProvider);
                 _cancelFutureRetries = new CancellationTokenSource();
                 context.Respond(new Endpoint(writer, watcher));
             }
@@ -113,31 +112,26 @@ namespace Proto.Remote
             return false;
         }
 
-        private static PID SpawnWatcher(string address, ISpawnerContext context, ActorSystem system, IRemote remote)
+        private static PID SpawnWatcher(string address, ISpawnerContext context, ActorSystem system, EndpointManager endpointManager)
         {
-            var watcherProps = Props.FromProducer(() => new EndpointWatcher(remote, system, address));
+            var watcherProps = Props.FromProducer(() => new EndpointWatcher(endpointManager, system, address));
             var watcher = context.Spawn(watcherProps);
             return watcher;
         }
 
-        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, IRemote remote, IChannelProvider channelProvider)
+        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, EndpointManager endpointManager, Serialization serialization, RemoteConfig remoteConfig, IChannelProvider channelProvider)
         {
-            if (remote.RemoteConfig == null)
-            {
-                throw new ArgumentException("RemoteConfig may not be null", nameof(remote));
-            }
-
             var writerProps =
                 Props.FromProducer(
-                        () => new EndpointWriter(system, remote.Serialization,
-                            remote.RemoteConfig,
+                        () => new EndpointWriter(system, serialization,
+                            remoteConfig,
                             address,
                             channelProvider
                         )
                     )
                     .WithMailbox(() =>
                         new EndpointWriterMailbox(system,
-                            remote.RemoteConfig.EndpointWriterOptions.EndpointWriterBatchSize
+                            remoteConfig.EndpointWriterOptions.EndpointWriterBatchSize
                         )
                     );
             var writer = context.Spawn(writerProps);

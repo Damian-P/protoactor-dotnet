@@ -6,81 +6,100 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading.Tasks;
 using Grpc.HealthCheck;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
     public static class Extensions
     {
-        public static IRemote AddRemote(this ActorSystem actorSystem, string hostname, int port,
-            Action<IRemoteConfiguration<AspRemoteConfig>>? configure = null)
+        public static IRemote AddRemote(this ActorSystem actorSystem, int port = 0,
+            Action<RemoteConfiguration>? configure = null)
         {
-            var remote = new SelfHostedRemote(actorSystem, hostname, port, configure);
+            var remote = new SelfHostedRemote(actorSystem, IPAddress.Any, port, configure);
+            return remote;
+        }
+        public static IRemote AddRemote(this ActorSystem actorSystem, IPAddress ipAddress, int port = 0,
+            Action<RemoteConfiguration>? configure = null)
+        {
+            var remote = new SelfHostedRemote(actorSystem, ipAddress, port, configure);
             return remote;
         }
         public static IServiceCollection AddRemote(this IServiceCollection services,
-            Action<IRemoteConfiguration<AspRemoteConfig>, IServiceProvider> configure)
+            Action<RemoteConfiguration, IServiceProvider> configure)
         {
-            services.AddHostedService<RemoteHostedService>();
-            services.AddSingleton<IRemote<AspRemoteConfig>, HostedRemote>(sp =>
-                {
-                    var actorSystem = sp.GetRequiredService<ActorSystem>();
-                    var logger = sp.GetRequiredService<ILogger<HostedRemote>>();
-                    var remote = new HostedRemote(actorSystem, logger);
-                    configure.Invoke(remote, sp);
-                    return remote;
-                }
+            services.AddSingleton<RemoteConfiguration>(sp =>
+            {
+                var remoteConfig = sp.GetRequiredService<AspRemoteConfig>();
+                var serialization = sp.GetRequiredService<Serialization>();
+                var remoteKindRegistry = sp.GetRequiredService<RemoteKindRegistry>();
+                var remoteConfiguration = new RemoteConfiguration(serialization, remoteKindRegistry, remoteConfig);
+                configure.Invoke(remoteConfiguration, sp);
+                return remoteConfiguration;
+            }
             );
-            services.AddSingleton<IRemote>(sp=> sp.GetRequiredService<IRemote<AspRemoteConfig>>());
-            services.AddSingleton<EndpointManager>(sp =>
-                (sp.GetRequiredService<IRemote>() as HostedRemote)!.EndpointManager
-            );
-            services.AddSingleton<Serialization>(sp => sp.GetRequiredService<IRemote>().Serialization);
-            services.AddSingleton<RemoteKindRegistry>(sp => sp.GetRequiredService<IRemote>().RemoteKindRegistry);
-            services.AddSingleton<RemoteConfig>(sp => sp.GetRequiredService<IRemote>().RemoteConfig);
-            services.AddSingleton<AspRemoteConfig>(sp => sp.GetRequiredService<IRemote<AspRemoteConfig>>().RemoteConfig);
-            services.AddSingleton<Remoting.RemotingBase, EndpointReader>();
-            services.AddSingleton<ChannelProvider>();
+            AddAllServices(services);
             return services;
         }
 
         public static IServiceCollection AddRemote(this IServiceCollection services,
-            Action<IRemoteConfiguration<AspRemoteConfig>> configure)
+            Action<RemoteConfiguration> configure)
         {
-            services.AddHostedService<RemoteHostedService>();
-            services.AddSingleton<IRemote<AspRemoteConfig>, HostedRemote>(sp =>
-                {
-                    var actorSystem = sp.GetRequiredService<ActorSystem>();
-                    var logger = sp.GetRequiredService<ILogger<HostedRemote>>();
-                    var remote = new HostedRemote(actorSystem, logger);
-                    configure.Invoke(remote);
-                    return remote;
-                }
-            );
-            services.AddSingleton<IRemote>(sp=> sp.GetRequiredService<IRemote<AspRemoteConfig>>());
-            services.AddSingleton<EndpointManager>(sp =>
-                (sp.GetRequiredService<IRemote<AspRemoteConfig>>() as HostedRemote)!.EndpointManager
-            );
-            services.AddSingleton<Serialization>(sp => sp.GetRequiredService<IRemote>().Serialization);
-            services.AddSingleton<RemoteKindRegistry>(sp => sp.GetRequiredService<IRemote>().RemoteKindRegistry);
-            services.AddSingleton<RemoteConfig>(sp => sp.GetRequiredService<IRemote>().RemoteConfig);
-            services.AddSingleton<AspRemoteConfig>(sp => sp.GetRequiredService<IRemote<AspRemoteConfig>>().RemoteConfig);
-            services.AddSingleton<Remoting.RemotingBase, EndpointReader>();
-            services.AddSingleton<ChannelProvider>();
+            services.AddSingleton<RemoteConfiguration>(sp =>
+                 {
+                     var remoteConfig = sp.GetRequiredService<AspRemoteConfig>();
+                     var serialization = sp.GetRequiredService<Serialization>();
+                     var remoteKindRegistry = sp.GetRequiredService<RemoteKindRegistry>();
+                     var remoteConfiguration = new RemoteConfiguration(serialization, remoteKindRegistry, remoteConfig);
+                     configure.Invoke(remoteConfiguration);
+                     return remoteConfiguration;
+                 }
+             );
+            AddAllServices(services);
             return services;
         }
 
-        public static GrpcServiceEndpointConventionBuilder MapProtoRemoteService(this IEndpointRouteBuilder endpoints)
+        private static void AddAllServices(IServiceCollection services)
+        {
+            services.TryAddSingleton<ActorSystem>();
+            services.AddHostedService<RemoteHostedService>();
+            services.AddSingleton<Remote, Remote>();
+            services.AddSingleton<HostedRemote, HostedRemote>();
+            services.AddSingleton<IRemote, HostedRemote>(sp =>
+            {
+                sp.GetRequiredService<RemoteConfiguration>();
+                return sp.GetRequiredService<HostedRemote>();
+            });
+            services.AddSingleton<EndpointManager>();
+            services.AddSingleton<Serialization>();
+            services.AddSingleton<RemoteKindRegistry>();
+            services.AddSingleton<RemoteConfig, AspRemoteConfig>(sp => sp.GetRequiredService<AspRemoteConfig>());
+            services.AddSingleton<AspRemoteConfig>();
+            services.AddSingleton<EndpointReader, EndpointReader>();
+            services.AddSingleton<Remoting.RemotingBase, EndpointReader>(sp => sp.GetRequiredService<EndpointReader>());
+            services.AddSingleton<IChannelProvider, ChannelProvider>();
+        }
+
+        private static GrpcServiceEndpointConventionBuilder MapProtoRemoteService(IEndpointRouteBuilder endpoints)
         {
             endpoints.MapGrpcService<HealthServiceImpl>();
             return endpoints.MapGrpcService<Remoting.RemotingBase>();
+        }
+
+        public static void UseProtoRemote(this IApplicationBuilder applicationBuilder)
+        {
+            var hostedRemote = applicationBuilder.ApplicationServices.GetRequiredService<HostedRemote>();
+            hostedRemote.ServerAddressesFeature = applicationBuilder.ServerFeatures.Get<IServerAddressesFeature>();
+            applicationBuilder.UseEndpoints(c => MapProtoRemoteService(c));
         }
     }
 }

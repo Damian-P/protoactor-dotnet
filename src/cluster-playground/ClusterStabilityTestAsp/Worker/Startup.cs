@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -17,10 +16,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace Worker
 {
-    public class HelloGrain : IHelloGrain
-    {
-        public Task<HelloResponse> SayHello(HelloRequest request) => Task.FromResult(new HelloResponse { Message = "" });
-    }
 
     public class Startup
     {
@@ -42,10 +37,9 @@ namespace Worker
                 loggingBuilder.AddSeq(Configuration.GetSection("Seq"));
             });
             services.AddGrpc();
-            services.AddSingleton<ActorSystem>();
             services.AddRemote((remote, sp) =>
                 {
-                    remote.RemoteConfig.AdvertisedHostname = Configuration.GetValue<string>("Proto_Hostname", Environment.MachineName);
+                    remote.RemoteConfig.AdvertisedHostname = Environment.MachineName;
                     remote.RemoteConfig.AdvertisedPort = 80;
                     remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
                     remote.RemoteKindRegistry.RegisterKnownKind("HelloActor", Props.FromProducer(() => ActivatorUtilities.GetServiceOrCreateInstance<HelloActor>(sp)));
@@ -55,7 +49,7 @@ namespace Worker
             {
                 DeregisterCritical = TimeSpan.FromSeconds(2)
             };
-            ConsulProvider clusterProvider = new ConsulProvider(options, c => { c.Address = new Uri($"http://consul:8500/"); });
+            ConsulProvider clusterProvider = new ConsulProvider(options, c => { c.Address = new Uri("http://consul:8500"); });
             services.AddClustering(
                 "StabilityTestAsp",
                 clusterProvider, cluster =>
@@ -80,7 +74,6 @@ namespace Worker
 
             app.UseEndpoints(endpoints =>
                 {
-                    endpoints.MapProtoRemoteService();
                     endpoints.MapGet("/",
                         async context =>
                         {
@@ -91,36 +84,7 @@ namespace Worker
                     );
                 }
             );
-        }
-    }
-
-    public class HelloActor : IActor
-    {
-        private readonly ILogger<HelloActor> logger;
-
-        public HelloActor(ILogger<HelloActor> logger)
-        {
-            this.logger = logger;
-        }
-
-        public Task ReceiveAsync(IContext ctx)
-        {
-            if (ctx.Message is Started)
-            {
-                logger.LogInformation($"Started {ctx.Self}");
-            }
-
-            if (ctx.Message is HelloRequest)
-            {
-                ctx.Respond(new HelloResponse());
-            }
-
-            if (ctx.Message is Stopped)
-            {
-                logger.LogInformation($"Stopped {ctx.Self}");
-            }
-
-            return Actor.Done;
+            app.UseProtoRemote();
         }
     }
 }

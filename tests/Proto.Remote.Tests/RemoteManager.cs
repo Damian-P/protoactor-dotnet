@@ -10,7 +10,7 @@ namespace Proto.Remote.Tests
         static RemoteManager()
         {
             system = new ActorSystem();
-            remote = new SelfHostedRemote(system, "localhost", 12001, remote =>
+            remote = new SelfHostedRemote(system, 12001, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
             });

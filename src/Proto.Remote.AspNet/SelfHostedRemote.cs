@@ -20,53 +20,75 @@ using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class SelfHostedRemote : Remote<AspRemoteConfig>
+    public class SelfHostedRemote : IRemote
     {
+        private readonly ILogger _logger = Log.CreateLogger<Remote>();
         private IWebHost? _host;
-
-        public SelfHostedRemote(ActorSystem system, string hostname, int port,
-            Action<IRemoteConfiguration<AspRemoteConfig>>? configure = null)
-            : base(system, hostname, port, configure)
+        private readonly Remote _remote;
+        private readonly ActorSystem _system;
+        private readonly int _port;
+        private readonly AspRemoteConfig _remoteConfig;
+        private readonly EndpointReader _endpointReader;
+        private readonly IPAddress _ipAddress;
+        public bool IsStarted { get; private set; }
+        public Serialization Serialization { get; }
+        public RemoteKindRegistry RemoteKindRegistry { get; }
+        public SelfHostedRemote(ActorSystem system, Action<RemoteConfiguration>? configure = null) : this(system, IPAddress.Any, 0, configure)
         {
         }
-
-        public override void Start()
+        public SelfHostedRemote(ActorSystem system, int port, Action<RemoteConfiguration>? configure = null) : this(system, IPAddress.Any, port, configure)
         {
-            if (IsStarted) return;
-            IServerAddressesFeature? serverAddressesFeature = null;
-            base.Start();
+        }
+        public SelfHostedRemote(ActorSystem system, IPAddress ipAddress, int port = 0,
+            Action<RemoteConfiguration>? configure = null)
+        {
+            system.Plugins.AddPlugin<IRemote>(this);
+            _remoteConfig = new AspRemoteConfig();
+            Serialization = new Serialization();
+            RemoteKindRegistry = new RemoteKindRegistry();
+            var remoteConfiguration = new RemoteConfiguration(Serialization, RemoteKindRegistry, _remoteConfig);
+            configure?.Invoke(remoteConfiguration);
+            var channelProvider = new ChannelProvider(_remoteConfig);
+            var endpointManager = new EndpointManager(_remoteConfig, Serialization, system, channelProvider);
+            _endpointReader = new EndpointReader(system, endpointManager, Serialization);
+            var healthCheck = new HealthServiceImpl();
+            _remote = new Remote(system, _remoteConfig, RemoteKindRegistry, endpointManager, channelProvider, _endpointReader);
+            _system = system;
+            _ipAddress = ipAddress;
+            _port = port;
+
             // Allows tu use Grpc.Net over http
-            if (!RemoteConfig.UseHttps)
+            if (!_remoteConfig.UseHttps)
                 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-            else if (RemoteConfig.ConfigureKestrel == null || RemoteConfig.ChannelOptions == null)
+            else if (_remoteConfig.ConfigureKestrel == null || _remoteConfig.ChannelOptions == null)
             {
                 throw new Exception("Http not configured");
             }
-            var endpointReader = new EndpointReader(_system, EndpointManager, Serialization);
-            if (_host != null) throw new InvalidOperationException("Already started");
+        }
 
+        public void Start()
+        {
+            if (IsStarted) return;
+            IsStarted = true;
+            IServerAddressesFeature? serverAddressesFeature = null;
             _host = new WebHostBuilder()
                 .UseKestrel()
                 .ConfigureKestrel(serverOptions =>
                     {
-                        if (RemoteConfig.ConfigureKestrel == null)
+                        if (_remoteConfig.ConfigureKestrel == null)
                             serverOptions.Listen(IPAddress.Any, _port,
                                 listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; }
                             );
                         else
                             serverOptions.Listen(IPAddress.Any, _port,
-                                listenOptions => RemoteConfig.ConfigureKestrel(listenOptions)
+                                listenOptions => _remoteConfig.ConfigureKestrel(listenOptions)
                             );
                     }
                 )
                 .ConfigureServices((serviceCollection) =>
                     {
                         serviceCollection.AddGrpc();
-                        serviceCollection.AddSingleton<ILoggerFactory>(Log.LoggerFactory);
-                        serviceCollection.AddSingleton(EndpointManager);
-                        serviceCollection.AddSingleton<RemoteConfig>(RemoteConfig);
-                        serviceCollection.AddSingleton<ActorSystem>(sp => _system);
-                        serviceCollection.AddSingleton<Remoting.RemotingBase>(sp => endpointReader);
+                        serviceCollection.AddSingleton<Remoting.RemotingBase>(_endpointReader);
                         serviceCollection.AddSingleton<IRemote>(this);
                     }
                 ).Configure(app =>
@@ -77,49 +99,64 @@ namespace Proto.Remote
                             endpoints.MapGrpcService<Remoting.RemotingBase>();
                             endpoints.MapGrpcService<HealthServiceImpl>();
                         });
+
                         serverAddressesFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
                     }
                 )
                 .Start();
-
-            var boundPort = serverAddressesFeature!.Addresses.Select(a => int.Parse(a.Split(":")[2])).First();
-            _system.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? _hostname,
-                    RemoteConfig.AdvertisedPort ?? boundPort
+            var uri = serverAddressesFeature!.Addresses.Select(address => new Uri(address)).First();
+            var address = "localhost";
+            var boundPort = uri.Port;
+            _system.ProcessRegistry.SetAddress(_remoteConfig.AdvertisedHostname ?? address,
+                    _remoteConfig.AdvertisedPort ?? boundPort
                 );
-            Logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", _hostname, boundPort,
+            _remote.Start();
+            _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", address, boundPort,
                 _system.ProcessRegistry.Address
             );
         }
 
-        public override async Task ShutdownAsync(bool graceful = true)
+        public async Task ShutdownAsync(bool graceful = true)
         {
-            using (_host)
+            if (!IsStarted) return;
+            else IsStarted = false;
+            try
             {
-                try
+                using (_host)
                 {
                     if (graceful)
                     {
-                        await base.ShutdownAsync(graceful);
+                        await _remote.ShutdownAsync(graceful);
                     }
-                    Logger.LogDebug(
+                    _logger.LogDebug(
                         "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
                         _system.ProcessRegistry.Address, graceful
                     );
                 }
-                catch (Exception ex)
-                {
-                    Logger.LogError(
-                        ex, "Proto.Actor server stopped on {Address} with error: {Message}",
-                        _system.ProcessRegistry.Address, ex.Message
-                    );
-                    throw;
-                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex, "Proto.Actor server stopped on {Address} with error: {Message}",
+                    _system.ProcessRegistry.Address, ex.Message
+                );
+                throw;
             }
         }
 
-        protected override IChannelProvider GetChannelProvider()
+        public Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout)
         {
-            return new ChannelProvider(RemoteConfig);
+            return _remote.SpawnAsync(address, kind, timeout);
+        }
+
+        public Task<ActorPidResponse> SpawnNamedAsync(string address, string name, string kind, TimeSpan timeout)
+        {
+            return _remote.SpawnNamedAsync(address, name, kind, timeout);
+        }
+
+        public void SendMessage(PID pid, object msg, int serializerId)
+        {
+            _remote.SendMessage(pid, msg, serializerId);
         }
     }
 }

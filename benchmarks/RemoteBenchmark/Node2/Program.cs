@@ -46,7 +46,7 @@ namespace Node2
                                                             .AddFilter("Grpc.AspNetCore", LogLevel.Error)
                                                             .SetMinimumLevel(LogLevel.Information)));
             var system = new ActorSystem();
-            var Remote = new SelfHostedRemote(system, "127.0.0.1", 12000, remote =>
+            var Remote = new SelfHostedRemote(system, 12000, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             });

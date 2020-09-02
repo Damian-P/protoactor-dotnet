@@ -11,7 +11,7 @@ namespace Proto.Cluster.Tests
         {
             var system = new ActorSystem();
             var serialization = new Serialization();
-            var remote = new SelfHostedRemote(system, GetLocalIp(), port, remote =>
+            var remote = new SelfHostedRemote(system, port, remote =>
             {
                 remote.RemoteConfig.EndpointWriterOptions = new EndpointWriterOptions
                 {

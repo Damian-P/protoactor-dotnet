@@ -25,7 +25,7 @@ namespace Proto.Remote.Tests
 
             var actorSystem = new ActorSystem();
             var serialization = new Serialization();
-            _remote = new SelfHostedRemote(actorSystem, _host, _port, remote =>
+            _remote = new SelfHostedRemote(actorSystem, _port, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
             });

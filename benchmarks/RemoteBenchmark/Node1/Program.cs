@@ -26,7 +26,7 @@ class Program
                                                             .AddFilter("Grpc.AspNetCore", LogLevel.Error)
                                                             .SetMinimumLevel(LogLevel.Information)));
         var system = new ActorSystem();
-        var Remote = system.AddRemote("127.0.0.1", 12001, remote =>
+        var Remote = system.AddRemote(12001, remote =>
         {
             remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         });

@@ -48,7 +48,7 @@ namespace Client
 
                         var policy = Policy.Handle<Exception>().WaitAndRetryForeverAsync(i => TimeSpan.FromMilliseconds(1000), (e, t) =>
                         {
-                            Console.WriteLine($"{t} -> {e.Message}");
+                            _logger.LogError(e, e.Message);
                         });
                         var n = 1_000_000;
                         var tasks = new List<Task>();
@@ -56,7 +56,7 @@ namespace Client
                         {
                             tasks.Add(policy.ExecuteAsync(() =>
                                 // _grains.HelloGrain("name" + (i % 2000)).SayHello(new HelloRequest())
-                                _actorSystem.RequestAsync<HelloResponse>("name" + (i % 200), "HelloActor", new HelloRequest(), new CancellationTokenSource(2000).Token)
+                                _actorSystem.RequestAsync<HelloResponse>("name" + (i % 20000), "HelloActor", new HelloRequest(), new CancellationTokenSource(2000).Token)
                             ));
                             if (tasks.Count % 1000 == 0)
                             {
@@ -66,12 +66,12 @@ namespace Client
                         }
                         Task.WaitAll(tasks.ToArray());
                         _logger.LogCritical("Done!");
-                        await Task.Delay(1000);
+                        await Task.Delay(20_000);
                         _appLifetime.StopApplication();
                     }
                     catch (System.Exception e)
                     {
-                        _logger.LogError(e, "");
+                        _logger.LogError(e, e.Message);
                         throw;
                     }
                 }

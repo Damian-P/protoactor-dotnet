@@ -5,105 +5,92 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class HostedRemote : IRemote<AspRemoteConfig>
+    public class HostedRemote : IRemote
     {
-        private readonly ILogger Logger;
+        private readonly ILogger _logger;
+        private readonly Remote _remote;
+        private readonly ActorSystem _system;
+        private readonly RemoteConfig _remoteConfig;
+        public IServerAddressesFeature ServerAddressesFeature;
+        public Serialization Serialization { get; }
+        public RemoteKindRegistry RemoteKindRegistry { get; }
+
+        public HostedRemote(ILogger<Remote> logger, Remote remote, Serialization serialization, RemoteKindRegistry remoteKindRegistry, ActorSystem system, RemoteConfig remoteConfig)
+        {
+            system.Plugins.AddPlugin<IRemote>(this);
+            _logger = logger;
+            _remote = remote;
+            _system = system;
+            _remoteConfig = remoteConfig;
+            Serialization = serialization;
+            RemoteKindRegistry = remoteKindRegistry;
+        }
         public bool IsStarted { get; private set; }
-        private PID? _activatorPid;
-        private readonly ActorSystem _actorSystem;
-        public EndpointManager EndpointManager { get; }
-
-        public AspRemoteConfig RemoteConfig { get; } = new AspRemoteConfig();
-
-        public RemoteKindRegistry RemoteKindRegistry { get; } = new RemoteKindRegistry();
-
-        public Serialization Serialization { get; } = new Serialization();
-
-        RemoteConfig IRemoteConfiguration.RemoteConfig => RemoteConfig;
-
-        public HostedRemote(ActorSystem actorSystem, ILogger<HostedRemote> logger)
-        {
-            actorSystem.Plugins.AddPlugin<IRemote>(this);
-            _actorSystem = actorSystem;
-            var channelProvider = new ChannelProvider(RemoteConfig);
-            EndpointManager = new EndpointManager(this, actorSystem, channelProvider);
-            Logger = logger;
-        }
-
-        public Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout) =>
-            SpawnNamedAsync(address, "", kind, timeout);
-
-        public async Task<ActorPidResponse> SpawnNamedAsync(string address, string name, string kind, TimeSpan timeout)
-        {
-            var activator = ActivatorForAddress(address);
-
-            var res = await _actorSystem.Root.RequestAsync<ActorPidResponse>(
-                activator, new ActorPidRequest
-                {
-                    Kind = kind,
-                    Name = name
-                }, timeout
-            );
-
-            return res;
-        }
-
-        private void SpawnActivator()
-        {
-            var props = Props.FromProducer(() => new Activator(RemoteKindRegistry, _actorSystem))
-                .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
-            _activatorPid = _actorSystem.Root.SpawnNamed(props, "activator");
-        }
-
-        private void StopActivator() => _actorSystem.Root.Stop(_activatorPid);
-
-        private PID ActivatorForAddress(string address) => new PID(address, "activator");
-
         public void Start()
         {
             if (IsStarted) return;
-            _actorSystem.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? throw new ArgumentException("AdvertisedHostname missing"),
-               RemoteConfig.AdvertisedPort ?? throw new ArgumentException("AdvertisedPort missing")
-           );
-            Logger.LogDebug("Starting Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
-            );
-            _actorSystem.ProcessRegistry.RegisterHostResolver(
-                pid => new RemoteProcess(this, _actorSystem, EndpointManager, pid)
-            );
             IsStarted = true;
-            EndpointManager.Start();
-            SpawnActivator();
+            var uri = ServerAddressesFeature!.Addresses.Select(address => new Uri(address)).First();
+            var address = "localhost";
+            var boundPort = uri.Port;
+            _system.ProcessRegistry.SetAddress(_remoteConfig.AdvertisedHostname ?? address,
+                    _remoteConfig.AdvertisedPort ?? boundPort
+                );
+            _remote.Start();
+            _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", address, boundPort,
+                _system.ProcessRegistry.Address
+            );
+
         }
 
-        public Task ShutdownAsync(bool graceful = true)
+        public async Task ShutdownAsync(bool graceful = true)
         {
-            if (!IsStarted) return Task.CompletedTask;
-            IsStarted = false;
-            Logger.LogDebug("Stopping Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
-            );
-            if (graceful)
+            try
             {
-                EndpointManager.Stop();
-                StopActivator();
+                if (!IsStarted) return;
+                else IsStarted = false;
+                if (graceful)
+                {
+                    await _remote.ShutdownAsync(graceful);
+                }
+                _logger.LogDebug(
+                    "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
+                    _system.ProcessRegistry.Address, graceful
+                );
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex, "Proto.Actor server stopped on {Address} with error: {Message}",
+                    _system.ProcessRegistry.Address, ex.Message
+                );
+                throw;
+            }
+        }
 
-            Logger.LogDebug("Stopped Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
-            );
-            return Task.CompletedTask;
+
+        public Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout)
+        {
+            return _remote.SpawnAsync(address, kind, timeout);
+        }
+
+        public Task<ActorPidResponse> SpawnNamedAsync(string address, string name, string kind, TimeSpan timeout)
+        {
+            return _remote.SpawnNamedAsync(address, name, kind, timeout);
         }
 
         public void SendMessage(PID pid, object msg, int serializerId)
         {
-            var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
-
-            var env = new RemoteDeliver(header, message, pid, sender, serializerId);
-            EndpointManager.RemoteDeliver(env);
+            _remote.SendMessage(pid, msg, serializerId);
         }
     }
 }

@@ -36,7 +36,6 @@ namespace Client
                 loggingBuilder.AddSeq(Configuration.GetSection("Seq"));
             });
             services.AddGrpc();
-            services.AddSingleton<ActorSystem>();
             services.AddRemote(remote =>
                 {
                     remote.RemoteConfig.AdvertisedHostname = Environment.MachineName;
@@ -48,7 +47,7 @@ namespace Client
             {
                 DeregisterCritical = TimeSpan.FromSeconds(2)
             };
-            ConsulProvider clusterProvider = new ConsulProvider(options, c => { c.Address = new Uri("http://consul:8500/"); });
+            ConsulProvider clusterProvider = new ConsulProvider(options, c => { c.Address = new Uri("http://consul:8500"); });
             services.AddClustering(
                 "StabilityTestAsp",
                 clusterProvider,
@@ -75,7 +74,6 @@ namespace Client
 
             app.UseEndpoints(endpoints =>
                 {
-                    endpoints.MapProtoRemoteService();
                     endpoints.MapGet("/",
                         async context =>
                         {
@@ -86,6 +84,7 @@ namespace Client
                     );
                 }
             );
+            app.UseProtoRemote();
         }
     }
 }
