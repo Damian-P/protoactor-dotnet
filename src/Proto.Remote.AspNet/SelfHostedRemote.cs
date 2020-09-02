@@ -5,14 +5,9 @@
 // -----------------------------------------------------------------------
 
 using System;
-using System.IO;
 using System.Linq;
 using System.Net;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
-using Grpc.Core;
 using Grpc.HealthCheck;
 using Grpc.Net.Client;
 using Microsoft.AspNetCore.Builder;
@@ -25,16 +20,14 @@ using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class SelfHostedRemote : Remote
+    public class SelfHostedRemote : Remote<AspRemoteConfig>
     {
         private IWebHost? _host;
-        private readonly Action<ListenOptions>? configureKestrel;
 
         public SelfHostedRemote(ActorSystem system, string hostname, int port,
-            Action<IRemoteConfiguration>? configure = null, Action<GrpcChannelOptions>? configureChannelOptions = null, Action<ListenOptions>? configureKestrel = null)
-            : base(system, hostname, port, new ChannelProvider(configureChannelOptions), configure)
+            Action<IRemoteConfiguration<AspRemoteConfig>>? configure = null)
+            : base(system, hostname, port, configure)
         {
-            this.configureKestrel = configureKestrel;
         }
 
         public override void Start()
@@ -43,8 +36,12 @@ namespace Proto.Remote
             IServerAddressesFeature? serverAddressesFeature = null;
             base.Start();
             // Allows tu use Grpc.Net over http
-            if (configureKestrel == null)
+            if (!RemoteConfig.UseHttps)
                 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+            else if (RemoteConfig.ConfigureKestrel == null || RemoteConfig.ChannelOptions == null)
+            {
+                throw new Exception("Http not configured");
+            }
             var endpointReader = new EndpointReader(_system, EndpointManager, Serialization);
             if (_host != null) throw new InvalidOperationException("Already started");
 
@@ -52,13 +49,13 @@ namespace Proto.Remote
                 .UseKestrel()
                 .ConfigureKestrel(serverOptions =>
                     {
-                        if (configureKestrel == null)
+                        if (RemoteConfig.ConfigureKestrel == null)
                             serverOptions.Listen(IPAddress.Any, _port,
                                 listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; }
                             );
                         else
                             serverOptions.Listen(IPAddress.Any, _port,
-                                listenOptions => configureKestrel(listenOptions)
+                                listenOptions => RemoteConfig.ConfigureKestrel(listenOptions)
                             );
                     }
                 )
@@ -118,6 +115,11 @@ namespace Proto.Remote
                     throw;
                 }
             }
+        }
+
+        protected override IChannelProvider GetChannelProvider()
+        {
+            return new ChannelProvider(RemoteConfig);
         }
     }
 }

@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class HostedRemote : IRemote
+    public class HostedRemote : IRemote<AspRemoteConfig>
     {
         private readonly ILogger Logger;
         public bool IsStarted { get; private set; }
@@ -19,16 +19,19 @@ namespace Proto.Remote
         private readonly ActorSystem _actorSystem;
         public EndpointManager EndpointManager { get; }
 
-        public RemoteConfig RemoteConfig { get; } = new RemoteConfig();
+        public AspRemoteConfig RemoteConfig { get; } = new AspRemoteConfig();
 
         public RemoteKindRegistry RemoteKindRegistry { get; } = new RemoteKindRegistry();
 
         public Serialization Serialization { get; } = new Serialization();
 
-        public HostedRemote(ActorSystem actorSystem, ILogger<HostedRemote> logger, IChannelProvider channelProvider)
+        RemoteConfig IRemoteConfiguration.RemoteConfig => RemoteConfig;
+
+        public HostedRemote(ActorSystem actorSystem, ILogger<HostedRemote> logger)
         {
             actorSystem.Plugins.AddPlugin<IRemote>(this);
             _actorSystem = actorSystem;
+            var channelProvider = new ChannelProvider(RemoteConfig);
             EndpointManager = new EndpointManager(this, actorSystem, channelProvider);
             Logger = logger;
         }
@@ -57,7 +60,7 @@ namespace Proto.Remote
                 .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
             _activatorPid = _actorSystem.Root.SpawnNamed(props, "activator");
         }
-        
+
         private void StopActivator() => _actorSystem.Root.Stop(_activatorPid);
 
         private PID ActivatorForAddress(string address) => new PID(address, "activator");
@@ -65,9 +68,9 @@ namespace Proto.Remote
         public void Start()
         {
             if (IsStarted) return;
-             _actorSystem.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? throw new ArgumentException("AdvertisedHostname missing"),
-                RemoteConfig.AdvertisedPort ?? throw new ArgumentException("AdvertisedPort missing")
-            );
+            _actorSystem.ProcessRegistry.SetAddress(RemoteConfig.AdvertisedHostname ?? throw new ArgumentException("AdvertisedHostname missing"),
+               RemoteConfig.AdvertisedPort ?? throw new ArgumentException("AdvertisedPort missing")
+           );
             Logger.LogDebug("Starting Proto.Actor server ({Address})", _actorSystem.ProcessRegistry.Address
             );
             _actorSystem.ProcessRegistry.RegisterHostResolver(

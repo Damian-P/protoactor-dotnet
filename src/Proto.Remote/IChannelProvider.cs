@@ -4,6 +4,7 @@
 //   </copyright>
 // -----------------------------------------------------------------------
 
+using System.Threading.Tasks;
 using Grpc.Core;
 
 namespace Proto.Remote

@@ -74,7 +74,7 @@ namespace Client
                         _logger.LogError(e, "");
                         throw;
                     }
-                }, _appLifetime.ApplicationStopping
+                }
             );
         }
 

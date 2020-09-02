@@ -16,12 +16,12 @@ namespace Proto.Remote.Tests
             });
         }
 
-        private static readonly Remote remote;
+        private static readonly IRemote remote;
         private static readonly ActorSystem system;
 
         private static bool remoteStarted;
 
-        public static (Remote, ActorSystem) EnsureRemote()
+        public static (IRemote, ActorSystem) EnsureRemote()
         {
             if (remoteStarted) return (remote, system);
 

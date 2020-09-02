@@ -12,15 +12,16 @@ namespace Proto.Remote
 {
     public class ChannelProvider : IChannelProvider
     {
-        private readonly GrpcRemoteConfig _grpcRemoteConfig;
+        private GrpcRemoteConfig _remoteConfig;
 
-        public ChannelProvider(GrpcRemoteConfig? grpcRemoteConfig = null)
+        public ChannelProvider(GrpcRemoteConfig remoteConfig)
         {
-            _grpcRemoteConfig = grpcRemoteConfig?? new GrpcRemoteConfig();
+            _remoteConfig = remoteConfig;
         }
+
         public ChannelBase GetChannel(string address)
         {
-            return new Channel(address, _grpcRemoteConfig.ChannelCredentials, _grpcRemoteConfig.ChannelOptions);
+            return new Channel(address, _remoteConfig.ChannelCredentials, _remoteConfig.ChannelOptions);
         }
     }
 }

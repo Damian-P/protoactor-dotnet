@@ -21,7 +21,7 @@ namespace Proto.Remote
         private readonly CallOptions _callOptions;
         private readonly Serialization _serialization;
         private readonly ActorSystem _system;
-
+        private readonly RemoteConfig _remoteConfig;
         private ChannelBase? _channel;
         private Remoting.RemotingClient? _client;
 
@@ -32,27 +32,27 @@ namespace Proto.Remote
         public EndpointWriter(
             ActorSystem system,
             Serialization serialization,
+            RemoteConfig remoteConfig,
             string address,
-            IChannelProvider channelProvider,
-            CallOptions callOptions
+            IChannelProvider channelProvider
         )
         {
             _system = system;
             _serialization = serialization;
+            _remoteConfig = remoteConfig;
             _address = address;
             _channelProvider = channelProvider;
-            _callOptions = callOptions;
         }
 
         public Task ReceiveAsync(IContext context) =>
             context.Message switch
             {
-                Started _ => StartedAsync(),
-                Stopped _ => StoppedAsync(),
-                Restarting _ => RestartingAsync(),
-                EndpointTerminatedEvent _ => EndpointTerminatedEvent(context),
+                Started _                    => StartedAsync(),
+                Stopped _                    => StoppedAsync(),
+                Restarting _                 => RestartingAsync(),
+                EndpointTerminatedEvent _    => EndpointTerminatedEvent(context),
                 IEnumerable<RemoteDeliver> m => RemoteDeliver(m, context),
-                _ => Actor.Done
+                _                            => Actor.Done
             };
 
         private Task RemoteDeliver(IEnumerable<RemoteDeliver> m, IContext context)
@@ -191,7 +191,7 @@ namespace Proto.Remote
 
             var res = await _client.ConnectAsync(new ConnectRequest());
             _serializerId = res.DefaultSerializerId;
-            _stream = _client.Receive(_callOptions);
+            _stream = _client.Receive(_remoteConfig.CallOptions);
             _streamWriter = _stream.RequestStream;
 
             Logger.LogDebug("[EndpointWriter] Connected client for address {Address}", _address);

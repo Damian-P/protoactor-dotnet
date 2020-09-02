@@ -118,7 +118,7 @@ namespace ClusterExperiment1
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("hello", helloProps);
             });
-            var member = new Cluster(system, new ClusterConfig("mycluster", "127.0.0.1", port, consulProvider).WithPidCache(false));
+            var member = new Cluster(system, new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
             _ = member.StartAsync();
             return member;
         }

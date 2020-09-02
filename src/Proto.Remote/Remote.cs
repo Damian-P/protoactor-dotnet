@@ -27,9 +27,10 @@ using Microsoft.Extensions.Logging;
 namespace Proto.Remote
 {
     [PublicAPI]
-    public abstract class Remote : IRemote
+    public abstract class Remote<TRemoteConfig> : IRemote<TRemoteConfig>
+    where TRemoteConfig : RemoteConfig, new()
     {
-        protected static readonly ILogger Logger = Log.CreateLogger<Remote>();
+        protected static readonly ILogger Logger = Log.CreateLogger<IRemote>();
         protected readonly ActorSystem _system;
         protected readonly string _hostname;
         protected readonly int _port;
@@ -37,22 +38,28 @@ namespace Proto.Remote
 
         public bool IsStarted { get; private set; }
 
-        public RemoteConfig RemoteConfig { get; } = new RemoteConfig();
+        public TRemoteConfig RemoteConfig { get; } = new TRemoteConfig();
 
         public RemoteKindRegistry RemoteKindRegistry { get; } = new RemoteKindRegistry();
         public PID ActivatorPid { get; private set; }
 
         public Serialization Serialization { get; } = new Serialization();
-        public Remote(ActorSystem system, string hostname, int port, IChannelProvider channelProvider, Action<IRemoteConfiguration>? configure = null)
+
+        RemoteConfig IRemoteConfiguration.RemoteConfig => RemoteConfig;
+
+        public Remote(ActorSystem system, string hostname, int port, Action<IRemoteConfiguration<TRemoteConfig>>? configure = null)
         {
             _system = system;
             _system.Plugins.AddPlugin<IRemote>(this);
             configure?.Invoke(this);
+            var channelProvider = GetChannelProvider();
             EndpointManager = new EndpointManager(this, system, channelProvider);
             system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(this, system, EndpointManager, pid));
             _hostname = hostname;
             _port = port;
         }
+
+        protected abstract IChannelProvider GetChannelProvider();
 
         public virtual void Start()
         {

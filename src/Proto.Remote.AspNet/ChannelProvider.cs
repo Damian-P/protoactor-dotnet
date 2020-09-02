@@ -4,8 +4,8 @@
 //   </copyright>
 // -----------------------------------------------------------------------
 
-using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Net.Client;
 
@@ -13,19 +13,18 @@ namespace Proto.Remote
 {
     public class ChannelProvider : IChannelProvider
     {
-        private readonly Action<GrpcChannelOptions>? configureChannelOptions;
-
-        public ChannelProvider(Action<GrpcChannelOptions>? configure = null)
+        private AspRemoteConfig _remoteConfig;
+        public ChannelProvider(AspRemoteConfig remoteConfig)
         {
-            this.configureChannelOptions = configure;
+            _remoteConfig = remoteConfig;
         }
+
         public ChannelBase GetChannel(string address)
         {
             var addressWithProtocol =
-                $"{(configureChannelOptions == null ? "http://" : "https://")}{address}";
-            var grpcChannelOptions = new GrpcChannelOptions();
-            configureChannelOptions?.Invoke(grpcChannelOptions);
-            var channel = GrpcChannel.ForAddress(addressWithProtocol, grpcChannelOptions);
+                $"{(_remoteConfig.UseHttps ? "https://" : "http://")}{address}";
+
+            var channel = GrpcChannel.ForAddress(addressWithProtocol, _remoteConfig.ChannelOptions);
             return channel;
         }
     }

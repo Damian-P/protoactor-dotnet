@@ -17,6 +17,11 @@
 
 namespace Proto.Remote
 {
+    public interface IRemoteConfiguration<TRemoteConfig> : IRemoteConfiguration
+    where TRemoteConfig : RemoteConfig, new()
+    {
+        new TRemoteConfig RemoteConfig { get; }
+    }
     public interface IRemoteConfiguration
     {
         RemoteConfig RemoteConfig { get; }

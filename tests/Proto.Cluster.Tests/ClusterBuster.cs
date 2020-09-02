@@ -7,7 +7,7 @@ namespace Proto.Cluster.Tests
 {
     public static class ClusterBuster
     {
-        public static Remote.Remote SpawnNode(int port)
+        public static IRemote SpawnNode(int port)
         {
             var system = new ActorSystem();
             var serialization = new Serialization();

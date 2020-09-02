@@ -14,14 +14,6 @@ namespace Proto.Cluster
     [PublicAPI]
     public class ClusterConfig
     {
-        public ClusterConfig(string name, string address, int port, IClusterProvider cp)
-        {
-            Name = name ?? throw new ArgumentNullException(nameof(name));
-            ClusterProvider = cp ?? throw new ArgumentNullException(nameof(cp));
-            TimeoutTimespan = TimeSpan.FromSeconds(5);
-            MemberStrategyBuilder = kind => new SimpleMemberStrategy();
-        }
-
         public string Name { get; }
         public IClusterProvider ClusterProvider { get; }
         public TimeSpan TimeoutTimespan { get; private set; }

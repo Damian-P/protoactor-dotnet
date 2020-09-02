@@ -20,58 +20,60 @@ namespace Proto.Remote
     public static class Extensions
     {
         public static IRemote AddRemote(this ActorSystem actorSystem, string hostname, int port,
-            Action<IRemoteConfiguration>? configure = null, Action<GrpcChannelOptions>? configureChannelOptions = null, Action<ListenOptions>? configureKestrel = null)
+            Action<IRemoteConfiguration<AspRemoteConfig>>? configure = null)
         {
-            var remote = new SelfHostedRemote(actorSystem, hostname, port, configure, configureChannelOptions, configureKestrel);
+            var remote = new SelfHostedRemote(actorSystem, hostname, port, configure);
             return remote;
         }
         public static IServiceCollection AddRemote(this IServiceCollection services,
-            Action<IRemoteConfiguration, IServiceProvider> configure, Action<GrpcChannelOptions>? configureChannelOptions = null)
+            Action<IRemoteConfiguration<AspRemoteConfig>, IServiceProvider> configure)
         {
             services.AddHostedService<RemoteHostedService>();
-            services.AddSingleton<IRemote, HostedRemote>(sp =>
+            services.AddSingleton<IRemote<AspRemoteConfig>, HostedRemote>(sp =>
                 {
                     var actorSystem = sp.GetRequiredService<ActorSystem>();
                     var logger = sp.GetRequiredService<ILogger<HostedRemote>>();
-                    var channelProvider = sp.GetRequiredService<IChannelProvider>();
-                    var remote = new HostedRemote(actorSystem, logger, channelProvider);
+                    var remote = new HostedRemote(actorSystem, logger);
                     configure.Invoke(remote, sp);
                     return remote;
                 }
             );
+            services.AddSingleton<IRemote>(sp=> sp.GetRequiredService<IRemote<AspRemoteConfig>>());
             services.AddSingleton<EndpointManager>(sp =>
                 (sp.GetRequiredService<IRemote>() as HostedRemote)!.EndpointManager
             );
             services.AddSingleton<Serialization>(sp => sp.GetRequiredService<IRemote>().Serialization);
             services.AddSingleton<RemoteKindRegistry>(sp => sp.GetRequiredService<IRemote>().RemoteKindRegistry);
             services.AddSingleton<RemoteConfig>(sp => sp.GetRequiredService<IRemote>().RemoteConfig);
+            services.AddSingleton<AspRemoteConfig>(sp => sp.GetRequiredService<IRemote<AspRemoteConfig>>().RemoteConfig);
             services.AddSingleton<Remoting.RemotingBase, EndpointReader>();
-            services.AddSingleton<IChannelProvider>(sp => new ChannelProvider(configureChannelOptions));
+            services.AddSingleton<ChannelProvider>();
             return services;
         }
 
         public static IServiceCollection AddRemote(this IServiceCollection services,
-            Action<IRemoteConfiguration> configure, Action<GrpcChannelOptions>? configureChannelOptions = null)
+            Action<IRemoteConfiguration<AspRemoteConfig>> configure)
         {
             services.AddHostedService<RemoteHostedService>();
-            services.AddSingleton<IRemote, HostedRemote>(sp =>
+            services.AddSingleton<IRemote<AspRemoteConfig>, HostedRemote>(sp =>
                 {
                     var actorSystem = sp.GetRequiredService<ActorSystem>();
                     var logger = sp.GetRequiredService<ILogger<HostedRemote>>();
-                    var channelProvider = sp.GetRequiredService<IChannelProvider>();
-                    var remote = new HostedRemote(actorSystem, logger, channelProvider);
+                    var remote = new HostedRemote(actorSystem, logger);
                     configure.Invoke(remote);
                     return remote;
                 }
             );
+            services.AddSingleton<IRemote>(sp=> sp.GetRequiredService<IRemote<AspRemoteConfig>>());
             services.AddSingleton<EndpointManager>(sp =>
-                (sp.GetRequiredService<IRemote>() as HostedRemote)!.EndpointManager
+                (sp.GetRequiredService<IRemote<AspRemoteConfig>>() as HostedRemote)!.EndpointManager
             );
             services.AddSingleton<Serialization>(sp => sp.GetRequiredService<IRemote>().Serialization);
             services.AddSingleton<RemoteKindRegistry>(sp => sp.GetRequiredService<IRemote>().RemoteKindRegistry);
             services.AddSingleton<RemoteConfig>(sp => sp.GetRequiredService<IRemote>().RemoteConfig);
+            services.AddSingleton<AspRemoteConfig>(sp => sp.GetRequiredService<IRemote<AspRemoteConfig>>().RemoteConfig);
             services.AddSingleton<Remoting.RemotingBase, EndpointReader>();
-            services.AddSingleton<IChannelProvider>(sp => new ChannelProvider(configureChannelOptions));
+            services.AddSingleton<ChannelProvider>();
             return services;
         }
 

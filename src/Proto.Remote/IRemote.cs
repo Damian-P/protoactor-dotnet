@@ -18,4 +18,9 @@ namespace Proto.Remote
         Task ShutdownAsync(bool graceful = true);
         void SendMessage(PID pid, object msg, int serializerId);
     }
+    public interface IRemote<TRemoteConfig> : IRemote, IRemoteConfiguration<TRemoteConfig>
+    where TRemoteConfig : RemoteConfig, new()
+    {
+
+    }
 }

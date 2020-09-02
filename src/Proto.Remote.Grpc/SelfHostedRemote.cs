@@ -16,18 +16,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
-    public class SelfHostedRemote : Remote
+    public class SelfHostedRemote : Remote<GrpcRemoteConfig>
     {
         private Server _server = null!;
         private EndpointReader _endpointReader;
         private HealthServiceImpl _healthCheck = null!;
-        private readonly GrpcRemoteConfig? _grpcRemoteConfig;
 
         public SelfHostedRemote(ActorSystem system, string hostname, int port,
-            Action<IRemoteConfiguration>? configure = null, GrpcRemoteConfig? grpcRemoteConfig = null)
-            : base(system, hostname, port, new ChannelProvider(grpcRemoteConfig), configure)
+            Action<IRemoteConfiguration<GrpcRemoteConfig>>? configure = null)
+            : base(system, hostname, port, configure)
         {
-            _grpcRemoteConfig = grpcRemoteConfig?? new GrpcRemoteConfig();
             _endpointReader = new EndpointReader(_system, EndpointManager, Serialization);
             _healthCheck = new HealthServiceImpl();
             _server = new Server
@@ -37,7 +35,7 @@ namespace Proto.Remote
                     Remoting.BindService(_endpointReader),
                     Health.BindService(_healthCheck)
                 },
-                Ports = {new ServerPort(hostname, port, _grpcRemoteConfig.ServerCredentials)}
+                Ports = {new ServerPort(hostname, port, RemoteConfig.ServerCredentials)}
             };
         }
 
@@ -85,6 +83,11 @@ namespace Proto.Remote
                     _system.ProcessRegistry.Address, ex.Message
                 );
             }
+        }
+
+        protected override IChannelProvider GetChannelProvider()
+        {
+            return new ChannelProvider(RemoteConfig);
         }
     }
 }

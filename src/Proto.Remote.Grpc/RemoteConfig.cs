@@ -10,7 +10,7 @@ using Grpc.Core;
 
 namespace Proto.Remote
 {
-    public class GrpcRemoteConfig
+    public class GrpcRemoteConfig : RemoteConfig
     {
         /// <summary>
         ///     Gets or sets the ChannelOptions for the gRPC channel.
