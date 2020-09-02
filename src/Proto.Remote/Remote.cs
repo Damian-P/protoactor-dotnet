@@ -17,31 +17,22 @@
 
 using System;
 using System.Threading.Tasks;
-using JetBrains.Annotations;
-using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
     public class Remote
     {
-        private PID _activatorPid;
+        private PID? _activatorPid;
         public bool IsStarted { get; private set; }
-        private readonly ILogger _logger = Log.CreateLogger<Remote>();
         private readonly ActorSystem _system;
         private readonly EndpointManager _endpointManager;
-        private readonly IChannelProvider _channelProvider;
         private readonly RemoteKindRegistry _remoteKindRegistry;
-        private readonly RemoteConfig _remoteConfig;
-        private readonly EndpointReader _endpointReader;
 
-        public Remote(ActorSystem system, RemoteConfig remoteConfig, RemoteKindRegistry remoteKindRegistry, EndpointManager endpointManager, IChannelProvider channelProvider, EndpointReader endpointReader)
+        public Remote(ActorSystem system, RemoteKindRegistry remoteKindRegistry, EndpointManager endpointManager)
         {
             _system = system;
-            _remoteConfig = remoteConfig;
             _remoteKindRegistry = remoteKindRegistry;
             _endpointManager = endpointManager;
-            _channelProvider = channelProvider;
-            _endpointReader = endpointReader;
             system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(system, _endpointManager, pid));
         }
 

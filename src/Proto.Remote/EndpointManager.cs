@@ -24,7 +24,7 @@ namespace Proto.Remote
         private Subscription<object>? _endpointConnEvnSub;
         private PID? _endpointSupervisor;
         private Subscription<object>? _endpointTermEvnSub;
-        private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
         public EndpointManager(RemoteConfig remoteConfig, Serialization serialization, ActorSystem system, IChannelProvider channelProvider)
@@ -51,7 +51,7 @@ namespace Proto.Remote
 
         public void Stop()
         {
-            if (_cancellationTokenSource.IsCancellationRequested) return;
+            if (CancellationToken.IsCancellationRequested) return;
             _cancellationTokenSource.Cancel();
 
             _system.EventStream.Unsubscribe(_endpointTermEvnSub);

@@ -13,16 +13,13 @@ namespace Proto.Remote
 {
     internal class RemoteHostedService : IHostedService
     {
-        private readonly ILogger _logger;
         private readonly IHostApplicationLifetime _appLifetime;
         private readonly IRemote _remote;
 
         public RemoteHostedService(
-            ILogger<RemoteHostedService> logger,
             IHostApplicationLifetime appLifetime,
             IRemote remote)
         {
-            _logger = logger;
             _appLifetime = appLifetime;
             _remote = remote;
         }

@@ -18,7 +18,6 @@ namespace Proto.Remote
         private static readonly ILogger Logger = Log.CreateLogger<EndpointWriter>();
         private readonly string _address;
         private readonly IChannelProvider _channelProvider;
-        private readonly CallOptions _callOptions;
         private readonly Serialization _serialization;
         private readonly ActorSystem _system;
         private readonly RemoteConfig _remoteConfig;

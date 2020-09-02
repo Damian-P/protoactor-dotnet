@@ -46,7 +46,7 @@ namespace Proto.Remote
             {
                 _address = address;
                 var watcher = SpawnWatcher(address, context, _system, _endpointManager);
-                var writer = SpawnWriter(address, context, _system, _endpointManager, _serialization, _remoteConfig, _channelProvider);
+                var writer = SpawnWriter(address, context, _system, _serialization, _remoteConfig, _channelProvider);
                 _cancelFutureRetries = new CancellationTokenSource();
                 context.Respond(new Endpoint(writer, watcher));
             }
@@ -119,7 +119,7 @@ namespace Proto.Remote
             return watcher;
         }
 
-        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, EndpointManager endpointManager, Serialization serialization, RemoteConfig remoteConfig, IChannelProvider channelProvider)
+        private static PID SpawnWriter(string address, ISpawnerContext context, ActorSystem system, Serialization serialization, RemoteConfig remoteConfig, IChannelProvider channelProvider)
         {
             var writerProps =
                 Props.FromProducer(

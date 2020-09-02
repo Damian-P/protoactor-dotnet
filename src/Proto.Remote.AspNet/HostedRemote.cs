@@ -20,7 +20,7 @@ namespace Proto.Remote
         private readonly Remote _remote;
         private readonly ActorSystem _system;
         private readonly RemoteConfig _remoteConfig;
-        public IServerAddressesFeature ServerAddressesFeature;
+        public IServerAddressesFeature? ServerAddressesFeature { get; set; }
         public Serialization Serialization { get; }
         public RemoteKindRegistry RemoteKindRegistry { get; }
 

@@ -13,6 +13,12 @@ namespace Proto.Remote.Tests
             remote = new SelfHostedRemote(system, 12001, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
+                remote.RemoteConfig.EndpointWriterOptions = new EndpointWriterOptions
+                {
+                    MaxRetries = 2,
+                    RetryBackOffms = 10,
+                    RetryTimeSpan = TimeSpan.FromSeconds(120)
+                };
             });
         }
 
@@ -24,16 +30,6 @@ namespace Proto.Remote.Tests
         public static (IRemote, ActorSystem) EnsureRemote()
         {
             if (remoteStarted) return (remote, system);
-
-            var config = new RemoteConfig
-            {
-                EndpointWriterOptions = new EndpointWriterOptions
-                {
-                    MaxRetries = 2,
-                    RetryBackOffms = 10,
-                    RetryTimeSpan = TimeSpan.FromSeconds(120)
-                }
-            };
 
             var service = new ProtoService(12000, "localhost");
             service.StartAsync().Wait();

@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -28,6 +29,12 @@ namespace Proto.Remote.Tests
             _remote = new SelfHostedRemote(actorSystem, _port, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
+                remote.RemoteConfig.EndpointWriterOptions = new EndpointWriterOptions
+                {
+                    MaxRetries = 2,
+                    RetryBackOffms = 10,
+                    RetryTimeSpan = TimeSpan.FromSeconds(120)
+                };
             });
             _remote.Start();
 

@@ -5,9 +5,7 @@
 // -----------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Grpc.Health.V1;
@@ -19,11 +17,10 @@ namespace Proto.Remote
     public class SelfHostedRemote : IRemote
     {
         private readonly ILogger _logger = Log.CreateLogger<Remote>();
-        private Server _server = null!;
+        private readonly Server _server = null!;
         private readonly Remote _remote;
         private readonly ActorSystem _system;
         private readonly string _hostname;
-        private readonly int _port;
         private readonly GrpcRemoteConfig _remoteConfig;
         public bool IsStarted { get; private set; }
         public Serialization Serialization { get; }
@@ -51,10 +48,9 @@ namespace Proto.Remote
                 },
                 Ports = { new ServerPort(hostname, port, _remoteConfig.ServerCredentials) }
             };
-            _remote = new Remote(system, _remoteConfig, RemoteKindRegistry, endpointManager, channelProvider, endpointReader);
+            _remote = new Remote(system, RemoteKindRegistry, endpointManager);
             _system = system;
             _hostname = hostname;
-            _port = port;
         }
 
         public void Start()

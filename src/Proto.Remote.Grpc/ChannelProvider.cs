@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------
-//   <copyright file="SelfHostedRemote.cs" company="Asynkron AB">
+//   <copyright file="ChannelProvider.cs" company="Asynkron AB">
 //       Copyright (C) 2015-2020 Asynkron AB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
@@ -12,7 +12,7 @@ namespace Proto.Remote
 {
     public class ChannelProvider : IChannelProvider
     {
-        private GrpcRemoteConfig _remoteConfig;
+        private readonly GrpcRemoteConfig _remoteConfig;
 
         public ChannelProvider(GrpcRemoteConfig remoteConfig)
         {

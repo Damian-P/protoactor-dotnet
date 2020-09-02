@@ -16,7 +16,7 @@ using ProtosReflection = Messages.ProtosReflection;
 
 class Program
 {
-    static PID remoteActor = new PID("127.0.0.1:12000", "remote");
+    static readonly PID remoteActor = new PID("127.0.0.1:12000", "remote");
 
     static async Task Main(string[] args)
     {

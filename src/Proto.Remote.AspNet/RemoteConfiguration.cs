@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------
-//   <copyright file="SelfHostedRemote.cs" company="Asynkron AB">
+//   <copyright file="RemoteConfiguration.cs" company="Asynkron AB">
 //       Copyright (C) 2015-2020 Asynkron AB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------

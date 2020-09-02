@@ -51,8 +51,7 @@ namespace Proto.Remote
             var channelProvider = new ChannelProvider(_remoteConfig);
             var endpointManager = new EndpointManager(_remoteConfig, Serialization, system, channelProvider);
             _endpointReader = new EndpointReader(system, endpointManager, Serialization);
-            var healthCheck = new HealthServiceImpl();
-            _remote = new Remote(system, _remoteConfig, RemoteKindRegistry, endpointManager, channelProvider, _endpointReader);
+            _remote = new Remote(system, RemoteKindRegistry, endpointManager);
             _system = system;
             _ipAddress = ipAddress;
             _port = port;
@@ -80,7 +79,7 @@ namespace Proto.Remote
                                 listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; }
                             );
                         else
-                            serverOptions.Listen(IPAddress.Any, _port,
+                            serverOptions.Listen(_ipAddress, _port,
                                 listenOptions => _remoteConfig.ConfigureKestrel(listenOptions)
                             );
                     }

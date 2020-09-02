@@ -13,7 +13,7 @@ namespace Proto.Remote
 {
     public class ChannelProvider : IChannelProvider
     {
-        private AspRemoteConfig _remoteConfig;
+        private readonly AspRemoteConfig _remoteConfig;
         public ChannelProvider(AspRemoteConfig remoteConfig)
         {
             _remoteConfig = remoteConfig;

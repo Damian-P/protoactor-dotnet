@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------
-//   <copyright file="ChannelProvider.cs" company="Asynkron AB">
+//   <copyright file="AspRemoteConfig.cs" company="Asynkron AB">
 //       Copyright (C) 2015-2020 Asynkron AB All rights reserved
 //   </copyright>
 // -----------------------------------------------------------------------
