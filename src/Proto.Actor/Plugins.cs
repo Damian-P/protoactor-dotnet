@@ -9,7 +9,7 @@ using System.Collections.Concurrent;
 
 namespace Proto
 {
-    public class Plugins
+    public class Plugins: IServiceProvider
     {
         private ConcurrentDictionary<Type, IProtoPlugin> _plugins { get; } = new ConcurrentDictionary<Type, IProtoPlugin>();
         public bool AddPlugin<TPlugin, TInstance>(TInstance plugin)
@@ -23,11 +23,9 @@ namespace Proto
         {
             return _plugins.TryAdd(typeof(TPlugin), plugin);
         }
-        public TPlugin GetPlugin<TPlugin>()
-        where TPlugin : IProtoPlugin
+        public object GetService(Type serviceType)
         {
-            var instanceIsPresent = _plugins.TryGetValue(typeof(TPlugin), out var foundInstance);
-            return instanceIsPresent && foundInstance is TPlugin plugin ? plugin : throw new PluginNotFoundException<TPlugin>();
+            return _plugins[serviceType];
         }
     }
 }

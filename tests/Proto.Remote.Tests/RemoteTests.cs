@@ -76,7 +76,7 @@ namespace Proto.Remote.Tests
             
             var json = new JsonMessage("remote_test_messages.Ping", "{ \"message\":\"Hello\"}");
             var envelope = new Proto.MessageEnvelope(json, localActor, Proto.MessageHeader.Empty);
-            localSystem.Plugins.GetPlugin<IRemote>().SendMessage(remoteActor, envelope, 1);
+            localSystem.GetRemote().SendMessage(remoteActor, envelope, 1);
         }
 
         [Fact, DisplayTestMethodName]
@@ -110,7 +110,7 @@ namespace Proto.Remote.Tests
 
             var remoteActorName = Guid.NewGuid().ToString();
 
-            var remoteActorResp = await localSystem.SpawnNamedAsync(
+            var remoteActorResp = await localSystem.GetRemote().SpawnNamedAsync(
                 distantSystem.Address, remoteActorName, "EchoActor", TimeSpan.FromSeconds(5)
             );
             var remoteActor = remoteActorResp.Pid;
@@ -249,7 +249,7 @@ namespace Proto.Remote.Tests
         private async Task<PID> SpawnRemoteActor(string address)
         {
             var remoteActorName = Guid.NewGuid().ToString();
-            var remoteActorResp = await localSystem.SpawnNamedAsync(address, remoteActorName, "EchoActor", TimeSpan.FromSeconds(5));
+            var remoteActorResp = await localSystem.GetRemote().SpawnNamedAsync(address, remoteActorName, "EchoActor", TimeSpan.FromSeconds(5));
             return remoteActorResp.Pid;
         }
 

@@ -8,6 +8,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Proto.Cluster.IdentityLookup;
 using Proto.Cluster.Partition;
@@ -22,10 +23,11 @@ namespace Proto.Cluster
 
         public Cluster(ActorSystem system, ClusterConfig clusterConfig)
         {
-            system.Plugins.AddPlugin(this);
+            if (system.ServiceProvider is Plugins plugins)
+                plugins.AddPlugin<Cluster>(this);
             Config = clusterConfig;
             System = system;
-            Remote = system.Plugins.GetPlugin<IRemote>();
+            Remote = system.ServiceProvider.GetRequiredService<IRemote>();
             PidCache = new PidCache();
             PidCacheUpdater = new PidCacheUpdater(this, PidCache);
             //default to partition identity lookup

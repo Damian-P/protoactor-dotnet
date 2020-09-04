@@ -19,25 +19,25 @@ class Program
     {
         Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
         var system = new ActorSystem();
-        var Remote = system.AddRemote("127.0.0.1", 12001, remote =>{
+        var remote = system.AddRemote("127.0.0.1", 12001, remote =>{
             remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         });
-        Remote.Start();
+        remote.Start();
 
         var messageCount = 1_000_000;
         var wg = new AutoResetEvent(false);
         var props = Props.FromProducer(() => new LocalActor(0, messageCount, wg));
 
         var pid = system.Root.Spawn(props);
-        var remote = new PID("127.0.0.1:12000", "remote");
-        await system.Root.RequestAsync<Start>(remote, new StartRemote { Sender = pid }, TimeSpan.FromSeconds(5));
+        var remoteActor = new PID("127.0.0.1:12000", "remote");
+        await system.Root.RequestAsync<Start>(remoteActor, new StartRemote { Sender = pid }, TimeSpan.FromSeconds(5));
         
         var start = DateTime.Now;
         Console.WriteLine("Starting to send");
         var msg = new Ping();
         for (var i = 0; i < messageCount; i++)
         {
-            system.Root.Send(remote, msg);
+            system.Root.Send(remoteActor, msg);
         }
         wg.WaitOne(10_000);
         var elapsed = DateTime.Now - start;
@@ -47,7 +47,7 @@ class Program
         Console.WriteLine("Throughput {0} msg / sec", t);
 
         Console.ReadLine();
-        await system.ShutdownRemoteAsync();
+        await remote.ShutdownAsync();
     }
 
     public class LocalActor : IActor

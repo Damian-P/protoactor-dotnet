@@ -35,10 +35,12 @@ namespace Proto.Remote
         public bool Started { get; private set; }
         public Serialization Serialization { get; }
         public RemoteKindRegistry RemoteKindRegistry { get; }
+
         public SelfHostedRemote(ActorSystem system, string hostname, int port,
             Action<RemoteConfiguration> configure)
         {
-            system.Plugins.AddPlugin<IRemote>(this);
+            if (system.ServiceProvider is Plugins plugins)
+                plugins.AddPlugin<IRemote>(this);
             _remoteConfig = new AspRemoteConfig();
             Serialization = new Serialization();
             RemoteKindRegistry = new RemoteKindRegistry();

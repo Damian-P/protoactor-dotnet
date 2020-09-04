@@ -44,29 +44,10 @@ namespace Proto.Cluster
             configure?.Invoke(cluster);
             return cluster;
         }
-        public static Task StartCluster(this ActorSystem actorSystem)
+        public static Cluster GetCluster(this ActorSystem actorSystem)
         {
-            return actorSystem.Plugins.GetPlugin<Cluster>().StartAsync();
-        }
-        public static Task ShutdownClusterAsync(this ActorSystem actorSystem, bool graceful = true)
-        {
-            return actorSystem.Plugins.GetPlugin<Cluster>().ShutdownAsync(graceful);
-        }
-        public static Task<PID?> GetAsync(this ActorSystem actorSystem, string name, string kind)
-        {
-            var cluster = actorSystem.Plugins.GetPlugin<Cluster>();
-            return cluster.GetAsync(name, kind);
-        }
-        public static Task<PID?> GetAsync(this ActorSystem actorSystem, string name, string kind, CancellationToken ct)
-        {
-            var cluster = actorSystem.Plugins.GetPlugin<Cluster>();
-            return cluster.GetAsync(name, kind, ct);
-        }
-
-        public static Task<T> RequestAsync<T>(this ActorSystem actorSystem, string name, string kind, object request, CancellationToken ct)
-        {
-            var cluster = actorSystem.Plugins.GetPlugin<Cluster>();
-            return cluster.RequestAsync<T>(name, kind, request, ct);
+            var cluster = actorSystem.ServiceProvider.GetRequiredService<Cluster>();
+            return cluster;
         }
     }
 }

@@ -46,14 +46,14 @@ namespace Node2
         {
             Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
             var system = new ActorSystem();
-            var Remote = new SelfHostedRemote(system, "127.0.0.1", 12000, remote =>
+            var remote = system.AddRemote("127.0.0.1", 12000, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             });
-            Remote.Start();
+            remote.Start();
             system.Root.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
-            await Remote.ShutdownAsync();
+            await remote.ShutdownAsync();
         }
     }
 }

@@ -29,7 +29,8 @@ namespace Proto.Remote
         public SelfHostedRemote(ActorSystem system, string hostname = "127.0.0.1", int port = 0,
             Action<RemoteConfiguration>? configure = null)
         {
-            system.Plugins.AddPlugin<IRemote>(this);
+            if (system.ServiceProvider is Plugins plugins)
+                plugins.AddPlugin<IRemote>(this);
             _remoteConfig = new GrpcRemoteConfig();
             Serialization = new Serialization();
             RemoteKindRegistry = new RemoteKindRegistry();
