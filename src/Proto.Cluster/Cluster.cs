@@ -43,7 +43,7 @@ namespace Proto.Cluster
 
         public string LoggerId => System.Address;
 
-        public Task StartAsync(string clusterName, string address, int port, IClusterProvider cp)
+        public Task StartAsync(string clusterName, IClusterProvider cp)
             => StartAsync(new ClusterConfig(clusterName, cp));
 
         public async Task StartAsync(ClusterConfig config)
