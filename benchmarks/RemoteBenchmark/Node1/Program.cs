@@ -18,10 +18,11 @@ class Program
     {
         var system = new ActorSystem();
         var context = new RootContext(system);
-        var serialization = new Serialization();
-        serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-        var Remote = new Remote(system, serialization);
-        Remote.Start("127.0.0.1", 12001);
+        var Remote = system.AddRemote("127.0.0.1", 12001, remoteConfiguration =>
+        {
+            remoteConfiguration.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+        });
+        Remote.Start();
 
         var messageCount = 1000000;
         var wg = new AutoResetEvent(false);
@@ -30,7 +31,6 @@ class Program
         var pid = context.Spawn(props);
         var remote = new PID("127.0.0.1:12000", "remote");
         context.RequestAsync<Start>(remote, new StartRemote { Sender = pid }).Wait();
-
         var start = DateTime.Now;
         Console.WriteLine("Starting to send");
         var msg = new Ping();
@@ -46,6 +46,7 @@ class Program
         Console.WriteLine("Throughput {0} msg / sec", t);
 
         Console.ReadLine();
+        Remote.ShutdownAsync().Wait();
     }
 
     public class LocalActor : IActor

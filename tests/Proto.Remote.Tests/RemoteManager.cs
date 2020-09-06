@@ -1,56 +1,43 @@
 ﻿using System;
-using System.Net;
-using System.Net.Sockets;
 
 namespace Proto.Remote.Tests
 {
     public class RemoteManager
     {
-        public const string RemoteAddress = "0.0.0.0:12000";
+        public static string RemoteAddress = "127.0.0.1:12000";
+
         static RemoteManager()
         {
             system = new ActorSystem();
-            var serialization = new Serialization();
-            serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
-            remote = new Remote(system, serialization);
-        }
-
-        private static readonly Remote remote;
-        private static readonly ActorSystem system;
-
-        private static bool remoteStarted;
-
-        public static (Remote, ActorSystem) EnsureRemote()
-        {
-            if (remoteStarted) return (remote, system);
-
-            var config = new RemoteConfig
+            remote = new SelfHostedRemote(system, "127.0.0.1", 12001, remoteConfiguration =>
             {
-                EndpointWriterOptions = new EndpointWriterOptions
+                remoteConfiguration.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
+                remoteConfiguration.RemoteConfig.EndpointWriterOptions = new EndpointWriterOptions
                 {
                     MaxRetries = 2,
                     RetryBackOffms = 10,
                     RetryTimeSpan = TimeSpan.FromSeconds(120)
-                }
-            };
-            
-            var service = new ProtoService(12000,"0.0.0.0");
-            service.StartAsync().Wait();
-            
-            remote.Start(GetLocalIp(), 12001, config);
-            
+                };
+            });
+        }
+
+        private static readonly IRemote remote;
+        private static readonly ActorSystem system;
+
+        private static bool remoteStarted;
+
+        public static (IRemote, ActorSystem) EnsureRemote()
+        {
+            if (remoteStarted) return (remote, system);
+
+            var service = new ProtoService(12000, "127.0.0.1");
+            service.StartAsync().GetAwaiter().GetResult();
+
+            remote.Start();
+
             remoteStarted = true;
 
             return (remote, system);
-
-            static string GetLocalIp()
-            {
-                using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
-
-                socket.Connect("8.8.8.8", 65530);
-                var endPoint = socket.LocalEndPoint as IPEndPoint;
-                return endPoint?.Address.ToString();
-            }
         }
     }
 }

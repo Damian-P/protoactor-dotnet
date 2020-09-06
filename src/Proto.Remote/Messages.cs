@@ -20,6 +20,12 @@ namespace Proto.Remote
         public string Address { get; set; } = null!;
     }
 
+    public sealed class EndpointErrorEvent
+    {
+        public string Address { get; set; } = null!;
+        public Exception Exception { get; set; } = null!;
+    }
+
     public class RemoteTerminate
     {
         public RemoteTerminate(PID watcher, PID watchee)

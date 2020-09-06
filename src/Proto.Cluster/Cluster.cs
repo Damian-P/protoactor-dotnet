@@ -20,10 +20,10 @@ namespace Proto.Cluster
     {
         private static ILogger _logger = null!;
 
-        public Cluster(ActorSystem system, Serialization serialization)
+        public Cluster(ActorSystem system, IRemote remote)
         {
             System = system;
-            Remote = new Remote.Remote(system, serialization);
+            Remote = remote;
         }
 
         public Guid Id { get; } = Guid.NewGuid();
@@ -32,7 +32,7 @@ namespace Proto.Cluster
 
         public ActorSystem System { get; }
 
-        public Remote.Remote Remote { get; }
+        public IRemote Remote { get; }
 
 
         internal MemberList MemberList { get; private set; }
@@ -43,8 +43,8 @@ namespace Proto.Cluster
 
         public string LoggerId => System.Address;
 
-        public Task StartAsync(string clusterName, string address, int port, IClusterProvider cp)
-            => StartAsync(new ClusterConfig(clusterName, address, port, cp));
+        public Task StartAsync(string clusterName, IClusterProvider cp)
+            => StartAsync(new ClusterConfig(clusterName, cp));
 
         public async Task StartAsync(ClusterConfig config)
         {
@@ -53,13 +53,13 @@ namespace Proto.Cluster
 
             //default to partition identity lookup
             IdentityLookup = config.IdentityLookup ?? new PartitionIdentityLookup();
-            Remote.Start(Config.Address, Config.Port, Config.RemoteConfig);
+            Remote.Start();
             Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             _logger = Log.CreateLogger($"Cluster-{LoggerId}");
             _logger.LogInformation("Starting");
             MemberList = new MemberList(this);
 
-            var kinds = Remote.GetKnownKinds();
+            var kinds = Remote.RemoteKindRegistry.GetKnownKinds();
             IdentityLookup.Setup(this, kinds);
 
 
