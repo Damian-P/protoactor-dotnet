@@ -30,7 +30,7 @@ class Program
 
         var pid = system.Root.Spawn(props);
         var remoteActor = new PID("127.0.0.1:12000", "remote");
-        await system.Root.RequestAsync<Start>(remoteActor, new StartRemote { Sender = pid }, TimeSpan.FromSeconds(5));
+        await system.Root.RequestAsync<Start>(remoteActor, new StartRemote { Sender = pid });
         
         var start = DateTime.Now;
         Console.WriteLine("Starting to send");

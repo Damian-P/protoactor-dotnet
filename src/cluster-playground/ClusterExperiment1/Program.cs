@@ -58,8 +58,8 @@ namespace ClusterExperiment1
             {
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
             });
-            var c1 = new Cluster(system, remote, new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
-            await c1.StartAsync();
+            var c1 = new Cluster(system, remote);
+            await c1.StartAsync(new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
 
             _ = Task.Run(async () =>
                 {
@@ -118,8 +118,8 @@ namespace ClusterExperiment1
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("hello", helloProps);
             });
-            var member = new Cluster(system, remote, new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
-            _ = member.StartAsync();
+            var member = new Cluster(system, remote);
+            _ = member.StartAsync(new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
             return member;
         }
     }
