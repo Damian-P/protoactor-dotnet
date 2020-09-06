@@ -26,8 +26,6 @@ namespace {{CsNamespace}}
             var grains = new Grains(cluster);
             return grains;
         }
-        public static Grains GetGrains(this ActorSystem actorSystem)
-            => actorSystem.Plugins.GetPlugin<Grains>();
     }
 
     public class Grains : IProtoPlugin
@@ -37,7 +35,6 @@ namespace {{CsNamespace}}
         public Grains(Cluster cluster)
         {
             Cluster = cluster;
-            Cluster.System.Plugins.AddPlugin(this);
         }
 
 		{{#each Services}}	

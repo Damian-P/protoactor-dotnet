@@ -58,7 +58,7 @@ namespace ClusterExperiment1
             {
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
             });
-            var c1 = new Cluster(system, new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
+            var c1 = new Cluster(system, remote, new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
             await c1.StartAsync();
 
             _ = Task.Run(async () =>
@@ -118,7 +118,7 @@ namespace ClusterExperiment1
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("hello", helloProps);
             });
-            var member = new Cluster(system, new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
+            var member = new Cluster(system, remote, new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
             _ = member.StartAsync();
             return member;
         }

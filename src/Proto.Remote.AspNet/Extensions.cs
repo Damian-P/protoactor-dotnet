@@ -17,10 +17,6 @@ namespace Proto.Remote
 {
     public static class Extensions
     {
-        public static IRemote AddRemote(this ActorSystem actorSystem, Action<RemoteConfiguration> configure)
-            => AddRemote(actorSystem, 0, configure);
-        public static IRemote AddRemote(this ActorSystem actorSystem, int port, Action<RemoteConfiguration> configure)
-            => AddRemote(actorSystem, "127.0.0.1", port, configure);
         public static IRemote AddRemote(this ActorSystem actorSystem, string hostname, int port,
             Action<RemoteConfiguration> configure)
         {
@@ -67,7 +63,7 @@ namespace Proto.Remote
 
         private static void AddAllServices(IServiceCollection services)
         {
-            services.TryAddSingleton<ActorSystem>(sp => new ActorSystem(sp));
+            services.TryAddSingleton<ActorSystem>();
             services.AddHostedService<RemoteHostedService>();
             services.AddSingleton<Remote, Remote>();
             services.AddSingleton<HostedRemote, HostedRemote>();

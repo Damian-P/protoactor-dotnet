@@ -214,7 +214,7 @@ namespace Proto.Cluster.Tests
                     remote.RemoteKindRegistry.RegisterKnownKind(kind, prop);
                 }
             });
-            var cluster = new Cluster(system, config);
+            var cluster = new Cluster(system, remote, config);
             await cluster.StartAsync();
             return cluster;
         }

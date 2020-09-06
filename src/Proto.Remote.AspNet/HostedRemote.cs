@@ -26,8 +26,6 @@ namespace Proto.Remote
 
         public HostedRemote(ILogger<Remote> logger, Remote remote, Serialization serialization, RemoteKindRegistry remoteKindRegistry, ActorSystem system, RemoteConfig remoteConfig)
         {
-            if (system.ServiceProvider is Plugins plugins)
-                plugins.AddPlugin<IRemote>(this);
             _logger = logger;
             _remote = remote;
             _system = system;

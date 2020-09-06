@@ -6,7 +6,7 @@ namespace Proto.Remote.Tests
 {
     public class RemoteManager
     {
-        public static ActorSystem GetLocalSystem()
+        public static (ActorSystem, IRemote) GetLocalSystem()
         {
             var system = new ActorSystem();
             var remote = new SelfHostedRemote(system, "127.0.0.1", 0, remote =>
@@ -20,9 +20,9 @@ namespace Proto.Remote.Tests
                 };
             });
             remote.Start();
-            return system;
+            return (system, remote);
         }
-        public static ActorSystem GetDistantSystem()
+        public static (ActorSystem, IRemote) GetDistantSystem()
         {
             var props = Props.FromProducer(() => new EchoActor());
             var actorSystem = new ActorSystem();
@@ -40,7 +40,7 @@ namespace Proto.Remote.Tests
             });
             remote.Start();
             actorSystem.Root.SpawnNamed(props, "EchoActorInstance");
-            return actorSystem;
+            return (actorSystem, remote);
         }
     }
 }

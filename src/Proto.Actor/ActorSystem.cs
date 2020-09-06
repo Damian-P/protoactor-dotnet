@@ -20,20 +20,6 @@ namespace Proto
             EventStream = new EventStream();
             var eventStreamProcess = new EventStreamProcess(this);
             ProcessRegistry.TryAdd("eventstream", eventStreamProcess);
-            var plugins = new Plugins();
-            ServiceProvider = plugins;
-        }
-
-        public ActorSystem(IServiceProvider serviceProvider)
-        {
-            ProcessRegistry = new ProcessRegistry(this);
-            Root = new RootContext(this);
-            DeadLetter = new DeadLetterProcess(this);
-            Guardians = new Guardians(this);
-            EventStream = new EventStream();
-            var eventStreamProcess = new EventStreamProcess(this);
-            ProcessRegistry.TryAdd("eventstream", eventStreamProcess);
-            ServiceProvider = serviceProvider;
         }
 
         public ProcessRegistry ProcessRegistry { get; }
@@ -41,7 +27,6 @@ namespace Proto
         public Guardians Guardians { get; }
         public DeadLetterProcess DeadLetter { get; }
         public EventStream EventStream { get; }
-        public IServiceProvider ServiceProvider { get; }
         public const string NoHost = "nonhost";
         private string _host = NoHost;
         private int _port;

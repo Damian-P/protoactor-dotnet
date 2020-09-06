@@ -17,14 +17,15 @@ namespace Proto.Remote.Tests
     public class RemoteTests
     {
         private readonly ActorSystem localSystem;
+        private readonly IRemote localRemote;
         private readonly ActorSystem distantSystem;
-
+        private readonly IRemote distantRemote;
         public RemoteTests(ITestOutputHelper testOutputHelper)
         {
             var factory = LogFactory.Create(testOutputHelper);
             Log.SetLoggerFactory(factory);
-            localSystem = RemoteManager.GetLocalSystem();
-            distantSystem = RemoteManager.GetDistantSystem();
+            (localSystem, localRemote) = RemoteManager.GetLocalSystem();
+            (distantSystem, distantRemote) = RemoteManager.GetDistantSystem();
         }
 
         [Fact, DisplayTestMethodName]
@@ -58,7 +59,7 @@ namespace Proto.Remote.Tests
         {
             var remoteActor = new PID(distantSystem.Address, "EchoActorInstance");
             var tcs = new TaskCompletionSource<bool>();
-            
+
             var localActor = localSystem.Root.Spawn(
                 Props.FromFunc(
                     ctx =>
@@ -73,24 +74,24 @@ namespace Proto.Remote.Tests
                     }
                 )
             );
-            
+
             var json = new JsonMessage("remote_test_messages.Ping", "{ \"message\":\"Hello\"}");
             var envelope = new Proto.MessageEnvelope(json, localActor, Proto.MessageHeader.Empty);
-            localSystem.GetRemote().SendMessage(remoteActor, envelope, 1);
+            localRemote.SendMessage(remoteActor, envelope, 1);
         }
 
         [Fact, DisplayTestMethodName]
         public async Task CanSendAndReceiveToExistingRemote()
         {
-           
+
 
             var remoteActor = new PID(distantSystem.Address, "EchoActorInstance");
-            
+
             var pong = await localSystem.Root.RequestAsync<Pong>(remoteActor, new Ping { Message = "Hello" }, TimeSpan.FromMilliseconds(5000));
 
             Assert.Equal($"{distantSystem.Address} Hello", pong.Message);
-            
-           // await service.StopAsync();
+
+            // await service.StopAsync();
         }
 
         [Fact, DisplayTestMethodName]
@@ -110,7 +111,7 @@ namespace Proto.Remote.Tests
 
             var remoteActorName = Guid.NewGuid().ToString();
 
-            var remoteActorResp = await localSystem.GetRemote().SpawnNamedAsync(
+            var remoteActorResp = await localRemote.SpawnNamedAsync(
                 distantSystem.Address, remoteActorName, "EchoActor", TimeSpan.FromSeconds(5)
             );
             var remoteActor = remoteActorResp.Pid;
@@ -121,7 +122,7 @@ namespace Proto.Remote.Tests
         [Fact, DisplayTestMethodName]
         public async Task CanWatchRemoteActor()
         {
-  
+
             var remoteActor = await SpawnRemoteActor(distantSystem.Address);
             var localActor = await SpawnLocalActorAndWatch(remoteActor);
 
@@ -249,7 +250,7 @@ namespace Proto.Remote.Tests
         private async Task<PID> SpawnRemoteActor(string address)
         {
             var remoteActorName = Guid.NewGuid().ToString();
-            var remoteActorResp = await localSystem.GetRemote().SpawnNamedAsync(address, remoteActorName, "EchoActor", TimeSpan.FromSeconds(5));
+            var remoteActorResp = await localRemote.SpawnNamedAsync(address, remoteActorName, "EchoActor", TimeSpan.FromSeconds(5));
             return remoteActorResp.Pid;
         }
 

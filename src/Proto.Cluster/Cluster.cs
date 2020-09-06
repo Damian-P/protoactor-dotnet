@@ -8,7 +8,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Proto.Cluster.IdentityLookup;
 using Proto.Cluster.Partition;
@@ -21,13 +20,11 @@ namespace Proto.Cluster
     {
         private static ILogger _logger = null!;
 
-        public Cluster(ActorSystem system, ClusterConfig clusterConfig)
+        public Cluster(ActorSystem system, IRemote remote, ClusterConfig clusterConfig)
         {
-            if (system.ServiceProvider is Plugins plugins)
-                plugins.AddPlugin<Cluster>(this);
             Config = clusterConfig;
             System = system;
-            Remote = system.ServiceProvider.GetRequiredService<IRemote>();
+            Remote = remote;
             PidCache = new PidCache();
             PidCacheUpdater = new PidCacheUpdater(this, PidCache);
             //default to partition identity lookup
@@ -36,20 +33,15 @@ namespace Proto.Cluster
             Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         }
 
-        public Cluster(ActorSystem system, string clusterName, IClusterProvider cp)
-            : this(system, new ClusterConfig(clusterName, cp))
+        public Cluster(ActorSystem system, IRemote remote, string clusterName, IClusterProvider cp)
+            : this(system, remote, new ClusterConfig(clusterName, cp))
         {
         }
 
         public Guid Id { get; } = Guid.NewGuid();
-
         internal ClusterConfig Config { get; }
-
         public ActorSystem System { get; }
-
         public IRemote Remote { get; }
-
-
         internal MemberList? MemberList { get; private set; }
         internal PidCache PidCache { get; }
         internal PidCacheUpdater PidCacheUpdater { get; }
