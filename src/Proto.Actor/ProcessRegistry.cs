@@ -15,6 +15,7 @@ namespace Proto
     //maybe the System should have an address instead, the process registry seems like the wrong place
     public class ProcessRegistry
     {
+        
         private readonly IList<Func<PID, Process>> _hostResolvers = new List<Func<PID, Process>>();
         private readonly HashedConcurrentDictionary _localProcesses = new HashedConcurrentDictionary();
         private int _sequenceId;

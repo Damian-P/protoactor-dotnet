@@ -20,52 +20,54 @@ namespace Proto.Cluster
     {
         private static ILogger _logger = null!;
 
-        public Cluster(ActorSystem system, IRemote remote, ClusterConfig clusterConfig)
+        public Cluster(ActorSystem system, IRemote remote)
         {
-            Config = clusterConfig;
             System = system;
             Remote = remote;
-            PidCache = new PidCache();
-            PidCacheUpdater = new PidCacheUpdater(this, PidCache);
-            //default to partition identity lookup
-            IdentityLookup = clusterConfig.IdentityLookup ?? new PartitionIdentityLookup();
-            Provider = clusterConfig.ClusterProvider;
-            Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-        }
-
-        public Cluster(ActorSystem system, IRemote remote, string clusterName, IClusterProvider cp)
-            : this(system, remote, new ClusterConfig(clusterName, cp))
-        {
         }
 
         public Guid Id { get; } = Guid.NewGuid();
-        internal ClusterConfig Config { get; }
-        public ActorSystem System { get; }
-        public IRemote Remote { get; }
-        internal MemberList? MemberList { get; private set; }
-        internal PidCache PidCache { get; }
-        internal PidCacheUpdater PidCacheUpdater { get; }
 
-        private IIdentityLookup IdentityLookup { get; }
+        internal ClusterConfig Config { get; private set; } = null!;
+
+        public ActorSystem System { get; }
+
+        public IRemote Remote { get; }
+
+
+        internal MemberList MemberList { get; private set; }
+
+        private IIdentityLookup? IdentityLookup { get; set; }
 
         internal IClusterProvider Provider { get; set; }
 
         public string LoggerId => System.Address;
 
-        public async Task StartAsync()
+        public Task StartAsync(string clusterName, string address, int port, IClusterProvider cp)
+            => StartAsync(new ClusterConfig(clusterName, cp));
+
+        public async Task StartAsync(ClusterConfig config)
         {
+            Config = config;
+
+
+            //default to partition identity lookup
+            IdentityLookup = config.IdentityLookup ?? new PartitionIdentityLookup();
             Remote.Start();
+            Remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             _logger = Log.CreateLogger($"Cluster-{LoggerId}");
             _logger.LogInformation("Starting");
             MemberList = new MemberList(this);
 
-            var (host, port) = System.GetAddress();
             var kinds = Remote.RemoteKindRegistry.GetKnownKinds();
             IdentityLookup.Setup(this, kinds);
-            if (Config.UsePidCache)
-            {
-                PidCacheUpdater.Setup();
-            }
+
+
+            var (host, port) = System.GetAddress();
+
+
+            Provider = Config.ClusterProvider;
+
             await Provider.StartAsync(
                 this,
                 Config.Name,
@@ -83,11 +85,6 @@ namespace Proto.Cluster
             _logger.LogInformation("Stopping");
             if (graceful)
             {
-                if (Config.UsePidCache)
-                {
-                    PidCacheUpdater.Shutdown();
-                }
-
                 IdentityLookup!.Shutdown();
             }
 
@@ -104,11 +101,7 @@ namespace Proto.Cluster
         {
             if (Config.UsePidCache)
             {
-                //Check Cache
-                if (PidCache.TryGetCache(identity, out var pid))
-                {
-                    return Task.FromResult<PID?>(pid);
-                }
+
             }
 
             return IdentityLookup!.GetAsync(identity, kind, ct);
