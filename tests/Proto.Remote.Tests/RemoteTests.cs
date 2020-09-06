@@ -18,11 +18,12 @@ namespace Proto.Remote.Tests
     {
         private readonly ActorSystem System;
         private readonly IRemote Remote;
+
         public RemoteTests(ITestOutputHelper testOutputHelper)
         {
+            (Remote, System) = RemoteManager.EnsureRemote();
             var factory = LogFactory.Create(testOutputHelper);
             Log.SetLoggerFactory(factory);
-            (Remote, System) = RemoteManager.EnsureRemote();
         }
 
         [Fact, DisplayTestMethodName]
@@ -56,7 +57,7 @@ namespace Proto.Remote.Tests
         {
             var remoteActor = new PID(RemoteManager.RemoteAddress, "EchoActorInstance");
             var tcs = new TaskCompletionSource<bool>();
-
+            
             var localActor = System.Root.Spawn(
                 Props.FromFunc(
                     ctx =>
@@ -71,7 +72,7 @@ namespace Proto.Remote.Tests
                     }
                 )
             );
-
+            
             var json = new JsonMessage("remote_test_messages.Ping", "{ \"message\":\"Hello\"}");
             var envelope = new Proto.MessageEnvelope(json, localActor, Proto.MessageHeader.Empty);
             Remote.SendMessage(remoteActor, envelope, 1);
@@ -80,15 +81,15 @@ namespace Proto.Remote.Tests
         [Fact, DisplayTestMethodName]
         public async Task CanSendAndReceiveToExistingRemote()
         {
-
+           
 
             var remoteActor = new PID(RemoteManager.RemoteAddress, "EchoActorInstance");
-
+            
             var pong = await System.Root.RequestAsync<Pong>(remoteActor, new Ping { Message = "Hello" }, TimeSpan.FromMilliseconds(5000));
 
             Assert.Equal($"{RemoteManager.RemoteAddress} Hello", pong.Message);
-
-            // await service.StopAsync();
+            
+           // await service.StopAsync();
         }
 
         [Fact, DisplayTestMethodName]
@@ -119,7 +120,7 @@ namespace Proto.Remote.Tests
         [Fact, DisplayTestMethodName]
         public async Task CanWatchRemoteActor()
         {
-
+  
             var remoteActor = await SpawnRemoteActor(RemoteManager.RemoteAddress);
             var localActor = await SpawnLocalActorAndWatch(remoteActor);
 

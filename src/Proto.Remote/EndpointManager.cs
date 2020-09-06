@@ -57,7 +57,7 @@ namespace Proto.Remote
 
         private void OnEndpointTerminated(EndpointTerminatedEvent evt)
         {
-            lock (this)
+            lock (_synLock)
             {
                 if (_connections.TryRemove(evt.Address, out var endpoint))
                 {
@@ -95,11 +95,10 @@ namespace Proto.Remote
 
         public void RemoteDeliver(RemoteDeliver msg)
         {
+            if (string.IsNullOrWhiteSpace(msg.Target.Address))
+                    throw new ArgumentOutOfRangeException("Target");
             lock (_synLock)
             {
-                if (string.IsNullOrWhiteSpace(msg.Target.Address))
-                    throw new ArgumentOutOfRangeException("Target");
-
                 var endpoint = GetEndpoint(msg.Target.Address);
 
                 _logger.LogDebug(
@@ -111,8 +110,7 @@ namespace Proto.Remote
         }
 
         private PID GetEndpoint(string address)
-        {
-            var pid = _connections.GetOrAdd(address, v =>
+            => _connections.GetOrAdd(address, v =>
             {
                 _logger.LogDebug("[EndpointManager] Requesting new endpoint for {Address}", v);
                 var props = Props
@@ -123,28 +121,29 @@ namespace Proto.Remote
                 _logger.LogDebug("[EndpointManager] Created new endpoint for {Address}", v);
                 return endpointActorPid;
             });
-            return pid;
-        }
 
         public void SendMessage(PID pid, object msg, int serializerId)
         {
             var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
-
             var env = new RemoteDeliver(header!, message, pid, sender!, serializerId);
             RemoteDeliver(env);
         }
         public void Stop()
         {
-            if (CancellationToken.IsCancellationRequested) return;
-            _system.EventStream.Unsubscribe(_endpointTermEvnSub);
-            _system.EventStream.Unsubscribe(_endpointConnectedEvnSub);
-            _system.EventStream.Unsubscribe(_endpointTErrorEvnSub);
-            _cancellationTokenSource.Cancel();
-            foreach (var endpoint in _connections.Values)
+            lock (_synLock)
             {
-                _system.Root.Stop(endpoint);
+                if (CancellationToken.IsCancellationRequested) return;
+                _system.EventStream.Unsubscribe(_endpointTermEvnSub);
+                _system.EventStream.Unsubscribe(_endpointConnectedEvnSub);
+                _system.EventStream.Unsubscribe(_endpointTErrorEvnSub);
+                _cancellationTokenSource.Cancel();
+                foreach (var endpoint in _connections.Values)
+                {
+                    _system.Root.Stop(endpoint);
+                }
+                _connections.Clear();
+                _logger.LogDebug("[EndpointManager] Stopped");
             }
-            _logger.LogDebug("[EndpointManager] Stopped");
         }
     }
 }
