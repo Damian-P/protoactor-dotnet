@@ -19,6 +19,7 @@ namespace Proto.Cluster.Partition
         private PID _partitionActivator = null!;
         private PID _partitionActor = null!;
 
+
         internal PartitionManager(Cluster cluster)
         {
             _cluster = cluster;

@@ -141,7 +141,7 @@ namespace Proto.Cluster.Partition
             }
             catch (Exception x)
             {
-                _logger.LogError(x, "Failed to get identities");
+                _logger.LogError("Failed to get identities");
             }
 
 
@@ -284,12 +284,7 @@ namespace Proto.Cluster.Partition
                         context.Send(sender,response);
                         return Actor.Done;
                     }
-                    // TODO It's null sometines...
-                    if(response == null)
-                    {
-                        _logger.LogError("Response is null for {identity}", msg.Identity);
-                        return Actor.Done;
-                    }
+
 
                     _partitionLookup[msg.Identity] = (response.Pid, msg.Kind);
                     if (sender == null)

@@ -18,8 +18,9 @@ class Program
     {
         var system = new ActorSystem();
         var context = new RootContext(system);
-        var Remote = system.AddRemote("127.0.0.1", 12001, remote =>{
-            remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
+        var Remote = system.AddRemote("127.0.0.1", 12001, remoteConfiguration =>
+        {
+            remoteConfiguration.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         });
         Remote.Start();
 
@@ -30,7 +31,6 @@ class Program
         var pid = context.Spawn(props);
         var remote = new PID("127.0.0.1:12000", "remote");
         context.RequestAsync<Start>(remote, new StartRemote { Sender = pid }).Wait();
-        
         var start = DateTime.Now;
         Console.WriteLine("Starting to send");
         var msg = new Ping();
