@@ -85,9 +85,9 @@ namespace Proto.Remote
 
                     _suspended = sys switch
                     {
-                        SuspendMailbox _ => true,
+                        SuspendMailbox _         => true,
                         EndpointConnectedEvent _ => false,
-                        _ => _suspended
+                        _                        => _suspended
                     };
 
                     m = sys;
@@ -169,7 +169,7 @@ namespace Proto.Remote
             catch (Exception x)
             {
                 //This is already logged in the supervisor
-                // Logger.LogWarning(x, "[EndpointWriterMailbox] Exception in RunAsync because of {Reason}", x.GetType().Name);
+                //Logger.LogWarning("[EndpointWriterMailbox] Exception in RunAsync because of {Reason}", x.GetType().Name);
                 _suspended = true;
                 _invoker!.EscalateFailure(x, m);
             }

@@ -66,5 +66,6 @@ namespace Proto
             var counter = Interlocked.Increment(ref _sequenceId);
             return "$" + counter;
         }
+        
     }
 }

@@ -97,11 +97,11 @@ namespace Proto.Remote
 
     public sealed partial class ActorPidResponse
     {
-        public static ActorPidResponse TimeOut = new ActorPidResponse { StatusCode = (int)ResponseStatusCode.Timeout };
+        public static ActorPidResponse TimeOut = new ActorPidResponse {StatusCode = (int) ResponseStatusCode.Timeout};
 
         public static ActorPidResponse Unavailable = new ActorPidResponse
-        { StatusCode = (int)ResponseStatusCode.Unavailable };
+            {StatusCode = (int) ResponseStatusCode.Unavailable};
 
-        public static ActorPidResponse Err = new ActorPidResponse { StatusCode = (int)ResponseStatusCode.Error };
+        public static ActorPidResponse Err = new ActorPidResponse {StatusCode = (int) ResponseStatusCode.Error};
     }
 }

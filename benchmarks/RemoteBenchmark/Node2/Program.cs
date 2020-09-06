@@ -7,7 +7,6 @@
 using System;
 using System.Threading.Tasks;
 using Messages;
-using Microsoft.Extensions.Logging;
 using Proto;
 using Proto.Remote;
 using ProtosReflection = Messages.ProtosReflection;
@@ -25,14 +24,10 @@ namespace Node2
                 case StartRemote sr:
                     Console.WriteLine("Starting");
                     _sender = sr.Sender;
-                    context.Watch(_sender);
                     context.Respond(new Start());
                     return Actor.Done;
                 case Ping _:
                     context.Send(_sender, new Pong());
-                    return Actor.Done;
-                case Terminated terminated:
-                    Console.WriteLine($"{terminated.Who} terminated");
                     return Actor.Done;
                 default:
                     return Actor.Done;
@@ -42,18 +37,18 @@ namespace Node2
 
     class Program
     {
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
-            Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
             var system = new ActorSystem();
+            var context = new RootContext(system);
             var remote = system.AddRemote("127.0.0.1", 12000, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             });
             remote.Start();
-            system.Root.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
+            context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
-            await remote.ShutdownAsync();
+            remote.ShutdownAsync().Wait();
         }
     }
 }

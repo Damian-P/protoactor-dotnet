@@ -61,14 +61,14 @@ namespace Proto.Remote
             };
         private async Task ConnectAsync(IContext context)
         {
-            Logger.LogDebug("[EndpointActor {context.System.Address}] Connecting to address {Address}", context.System.Address, _address);
+            Logger.LogDebug("[EndpointActor] Connecting to address {Address}", _address);
             try
             {
                 _channel = _channelProvider.GetChannel(_address);
             }
             catch (Exception e)
             {
-                Logger.LogError(e, "[EndpointActor]Error connecting to {_address}.", _address);
+                Logger.LogError(e, "[EndpointActor] Error connecting to {_address}.", _address);
                 throw e;
             }
 

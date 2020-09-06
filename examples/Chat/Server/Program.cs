@@ -12,7 +12,6 @@ namespace Server
         {
             var system = new ActorSystem();
             var context = new RootContext(system);
-
             var remote = new SelfHostedRemote(system, "127.0.0.1", 8000, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(ChatReflection.Descriptor);
@@ -29,7 +28,7 @@ namespace Server
                         case Connect connect:
                             Console.WriteLine($"Client {connect.Sender} connected");
                             clients.Add(connect.Sender);
-                            ctx.Send(connect.Sender, new Connected { Message = "Welcome!" });
+                            ctx.Send(connect.Sender, new Connected {Message = "Welcome!"});
                             break;
                         case SayRequest sayRequest:
                             foreach (var client in clients)

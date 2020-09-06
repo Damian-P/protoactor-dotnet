@@ -1,46 +1,34 @@
 ﻿using System;
-using System.Net;
-using System.Net.Sockets;
 
 namespace Proto.Remote.Tests
 {
     public class RemoteManager
     {
-        public static (ActorSystem, IRemote) GetLocalSystem()
+        public static string RemoteAddress = "127.0.0.1:12000";
+
+        static RemoteManager()
+        {
+            var service = new ProtoService(12000, "127.0.0.1");
+            service.StartAsync().GetAwaiter().GetResult();
+        }
+
+        public static (IRemote, ActorSystem) EnsureRemote()
         {
             var system = new ActorSystem();
-            var remote = new SelfHostedRemote(system, "127.0.0.1", 0, remote =>
+            var remote = new SelfHostedRemote(system, "127.0.0.1", 0, remoteConfiguration =>
             {
-                remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
-                remote.RemoteConfig.EndpointWriterOptions = new EndpointWriterOptions
+                remoteConfiguration.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
+                remoteConfiguration.RemoteConfig.EndpointWriterOptions = new EndpointWriterOptions
                 {
                     MaxRetries = 2,
                     RetryBackOffms = 10,
                     RetryTimeSpan = TimeSpan.FromSeconds(120)
                 };
             });
+
             remote.Start();
-            return (system, remote);
-        }
-        public static (ActorSystem, IRemote) GetDistantSystem()
-        {
-            var props = Props.FromProducer(() => new EchoActor());
-            var actorSystem = new ActorSystem();
-            var serialization = new Serialization();
-            var remote = new SelfHostedRemote(actorSystem, "127.0.0.1", 0, remote =>
-            {
-                remote.Serialization.RegisterFileDescriptor(Messages.ProtosReflection.Descriptor);
-                remote.RemoteConfig.EndpointWriterOptions = new EndpointWriterOptions
-                {
-                    MaxRetries = 2,
-                    RetryBackOffms = 10,
-                    RetryTimeSpan = TimeSpan.FromSeconds(120)
-                };
-                remote.RemoteKindRegistry.RegisterKnownKind("EchoActor", props);
-            });
-            remote.Start();
-            actorSystem.Root.SpawnNamed(props, "EchoActorInstance");
-            return (actorSystem, remote);
+
+            return (remote, system);
         }
     }
 }

@@ -1,7 +1,3 @@
-using System;
-using System.Collections;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using JetBrains.Annotations;
 
 namespace Proto
@@ -28,10 +24,15 @@ namespace Proto
         public string Address { get; private set; } = NoHost;
 
         public ProcessRegistry ProcessRegistry { get; }
+
         public RootContext Root { get; }
+
         public Guardians Guardians { get; }
+
         public DeadLetterProcess DeadLetter { get; }
+
         public EventStream EventStream { get; }
+
         public void SetAddress(string host, int port)
         {
             _host = host;
@@ -40,5 +41,6 @@ namespace Proto
         }
 
         public (string Host, int Port) GetAddress() => (_host, _port);
+
     }
 }

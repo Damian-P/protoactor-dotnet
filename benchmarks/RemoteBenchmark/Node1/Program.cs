@@ -8,38 +8,37 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Messages;
-using Microsoft.Extensions.Logging;
 using Proto;
 using Proto.Remote;
 using ProtosReflection = Messages.ProtosReflection;
 
 class Program
 {
-    static async Task Main(string[] args)
+    static void Main(string[] args)
     {
-        Log.SetLoggerFactory(LoggerFactory.Create(b => b.AddConsole().SetMinimumLevel(LogLevel.Information)));
         var system = new ActorSystem();
-        var remote = system.AddRemote("127.0.0.1", 12001, remote =>{
+        var context = new RootContext(system);
+        var Remote = system.AddRemote("127.0.0.1", 12001, remote =>{
             remote.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         });
-        remote.Start();
+        Remote.Start();
 
-        var messageCount = 1_000_000;
+        var messageCount = 1000000;
         var wg = new AutoResetEvent(false);
         var props = Props.FromProducer(() => new LocalActor(0, messageCount, wg));
 
-        var pid = system.Root.Spawn(props);
-        var remoteActor = new PID("127.0.0.1:12000", "remote");
-        await system.Root.RequestAsync<Start>(remoteActor, new StartRemote { Sender = pid });
+        var pid = context.Spawn(props);
+        var remote = new PID("127.0.0.1:12000", "remote");
+        context.RequestAsync<Start>(remote, new StartRemote { Sender = pid }).Wait();
         
         var start = DateTime.Now;
         Console.WriteLine("Starting to send");
         var msg = new Ping();
         for (var i = 0; i < messageCount; i++)
         {
-            system.Root.Send(remoteActor, msg);
+            context.Send(remote, msg);
         }
-        wg.WaitOne(10_000);
+        wg.WaitOne();
         var elapsed = DateTime.Now - start;
         Console.WriteLine("Elapsed {0}", elapsed);
 
@@ -47,7 +46,7 @@ class Program
         Console.WriteLine("Throughput {0} msg / sec", t);
 
         Console.ReadLine();
-        await remote.ShutdownAsync();
+        Remote.ShutdownAsync().Wait();
     }
 
     public class LocalActor : IActor
