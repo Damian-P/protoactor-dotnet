@@ -16,7 +16,7 @@ using Proto.Remote;
 namespace Proto.Cluster
 {
     [PublicAPI]
-    public class Cluster : IProtoPlugin
+    public class Cluster
     {
         private static ILogger _logger = null!;
 

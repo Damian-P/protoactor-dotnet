@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Proto.Remote
 {
-    public interface IRemote : IProtoPlugin
+    public interface IRemote
     {
         bool Started { get; }
         Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout);
