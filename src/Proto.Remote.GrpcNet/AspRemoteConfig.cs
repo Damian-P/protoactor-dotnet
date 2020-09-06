@@ -13,7 +13,7 @@ namespace Proto.Remote
     public class AspRemoteConfig : RemoteConfig
     {
         public bool UseHttps { get; set; }
-        public GrpcChannelOptions ChannelOptions { get; } = new GrpcChannelOptions();
+        public GrpcChannelOptions ChannelOptions { get;  set; } = new GrpcChannelOptions();
         public Action<ListenOptions>? ConfigureKestrel { get; set; }
     }
 }

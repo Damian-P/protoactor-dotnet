@@ -59,7 +59,7 @@ namespace Proto.Remote
                 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
             else if (_remoteConfig.ConfigureKestrel == null || _remoteConfig.ChannelOptions == null)
             {
-                throw new Exception("Http not configured");
+                throw new Exception("Https not configured");
             }
         }
 
