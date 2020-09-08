@@ -96,7 +96,7 @@ namespace Proto.Remote
         public void RemoteDeliver(RemoteDeliver msg)
         {
             if (string.IsNullOrWhiteSpace(msg.Target.Address))
-                    throw new ArgumentOutOfRangeException("Target");
+                throw new ArgumentOutOfRangeException("Target");
             lock (_synLock)
             {
                 var endpoint = GetEndpoint(msg.Target.Address);
@@ -136,12 +136,12 @@ namespace Proto.Remote
                 _system.EventStream.Unsubscribe(_endpointTermEvnSub);
                 _system.EventStream.Unsubscribe(_endpointConnectedEvnSub);
                 _system.EventStream.Unsubscribe(_endpointTErrorEvnSub);
-                _cancellationTokenSource.Cancel();
                 foreach (var endpoint in _connections.Values)
                 {
-                    _system.Root.Stop(endpoint);
+                    _system.Root.StopAsync(endpoint).GetAwaiter().GetResult();
                 }
                 _connections.Clear();
+                _cancellationTokenSource.Cancel();
                 _logger.LogDebug("[EndpointManager] Stopped");
             }
         }

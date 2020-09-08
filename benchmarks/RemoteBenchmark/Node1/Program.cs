@@ -8,6 +8,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Messages;
+using Microsoft.Extensions.Logging;
 using Proto;
 using Proto.Remote;
 using ProtosReflection = Messages.ProtosReflection;
@@ -16,9 +17,10 @@ class Program
 {
     static void Main(string[] args)
     {
+        Log.SetLoggerFactory(LoggerFactory.Create(c=> c.SetMinimumLevel(LogLevel.Information).AddConsole()));
         var system = new ActorSystem();
         var context = new RootContext(system);
-        var Remote = system.AddRemote("127.0.0.1", 12001, remoteConfiguration =>
+        var Remote = system.AddRemote("127.0.0.1", 12002, remoteConfiguration =>
         {
             remoteConfiguration.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
         });

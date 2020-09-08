@@ -7,6 +7,7 @@
 using System;
 using System.Threading.Tasks;
 using Messages;
+using Microsoft.Extensions.Logging;
 using Proto;
 using Proto.Remote;
 using ProtosReflection = Messages.ProtosReflection;
@@ -39,6 +40,7 @@ namespace Node2
     {
         static void Main(string[] args)
         {
+            Log.SetLoggerFactory(LoggerFactory.Create(c=> c.SetMinimumLevel(LogLevel.Information).AddConsole()));
             var system = new ActorSystem();
             var context = new RootContext(system);
             var remote = system.AddRemote("127.0.0.1", 12000, remoteConfiguration =>

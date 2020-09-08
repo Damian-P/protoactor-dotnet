@@ -42,22 +42,22 @@ namespace Proto.Remote
         private Task ConnectingAsync(IContext context) =>
             context.Message switch
             {
-                Started _       => ConnectAsync(context),
-                Stopped _       => ShutDownChannel(),
-                Restarting _    => ShutDownChannel(),
-                _               => Ignore
+                Started _ => ConnectAsync(context),
+                Stopped _ => ShutDownChannel(),
+                Restarting _ => ShutDownChannel(),
+                _ => Ignore
             };
         private Task ConnectedAsync(IContext context) =>
             context.Message switch
             {
-                RemoteTerminate msg             => RemoteTerminate(context, msg),
-                EndpointErrorEvent msg          => EndpointError(msg),
-                RemoteUnwatch msg               => RemoteUnwatch(msg),
-                RemoteWatch msg                 => RemoteWatch(msg),
-                Restarting _                    => EndpointTerminated(context).ContinueWith(t => ShutDownChannel()),
-                Stopped _                       => EndpointTerminated(context).ContinueWith(t => ShutDownChannel()),
-                IEnumerable<RemoteDeliver> m    => RemoteDeliver(m, context),
-                _                               => Ignore
+                RemoteTerminate msg => RemoteTerminate(context, msg),
+                EndpointErrorEvent msg => EndpointError(msg),
+                RemoteUnwatch msg => RemoteUnwatch(msg),
+                RemoteWatch msg => RemoteWatch(msg),
+                Restarting _ => EndpointTerminated(context),
+                Stopped _ => EndpointTerminated(context),
+                IEnumerable<RemoteDeliver> m => RemoteDeliver(m, context),
+                _ => Ignore
             };
         private async Task ConnectAsync(IContext context)
         {
@@ -89,7 +89,7 @@ namespace Proto.Remote
                     {
                         while (await _stream.ResponseStream.MoveNext<Unit>().ConfigureAwait(false))
                         {
-                            Logger.LogDebug("[EndpointActor] Lost connection to address {Address}", _address);
+                            Logger.LogInformation("[EndpointActor] Lost connection to address {Address}", _address);
                             var terminated = new EndpointTerminatedEvent
                             {
                                 Address = _address
@@ -100,6 +100,7 @@ namespace Proto.Remote
                     }
                     catch (Exception x)
                     {
+                         Logger.LogError(x, "[EndpointActor] Lost connection to address {Address}", _address);
                         var endpointError = new EndpointErrorEvent
                         {
                             Address = _address,
@@ -118,10 +119,10 @@ namespace Proto.Remote
             };
             context.System.EventStream.Publish(connected);
 
-            Logger.LogDebug("[EndpointActor] Connected to address {Address}",  _address);
+            Logger.LogDebug("[EndpointActor] Connected to address {Address}", _address);
             _behavior.Become(ConnectedAsync);
         }
-        private async Task ShutDownChannel()
+         private async Task ShutDownChannel()
         {
             if (_stream != null)
                 await _stream.RequestStream.CompleteAsync();
@@ -132,6 +133,7 @@ namespace Proto.Remote
         }
         private Task EndpointError(EndpointErrorEvent evt)
         {
+            Logger.LogInformation("Endpoint error to {Address}", _address);
             throw evt.Exception;
         }
         private Task EndpointTerminated(IContext context)
@@ -161,7 +163,7 @@ namespace Proto.Remote
                 }
             }
             _watchedActors.Clear();
-            return Actor.Done;
+            return ShutDownChannel();
         }
         private Task RemoteTerminate(IContext context, RemoteTerminate msg)
         {
@@ -232,7 +234,7 @@ namespace Proto.Remote
                     targetNameList.Add(targetName);
                 }
 
-                var typeName = _serialization.GetTypeName(rd.Message, _serializerId);
+                var typeName = _serialization.GetTypeName(rd.Message, serializerId);
 
                 if (!typeNames.TryGetValue(typeName, out var typeId))
                 {
