@@ -44,22 +44,15 @@ namespace ClusterExperiment1
             );
             var logger = Log.CreateLogger(nameof(Program));
 
-            Console.WriteLine("Press enter to start");
-            Console.WriteLine();
-            Console.WriteLine("Red = spawned grains");
-            Console.WriteLine("Yellow = cluster topology events");
-            Console.WriteLine("Each '.' is a request/response call to one of the grains");
-            Console.WriteLine("Enter spawns a new node in the cluster");
-            Console.ReadLine();
-
             var system = new ActorSystem();
             var consulProvider = new ConsulProvider(new ConsulProviderOptions());
             var remote = system.AddRemote("127.0.0.1", 8090, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
             });
-            var c1 = new Cluster(system, remote);
-            await c1.StartAsync(new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
+            var cluster = new Cluster(system, remote);
+            await cluster.StartAsync(new ClusterConfig("mycluster", consulProvider).WithPidCache(false));
+
 
             _ = Task.Run(async () =>
                 {
@@ -69,7 +62,7 @@ namespace ClusterExperiment1
                         try
                         {
                             var id = "myactor" + rnd.Next(0, 1000);
-                            var res = await c1.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
+                            var res = await cluster.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
                                 new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token
                             );
 
@@ -92,7 +85,7 @@ namespace ClusterExperiment1
 
 
             Console.ReadLine();
-            await c1.ShutdownAsync();
+            await cluster.ShutdownAsync();
         }
 
         public static async Task Main(string[] args)
