@@ -16,17 +16,20 @@ namespace Proto.Remote
 {
     public class HostedRemote : IRemote
     {
-        private readonly ILogger _logger;
+        private readonly ILogger _logger = Log.CreateLogger<HostedRemote>();
         private readonly Remote _remote;
         private readonly ActorSystem _system;
         private readonly RemoteConfig _remoteConfig;
         public IServerAddressesFeature? ServerAddressesFeature { get; set; }
         public Serialization Serialization { get; }
         public RemoteKindRegistry RemoteKindRegistry { get; }
+        private readonly string _hostname;
+        private readonly int _port;
 
-        public HostedRemote(ILogger<Remote> logger, Remote remote, Serialization serialization, RemoteKindRegistry remoteKindRegistry, ActorSystem system, RemoteConfig remoteConfig)
+        public HostedRemote(string hostname, int port, Remote remote, Serialization serialization, RemoteKindRegistry remoteKindRegistry, ActorSystem system, RemoteConfig remoteConfig)
         {
-            _logger = logger;
+            _hostname = hostname;
+            _port = port;
             _remote = remote;
             _system = system;
             _remoteConfig = remoteConfig;
@@ -38,14 +41,14 @@ namespace Proto.Remote
         {
             if (Started) return;
             Started = true;
-            var uri = ServerAddressesFeature!.Addresses.Select(address => new Uri(address)).First();
-            var address = "127.0.0.1";
-            var boundPort = uri.Port;
-            _system.SetAddress(_remoteConfig.AdvertisedHostname ?? address,
-                    _remoteConfig.AdvertisedPort ?? boundPort
+            var uri = ServerAddressesFeature!.Addresses.Where(a => a.Contains(_hostname)).Select(address => new Uri(address)).FirstOrDefault();
+            var boundPort = uri?.Port ?? _port;
+            
+            _system.SetAddress(_remoteConfig.AdvertisedHostname ?? _hostname,
+                    _remoteConfig.AdvertisedPort ?? boundPort 
                 );
             _remote.Start();
-            _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", address, boundPort,
+            _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", _hostname, boundPort,
                 _system.Address
             );
 

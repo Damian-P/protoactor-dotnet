@@ -121,10 +121,7 @@ namespace Proto.Remote
             {
                 using (_host)
                 {
-                    if (graceful)
-                    {
-                        await _remote.ShutdownAsync(graceful);
-                    }
+                    await _remote.ShutdownAsync(graceful);
                     _logger.LogDebug(
                         "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
                         _system.Address, graceful
@@ -137,7 +134,7 @@ namespace Proto.Remote
                     ex, "Proto.Actor server stopped on {Address} with error: {Message}",
                     _system.Address, ex.Message
                 );
-                throw;
+                throw ex;
             }
         }
 

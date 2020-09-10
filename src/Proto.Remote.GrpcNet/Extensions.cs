@@ -24,7 +24,7 @@ namespace Proto.Remote
             return remote;
         }
         public static IServiceCollection AddRemote(this IServiceCollection services,
-            Action<RemoteConfiguration, IServiceProvider> configure)
+            string hostname, int port, Action<RemoteConfiguration, IServiceProvider> configure)
         {
             services.AddSingleton<RemoteConfiguration>(sp =>
             {
@@ -38,12 +38,12 @@ namespace Proto.Remote
                 return remoteConfiguration;
             }
             );
-            AddAllServices(services);
+            AddAllServices(services, hostname, port);
             return services;
         }
 
         public static IServiceCollection AddRemote(this IServiceCollection services,
-            Action<RemoteConfiguration> configure)
+            string hostname, int port, Action<RemoteConfiguration> configure)
         {
             services.AddSingleton<RemoteConfiguration>(sp =>
                  {
@@ -57,21 +57,27 @@ namespace Proto.Remote
                      return remoteConfiguration;
                  }
              );
-            AddAllServices(services);
+            AddAllServices(services, hostname, port);
             return services;
         }
 
-        private static void AddAllServices(IServiceCollection services)
+        private static void AddAllServices(IServiceCollection services, string hostname, int port)
         {
             services.TryAddSingleton<ActorSystem>();
             services.AddHostedService<RemoteHostedService>();
             services.AddSingleton<Remote, Remote>();
-            services.AddSingleton<HostedRemote, HostedRemote>();
-            services.AddSingleton<IRemote, HostedRemote>(sp =>
+            services.AddSingleton<HostedRemote, HostedRemote>(sp =>
             {
                 sp.GetRequiredService<RemoteConfiguration>();
-                return sp.GetRequiredService<HostedRemote>();
+                var remote = sp.GetRequiredService<Remote>();
+                var serialization = sp.GetRequiredService<Serialization>();
+                var remoteKindRegistry = sp.GetRequiredService<RemoteKindRegistry>();
+                var system = sp.GetRequiredService<ActorSystem>();
+                var remoteConfig = sp.GetRequiredService<RemoteConfig>();
+                return new HostedRemote(hostname, port, remote,
+                    serialization, remoteKindRegistry, system, remoteConfig);
             });
+            services.AddSingleton<IRemote, HostedRemote>(sp => sp.GetRequiredService<HostedRemote>());
             services.AddSingleton<EndpointManager>();
             services.AddSingleton<Serialization>();
             services.AddSingleton<RemoteKindRegistry>();
@@ -82,7 +88,7 @@ namespace Proto.Remote
             services.AddSingleton<IChannelProvider, ChannelProvider>();
         }
 
-        public static GrpcServiceEndpointConventionBuilder AddProtoRemoteEndpoint(IEndpointRouteBuilder endpoints)
+        private static GrpcServiceEndpointConventionBuilder AddProtoRemoteEndpoint(IEndpointRouteBuilder endpoints)
         {
             endpoints.MapGrpcService<HealthServiceImpl>();
             return endpoints.MapGrpcService<Remoting.RemotingBase>();
