@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -102,6 +103,11 @@ namespace Proto.Remote
                 throw new ArgumentOutOfRangeException("Target");
             lock (_synLock)
             {
+                if (CancellationToken.IsCancellationRequested)
+                {
+                    _system.EventStream.Publish(new DeadLetterEvent(msg.Target, msg.Message, msg.Sender));
+                    return;
+                };
                 var endpoint = GetEndpoint(msg.Target.Address);
 
                 _logger.LogDebug(
@@ -118,7 +124,7 @@ namespace Proto.Remote
                 _logger.LogDebug("[EndpointManager] Requesting new endpoint for {Address}", v);
                 var props = Props
                     .FromProducer(() => new EndpointActor(v, _system, this, _channelProvider, _remoteConfig, _serialization))
-                    .WithMailbox(() => new EndpointWriterMailbox(_system, _remoteConfig.EndpointWriterOptions.EndpointWriterBatchSize))
+                    .WithMailbox(() => new EndpointWriterMailbox(_system, _remoteConfig.EndpointWriterOptions.EndpointWriterBatchSize, v))
                     .WithGuardianSupervisorStrategy(new EndpointSupervisorStrategy(v, _remoteConfig, _system));
                 var endpointActorPid = _system.Root.SpawnNamed(props, $"endpoint-{v}");
                 _logger.LogDebug("[EndpointManager] Created new endpoint for {Address}", v);
@@ -136,15 +142,24 @@ namespace Proto.Remote
             lock (_synLock)
             {
                 if (CancellationToken.IsCancellationRequested) return;
-                _cancellationTokenSource.Cancel();
+                _logger.LogDebug("[EndpointManager] Stopping");
+
                 _system.EventStream.Unsubscribe(_endpointTermEvnSub);
                 _system.EventStream.Unsubscribe(_endpointConnectedEvnSub);
                 _system.EventStream.Unsubscribe(_endpointErrorEvnSub);
+
+                _cancellationTokenSource.Cancel();
+
+                var endpointTasks = new List<Task>();
                 foreach (var endpoint in _connections.Values)
                 {
-                    _system.Root.StopAsync(endpoint).GetAwaiter().GetResult();
+                    endpointTasks.Add(_system.Root.StopAsync(endpoint));
                 }
+
+                Task.WhenAll(endpointTasks).GetAwaiter().GetResult();
+
                 _connections.Clear();
+
                 _logger.LogDebug("[EndpointManager] Stopped");
             }
         }

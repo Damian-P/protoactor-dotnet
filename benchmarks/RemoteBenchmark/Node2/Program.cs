@@ -23,7 +23,7 @@ namespace Node2
             switch (context.Message)
             {
                 case StartRemote sr:
-                    Console.WriteLine("Starting");
+                    Console.WriteLine($"Start respondig to {sr.Sender}");
                     _sender = sr.Sender;
                     context.Respond(new Start());
                     return Actor.Done;
@@ -40,17 +40,21 @@ namespace Node2
     {
         static void Main(string[] args)
         {
-            Log.SetLoggerFactory(LoggerFactory.Create(c => c.SetMinimumLevel(LogLevel.Information).AddFilter("Proto.EventStream", LogLevel.None).AddConsole()));
+            Log.SetLoggerFactory(LoggerFactory.Create(c => c
+            .SetMinimumLevel(LogLevel.Information)
+            .AddFilter("Proto.EventStream", LogLevel.None)
+            .AddConsole()
+            ));
             var system = new ActorSystem();
             var context = new RootContext(system);
-            var remote = system.AddRemote("127.0.0.1", 12000, remoteConfiguration =>
+            var remote = system.AddRemote("127.0.0.1", 8080, remoteConfiguration =>
             {
                 remoteConfiguration.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
                 remoteConfiguration.RemoteConfig.EndpointWriterOptions.MaxRetries = 1;
                 remoteConfiguration.RemoteKindRegistry.RegisterKnownKind("remote", Props.FromProducer(() => new EchoActor()));
             });
             remote.Start();
-            // context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
+            context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
             remote.ShutdownAsync().Wait();
         }

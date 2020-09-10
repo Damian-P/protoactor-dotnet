@@ -32,11 +32,13 @@ namespace Proto.Remote
 
         private int _status = MailboxStatus.Idle;
         private bool _suspended;
+        private readonly string _address;
 
-        public EndpointWriterMailbox(ActorSystem system, int batchSize)
+        public EndpointWriterMailbox(ActorSystem system, int batchSize, string address)
         {
             _system = system;
             _batchSize = batchSize;
+            _address = address;
         }
 
         public void PostUserMessage(object msg)
@@ -130,9 +132,9 @@ namespace Proto.Remote
                             }
                         }
                         if (droppedRemoteDeliverCount > 0)
-                            Logger.LogInformation("[EndpointWriterMailbox] Dropped {count} user Messages ", droppedRemoteDeliverCount);
+                            Logger.LogInformation("[EndpointWriterMailbox] Dropped {count} user Messages for {Address}", droppedRemoteDeliverCount, _address);
                         if (remoteTerminateCount > 0)
-                            Logger.LogInformation("[EndpointWriterMailbox] Sent {Count} remote terminations  ", remoteTerminateCount);
+                            Logger.LogInformation("[EndpointWriterMailbox] Sent {Count} remote terminations for {Address}", remoteTerminateCount, _address);
                     }
                 }
 

@@ -87,16 +87,13 @@ namespace Proto.Remote
                 {
                     try
                     {
-                        while (await _stream.ResponseStream.MoveNext())
+                        await _stream.ResponseStream.MoveNext();
+                        Logger.LogInformation("[EndpointActor] Lost connection to address {Address}", _address);
+                        var terminated = new EndpointTerminatedEvent
                         {
-                            Logger.LogInformation("[EndpointActor] Lost connection to address {Address}", _address);
-                            var terminated = new EndpointTerminatedEvent
-                            {
-                                Address = _address
-                            };
-                            context.System.EventStream.Publish(terminated);
-                            break;
+                            Address = _address
                         };
+                        context.System.EventStream.Publish(terminated);
                     }
                     catch (Exception x)
                     {
