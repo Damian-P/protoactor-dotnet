@@ -87,7 +87,7 @@ namespace Proto.Remote
                 {
                     try
                     {
-                        while (await _stream.ResponseStream.MoveNext<Unit>().ConfigureAwait(false))
+                        while (await _stream.ResponseStream.MoveNext())
                         {
                             Logger.LogInformation("[EndpointActor] Lost connection to address {Address}", _address);
                             var terminated = new EndpointTerminatedEvent
@@ -100,7 +100,7 @@ namespace Proto.Remote
                     }
                     catch (Exception x)
                     {
-                         Logger.LogError(x, "[EndpointActor] Lost connection to address {Address}", _address);
+                        Logger.LogError(x, "[EndpointActor] Lost connection to address {Address}", _address);
                         var endpointError = new EndpointErrorEvent
                         {
                             Address = _address,
@@ -122,7 +122,7 @@ namespace Proto.Remote
             Logger.LogDebug("[EndpointActor] Connected to address {Address}", _address);
             _behavior.Become(ConnectedAsync);
         }
-         private async Task ShutDownChannel()
+        private async Task ShutDownChannel()
         {
             if (_stream != null)
                 await _stream.RequestStream.CompleteAsync();

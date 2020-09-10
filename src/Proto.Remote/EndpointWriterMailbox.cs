@@ -76,29 +76,26 @@ namespace Proto.Remote
                     _systemMessages.HasMessages, _userMessages.HasMessages, _suspended
                 );
                 var _ = _dispatcher!.Throughput; //not used for batch mailbox
-                var batch = new List<RemoteDeliver>(_batchSize);
+                
                 var sys = _systemMessages.Pop();
 
                 if (sys != null)
                 {
-                    Logger.LogDebug("[EndpointWriterMailbox] Processing System Message {@Message}", sys);
+                    Logger.LogDebug("[EndpointWriterMailbox] Processing System Message {@Message} {@MessageType}", sys, sys.GetType().Name);
 
                     _suspended = sys switch
                     {
-                        SuspendMailbox _         => true,
+                        SuspendMailbox _ => true,
                         EndpointConnectedEvent _ => false,
-                        _                        => _suspended
+                        _ => _suspended
                     };
 
                     m = sys;
 
                     switch (m)
                     {
-                        case EndpointConnectedEvent _:
-                            await _invoker!.InvokeUserMessageAsync(sys);
-                            break;
                         case EndpointErrorEvent e:
-                            if (!_suspended)
+                            if (!_suspended)// Since it's already stopped, there is no need to throw the error
                                 await _invoker!.InvokeUserMessageAsync(sys);
                             break;
                         default:
@@ -110,12 +107,14 @@ namespace Proto.Remote
                     {
                         //Dump messages from user messages queue to deadletter and inform watchers about termination
                         object? usrMsg;
-
+                        int droppedRemoteDeliverCount = 0;
+                        int remoteTerminateCount = 0;
                         while ((usrMsg = _userMessages.Pop()) != null)
                         {
                             switch (usrMsg)
                             {
                                 case RemoteWatch msg:
+                                    remoteTerminateCount++;
                                     msg.Watcher.SendSystemMessage(_system, new Terminated
                                     {
                                         AddressTerminated = true,
@@ -123,18 +122,23 @@ namespace Proto.Remote
                                     });
                                     break;
                                 case RemoteDeliver rd:
+                                    droppedRemoteDeliverCount++;
                                     _system.EventStream.Publish(new DeadLetterEvent(rd.Target, rd.Message, rd.Sender));
                                     break;
                                 default:
                                     break;
                             }
                         }
+                        if (droppedRemoteDeliverCount > 0)
+                            Logger.LogInformation("[EndpointWriterMailbox] Dropped {count} user Messages ", droppedRemoteDeliverCount);
+                        if (remoteTerminateCount > 0)
+                            Logger.LogInformation("[EndpointWriterMailbox] Sent {Count} remote terminations  ", remoteTerminateCount);
                     }
                 }
 
                 if (!_suspended)
                 {
-                    batch.Clear();
+                    var batch = new List<RemoteDeliver>(_batchSize);
                     object? msg;
 
                     while ((msg = _userMessages.Pop()) != null)

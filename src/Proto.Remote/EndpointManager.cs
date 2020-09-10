@@ -7,7 +7,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Proto.Mailbox;
 
 namespace Proto.Remote
 {
@@ -20,11 +22,11 @@ namespace Proto.Remote
         private readonly IChannelProvider _channelProvider;
         private readonly Subscription<object> _endpointTermEvnSub;
         private readonly Subscription<object> _endpointConnectedEvnSub;
-        private readonly Subscription<object> _endpointTErrorEvnSub;
+        private readonly Subscription<object> _endpointErrorEvnSub;
         private readonly RemoteConfig _remoteConfig;
         private readonly Serialization _serialization;
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
-        private object _synLock = new object();
+        private readonly object _synLock = new object();
 
         public EndpointManager(ActorSystem system, RemoteConfig remoteConfig, Serialization serialization, IChannelProvider channelProvider)
         {
@@ -32,8 +34,8 @@ namespace Proto.Remote
             _remoteConfig = remoteConfig;
             _serialization = serialization;
             _channelProvider = channelProvider;
-            _endpointTermEvnSub = _system.EventStream.Subscribe<EndpointTerminatedEvent>(OnEndpointTerminated);
-            _endpointTErrorEvnSub = _system.EventStream.Subscribe<EndpointErrorEvent>(OnEndpointError);
+            _endpointTermEvnSub = _system.EventStream.Subscribe<EndpointTerminatedEvent>(OnEndpointTerminated, Dispatchers.DefaultDispatcher);
+            _endpointErrorEvnSub = _system.EventStream.Subscribe<EndpointErrorEvent>(OnEndpointError);
             _endpointConnectedEvnSub = _system.EventStream.Subscribe<EndpointConnectedEvent>(OnEndpointConnected);
         }
 
@@ -57,11 +59,12 @@ namespace Proto.Remote
 
         private void OnEndpointTerminated(EndpointTerminatedEvent evt)
         {
+            _logger.LogInformation("[EndpointManager] {@Event}", evt);
             lock (_synLock)
             {
                 if (_connections.TryRemove(evt.Address, out var endpoint))
                 {
-                    _system.Root.Stop(endpoint);
+                    _system.Root.StopAsync(endpoint).GetAwaiter().GetResult();
                 }
             }
         }
@@ -133,15 +136,15 @@ namespace Proto.Remote
             lock (_synLock)
             {
                 if (CancellationToken.IsCancellationRequested) return;
+                _cancellationTokenSource.Cancel();
                 _system.EventStream.Unsubscribe(_endpointTermEvnSub);
                 _system.EventStream.Unsubscribe(_endpointConnectedEvnSub);
-                _system.EventStream.Unsubscribe(_endpointTErrorEvnSub);
+                _system.EventStream.Unsubscribe(_endpointErrorEvnSub);
                 foreach (var endpoint in _connections.Values)
                 {
                     _system.Root.StopAsync(endpoint).GetAwaiter().GetResult();
                 }
                 _connections.Clear();
-                _cancellationTokenSource.Cancel();
                 _logger.LogDebug("[EndpointManager] Stopped");
             }
         }

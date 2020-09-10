@@ -55,12 +55,14 @@ namespace Proto.Remote
             IServerStreamWriter<Unit> responseStream, ServerCallContext context
         )
         {
+            var cancellationTokenSource = new CancellationTokenSource();
             using var cancellationTokenRegistration = _endpointManager.CancellationToken.Register(() =>
             {
                 Logger.LogDebug("EndpointReader suspended");
                 try
                 {
                     responseStream.WriteAsync(new Unit());
+                    cancellationTokenSource.Cancel();
                 }
                 catch (Exception e)
                 {
@@ -69,51 +71,57 @@ namespace Proto.Remote
             });
 
             var targets = new PID[100];
-
-            while (await requestStream.MoveNext().ConfigureAwait(false))
+            try
             {
-                var batch = requestStream.Current;
-                Logger.LogDebug("[EndpointReader] Received a batch of {Count} messages from {Remote}",
-                        batch.TargetNames.Count, context.Peer
-                    );
-
-                if (_endpointManager.CancellationToken.IsCancellationRequested)
+                while (await requestStream.MoveNext(cancellationTokenSource.Token))
                 {
-                    break;
-                }
+                    var batch = requestStream.Current;
+                    Logger.LogDebug("[EndpointReader] Received a batch of {Count} messages from {Remote}",
+                            batch.TargetNames.Count, context.Peer
+                        );
 
-                //only grow pid lookup if needed
-                if (batch.TargetNames.Count > targets.Length)
-                {
-                    targets = new PID[batch.TargetNames.Count];
-                }
-
-                for (var i = 0; i < batch.TargetNames.Count; i++)
-                {
-                    targets[i] = new PID(_system.Address, batch.TargetNames[i]);
-                }
-
-                var typeNames = batch.TypeNames.ToArray();
-
-                foreach (var envelope in batch.Envelopes)
-                {
-                    var target = targets[envelope.Target];
-                    var typeName = typeNames[envelope.TypeId];
-                    var message = _serialization.Deserialize(typeName, envelope.MessageData, envelope.SerializerId);
-
-                    switch (message)
+                    if (_endpointManager.CancellationToken.IsCancellationRequested)
                     {
-                        case Terminated msg:
-                            Terminated(msg, target);
-                            break;
-                        case SystemMessage sys:
-                            SystemMessage(sys, target);
-                            break;
-                        default:
-                            ReceiveMessages(envelope, message, target);
-                            break;
+                        break;
+                    }
+
+                    //only grow pid lookup if needed
+                    if (batch.TargetNames.Count > targets.Length)
+                    {
+                        targets = new PID[batch.TargetNames.Count];
+                    }
+
+                    for (var i = 0; i < batch.TargetNames.Count; i++)
+                    {
+                        targets[i] = new PID(_system.Address, batch.TargetNames[i]);
+                    }
+
+                    var typeNames = batch.TypeNames.ToArray();
+
+                    foreach (var envelope in batch.Envelopes)
+                    {
+                        var target = targets[envelope.Target];
+                        var typeName = typeNames[envelope.TypeId];
+                        var message = _serialization.Deserialize(typeName, envelope.MessageData, envelope.SerializerId);
+
+                        switch (message)
+                        {
+                            case Terminated msg:
+                                Terminated(msg, target);
+                                break;
+                            case SystemMessage sys:
+                                SystemMessage(sys, target);
+                                break;
+                            default:
+                                ReceiveMessages(envelope, message, target);
+                                break;
+                        }
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogInformation("[EndpointReader] shutdowned");
             }
         }
 

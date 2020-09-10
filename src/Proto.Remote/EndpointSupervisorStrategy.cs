@@ -20,8 +20,8 @@ namespace Proto.Remote
         private readonly Random _random = new Random();
         private readonly ActorSystem _system;
         private readonly TimeSpan? _withinTimeSpan;
-        private string? _address;
-        private CancellationTokenSource? _cancelFutureRetries = new CancellationTokenSource();
+        private readonly string _address;
+        private readonly CancellationTokenSource _cancelFutureRetries = new CancellationTokenSource();
         public EndpointSupervisorStrategy(string address, RemoteConfig remoteConfig, ActorSystem system)
         {
             _address = address;
@@ -41,7 +41,7 @@ namespace Proto.Remote
                     "Stopping connection to address {Address} after retries expired because of {Reason}",
                     _address, reason.GetType().Name
                 );
-                _cancelFutureRetries?.Cancel();
+                _cancelFutureRetries.Cancel();
                 var terminated = new EndpointTerminatedEvent { Address = _address! };
                 _system.EventStream.Publish(terminated);
             }
@@ -60,7 +60,7 @@ namespace Proto.Remote
                         );
                         supervisor.RestartChildren(reason, child);
                     }
-                    , _cancelFutureRetries!.Token
+                    , _cancelFutureRetries.Token
                 );
             }
         }
