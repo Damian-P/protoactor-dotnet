@@ -15,8 +15,8 @@ namespace Proto.Remote
             RemoteConfig = remoteConfig;
         }
 
-        public Serialization Serialization { get; }
-        public RemoteKindRegistry RemoteKindRegistry { get; }
-        public AspRemoteConfig RemoteConfig { get; }
+        public Serialization Serialization { get; set; }
+        public RemoteKindRegistry RemoteKindRegistry { get; set; }
+        public AspRemoteConfig RemoteConfig { get; set; }
     }
 }

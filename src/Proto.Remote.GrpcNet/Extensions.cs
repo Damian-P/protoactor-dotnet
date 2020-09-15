@@ -26,18 +26,20 @@ namespace Proto.Remote
         public static IServiceCollection AddRemote(this IServiceCollection services,
             string hostname, int port, Action<RemoteConfiguration, IServiceProvider> configure)
         {
-            services.AddSingleton<RemoteConfiguration>(sp =>
+            var remoteConfig = new AspRemoteConfig();
+            var serialization = new Serialization();
+            var remoteKindRegistry = new RemoteKindRegistry();
+            services.AddSingleton(sp =>
             {
-                var remoteConfig = sp.GetRequiredService<AspRemoteConfig>();
-                var serialization = sp.GetRequiredService<Serialization>();
-                var remoteKindRegistry = sp.GetRequiredService<RemoteKindRegistry>();
                 var remoteConfiguration = new RemoteConfiguration(serialization, remoteKindRegistry, remoteConfig);
                 configure.Invoke(remoteConfiguration, sp);
                 if (!remoteConfiguration.RemoteConfig.UseHttps)
                     AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
                 return remoteConfiguration;
-            }
-            );
+            });
+            services.AddSingleton(serialization);
+            services.AddSingleton(remoteKindRegistry);
+            services.AddSingleton(remoteConfig);
             AddAllServices(services, hostname, port);
             return services;
         }
@@ -45,18 +47,20 @@ namespace Proto.Remote
         public static IServiceCollection AddRemote(this IServiceCollection services,
             string hostname, int port, Action<RemoteConfiguration> configure)
         {
-            services.AddSingleton<RemoteConfiguration>(sp =>
-                 {
-                     var remoteConfig = sp.GetRequiredService<AspRemoteConfig>();
-                     var serialization = sp.GetRequiredService<Serialization>();
-                     var remoteKindRegistry = sp.GetRequiredService<RemoteKindRegistry>();
-                     var remoteConfiguration = new RemoteConfiguration(serialization, remoteKindRegistry, remoteConfig);
-                     configure.Invoke(remoteConfiguration);
-                     if (!remoteConfiguration.RemoteConfig.UseHttps)
-                         AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-                     return remoteConfiguration;
-                 }
-             );
+            var remoteConfig = new AspRemoteConfig();
+            var serialization = new Serialization();
+            var remoteKindRegistry = new RemoteKindRegistry();
+            services.AddSingleton(sp =>
+            {
+                var remoteConfiguration = new RemoteConfiguration(serialization, remoteKindRegistry, remoteConfig);
+                configure.Invoke(remoteConfiguration);
+                if (!remoteConfiguration.RemoteConfig.UseHttps)
+                    AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+                return remoteConfiguration;
+            });
+            services.AddSingleton(serialization);
+            services.AddSingleton(remoteKindRegistry);
+            services.AddSingleton(remoteConfig);
             AddAllServices(services, hostname, port);
             return services;
         }
@@ -79,10 +83,7 @@ namespace Proto.Remote
             });
             services.AddSingleton<IRemote, HostedRemote>(sp => sp.GetRequiredService<HostedRemote>());
             services.AddSingleton<EndpointManager>();
-            services.AddSingleton<Serialization>();
-            services.AddSingleton<RemoteKindRegistry>();
             services.AddSingleton<RemoteConfig, AspRemoteConfig>(sp => sp.GetRequiredService<AspRemoteConfig>());
-            services.AddSingleton<AspRemoteConfig>();
             services.AddSingleton<EndpointReader, EndpointReader>();
             services.AddSingleton<Remoting.RemotingBase, EndpointReader>(sp => sp.GetRequiredService<EndpointReader>());
             services.AddSingleton<IChannelProvider, ChannelProvider>();
