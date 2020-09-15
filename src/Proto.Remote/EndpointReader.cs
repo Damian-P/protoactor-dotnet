@@ -55,10 +55,10 @@ namespace Proto.Remote
             IServerStreamWriter<Unit> responseStream, ServerCallContext context
         )
         {
-            Logger.LogInformation("[EndpointReader] Connection from {Address}", context.Peer);
+            Logger.LogDebug("[EndpointReader] Connection from {Address}", context.Peer);
             using var cancellationTokenRegistration = _endpointManager.CancellationToken.Register(() =>
             {
-                Logger.LogInformation("[EndpointReader] Telling to {Address} to stop", context.Peer);
+                Logger.LogDebug("[EndpointReader] Telling to {Address} to stop", context.Peer);
                 try
                 {
                     responseStream.WriteAsync(new Unit());
@@ -116,7 +116,7 @@ namespace Proto.Remote
                     }
                 }
             }
-            Logger.LogInformation("[EndpointReader] Stream closed by {Remote}", context.Peer);
+            Logger.LogDebug("[EndpointReader] Stream closed by {Remote}", context.Peer);
 
         }
 

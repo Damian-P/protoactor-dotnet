@@ -23,7 +23,7 @@ namespace Node2
             switch (context.Message)
             {
                 case StartRemote sr:
-                    Console.WriteLine($"Start respondig to {sr.Sender}");
+                    Console.WriteLine($"Starting");
                     _sender = sr.Sender;
                     context.Respond(new Start());
                     return Actor.Done;
@@ -38,7 +38,7 @@ namespace Node2
 
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             Log.SetLoggerFactory(LoggerFactory.Create(c => c
             .SetMinimumLevel(LogLevel.Information)
@@ -50,13 +50,11 @@ namespace Node2
             var remote = system.AddRemote("127.0.0.1", 8080, remoteConfiguration =>
             {
                 remoteConfiguration.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-                remoteConfiguration.RemoteConfig.EndpointWriterOptions.MaxRetries = 1;
-                remoteConfiguration.RemoteKindRegistry.RegisterKnownKind("remote", Props.FromProducer(() => new EchoActor()));
             });
             remote.Start();
             context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
-            remote.ShutdownAsync().Wait();
+            await remote.ShutdownAsync();
         }
     }
 }

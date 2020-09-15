@@ -27,7 +27,6 @@ class Program
         var Remote = system.AddRemote("127.0.0.1", 8081, remoteConfiguration =>
         {
             remoteConfiguration.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
-            remoteConfiguration.RemoteConfig.EndpointWriterOptions.MaxRetries = 1;
         });
         Remote.Start();
         var messageCount = 1000000;
