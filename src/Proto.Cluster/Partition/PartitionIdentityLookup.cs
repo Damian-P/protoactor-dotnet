@@ -9,7 +9,7 @@ namespace Proto.Cluster.Partition
     public class PartitionIdentityLookup : IIdentityLookup
     {
         private Cluster _cluster = null!;
-        private ILogger _logger;
+        private ILogger _logger = null!;
         private PartitionManager _partitionManager = null!;
 
         public async Task<PID?> GetAsync(string identity, string kind, CancellationToken ct)
@@ -56,17 +56,19 @@ namespace Proto.Cluster.Partition
             }
         }
 
-        public void Setup(Cluster cluster, string[] kinds)
+        public Task SetupAsync(Cluster cluster, string[] kinds, bool isClient)
         {
             _cluster = cluster;
-            _partitionManager = new PartitionManager(cluster);
+            _partitionManager = new PartitionManager(cluster, isClient);
             _logger = Log.CreateLogger(nameof(PartitionIdentityLookup) + "-" + _cluster.LoggerId);
             _partitionManager.Setup();
+            return Task.CompletedTask;
         }
 
-        public void Shutdown()
-        {
+        public Task ShutdownAsync()
+        { 
             _partitionManager.Shutdown();
+            return Task.CompletedTask;
         }
     }
 }

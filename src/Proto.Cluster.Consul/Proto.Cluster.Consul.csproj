@@ -7,6 +7,6 @@
     <PackageReference Include="Microsoft.Extensions.Options" Version="3.1.7" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\protoactor-dotnet\src\Proto.Cluster\Proto.Cluster.csproj" />
+    <ProjectReference Include="..\Proto.Cluster\Proto.Cluster.csproj" />
   </ItemGroup>
 </Project>

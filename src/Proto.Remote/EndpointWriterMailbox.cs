@@ -78,7 +78,7 @@ namespace Proto.Remote
                     _systemMessages.HasMessages, _userMessages.HasMessages, _suspended
                 );
                 var _ = _dispatcher!.Throughput; //not used for batch mailbox
-                
+
                 var sys = _systemMessages.Pop();
 
                 if (sys != null)
@@ -107,6 +107,7 @@ namespace Proto.Remote
 
                     if (sys is Stop)
                     {
+                        Logger.LogWarning("Endpoint writer is stopping...");
                         //Dump messages from user messages queue to deadletter and inform watchers about termination
                         object? usrMsg;
                         int droppedRemoteDeliverCount = 0;
@@ -174,6 +175,7 @@ namespace Proto.Remote
             }
             catch (Exception x)
             {
+                Logger.LogError(x,"Endpoint writer failed");
                 //This is already logged in the supervisor
                 //Logger.LogWarning("[EndpointWriterMailbox] Exception in RunAsync because of {Reason}", x.GetType().Name);
                 _suspended = true;
