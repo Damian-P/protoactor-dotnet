@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Proto.Remote;
 
 namespace Proto.Cluster.MongoIdentityLookup
 {
@@ -23,7 +24,7 @@ namespace Proto.Cluster.MongoIdentityLookup
         private readonly Dictionary<string, (PID pid, string kind)> _myActors =
             new Dictionary<string, (PID pid, string kind)>();
 
-        private readonly Remote.Remote _remote;
+        private readonly IRemote _remote;
 
         public MongoPlacementActor(Cluster cluster)
         {
@@ -69,7 +70,7 @@ namespace Proto.Cluster.MongoIdentityLookup
 
         private Task ActivationRequest(IContext context, ActivationRequest msg)
         {
-            var props = _remote.GetKnownKind(msg.Kind);
+            var props = _remote.RemoteKindRegistry.GetKnownKind(msg.Kind);
             var identity = msg.Identity;
             var kind = msg.Kind;
             try

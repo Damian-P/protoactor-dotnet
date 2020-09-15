@@ -11,7 +11,7 @@
         <ProjectReference Include="..\..\src\Proto.Cluster.Consul\Proto.Cluster.Consul.csproj" />
         <ProjectReference Include="..\..\src\Proto.Cluster.Kubernetes\Proto.Cluster.Kubernetes.csproj" />
         <ProjectReference Include="..\..\src\Proto.Cluster.MongoIdentityLookup\Proto.Cluster.MongoIdentityLookup.csproj" />
-        <ProjectReference Include="..\..\Proto.Remote.Grpc\Proto.Remote.Grpc.csproj"/>
+        <ProjectReference Include="..\..\src\Proto.Remote.GrpcNet\Proto.Remote.GrpcNet.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
