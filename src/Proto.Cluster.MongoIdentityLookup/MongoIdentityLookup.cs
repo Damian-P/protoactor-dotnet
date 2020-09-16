@@ -27,6 +27,8 @@ namespace Proto.Cluster.MongoIdentityLookup
             _clusterName = clusterName;
             _db = db;
             _pids = db.GetCollection<PidLookupEntity>("pids");
+            //just try to ping DB
+            _ = _pids.AsQueryable().FirstOrDefault(x => true);
         }
 
         public async Task<PID> GetAsync(string identity, string kind, CancellationToken ct)
@@ -38,11 +40,21 @@ namespace Proto.Cluster.MongoIdentityLookup
                 var pid = new PID(pidLookup.Address, pidLookup.UniqueIdentity);
                 var memberExists = _memberList.ContainsMemberId(pidLookup.MemberId);
                 if (memberExists) return pid;
+                
+                _logger.LogInformation("Found placement lookup for {Identity} {Kind}, but Member {MemberId} is not part of cluster",identity,kind,pidLookup.MemberId);
                 //if not, spawn a new actor and replace entry
             }
 
             var activator = _memberList.GetActivator(kind);
-            var remotePid = RemotePlacementActor(activator);
+            if (activator == null)
+            {
+                return null;
+            }
+            
+            
+            _logger.LogInformation("Storing placement lookup for {Identity} {Kind}",identity,kind);
+            
+            var remotePid = RemotePlacementActor(activator.Address);
             var req = new ActivationRequest
             {
                 Kind = kind,
@@ -59,13 +71,13 @@ namespace Proto.Cluster.MongoIdentityLookup
 
                 var entry = new PidLookupEntity
                 {
-                    Address = activator,
+                    Address = activator.Address,
                     Id = ObjectId.Empty,
                     Identity = identity,
                     UniqueIdentity = resp.Pid.Id,
                     Key = key,
                     Kind = kind,
-                    MemberId = _cluster.Id.ToString()
+                    MemberId = activator.Id
                 };
 
                 await _pids.ReplaceOneAsync(
@@ -110,7 +122,7 @@ namespace Proto.Cluster.MongoIdentityLookup
             );
 
             if (isClient) return Task.CompletedTask;
-            var props = Props.FromProducer(() => new MongoPlacementActor(_cluster));
+            var props = Props.FromProducer(() => new MongoPlacementActor(_cluster,this));
             _placementActor = _system.Root.SpawnNamed(props, MongoPlacementActorName);
 
             return Task.CompletedTask;
@@ -131,6 +143,11 @@ namespace Proto.Cluster.MongoIdentityLookup
         private PID RemotePlacementActor(string address)
         {
             return new PID(address, MongoPlacementActorName);
+        }
+
+        public Task RemoveUniqueIdentityAsync(string uniqueIdentity)
+        {
+            return _pids.DeleteManyAsync(p => p.UniqueIdentity == uniqueIdentity);
         }
     }
 }

@@ -25,11 +25,13 @@ namespace Proto.Cluster.MongoIdentityLookup
             new Dictionary<string, (PID pid, string kind)>();
 
         private readonly IRemote _remote;
+        private MongoIdentityLookup _mongoIdentityLookup;
 
-        public MongoPlacementActor(Cluster cluster)
+        public MongoPlacementActor(Cluster cluster, IRemote remote, MongoIdentityLookup mongoIdentityLookup)
         {
             _cluster = cluster;
-            _remote = _cluster.Remote;
+            _remote = remote;
+            _mongoIdentityLookup = mongoIdentityLookup;
             _logger = Log.CreateLogger($"{nameof(MongoPlacementActor)}-{cluster.LoggerId}");
         }
 
@@ -59,13 +61,12 @@ namespace Proto.Cluster.MongoIdentityLookup
             return Actor.Done;
         }
 
-        private Task Terminated(IContext context, Terminated msg)
+        private async Task Terminated(IContext context, Terminated msg)
         {
             //TODO: if this turns out to be perf intensive, lets look at optimizations for reverse lookups
             var (identity, _) = _myActors.FirstOrDefault(kvp => kvp.Value.pid.Equals(msg.Who));
-
             _myActors.Remove(identity);
-            return Actor.Done;
+            await _mongoIdentityLookup.RemoveUniqueIdentityAsync(msg.Who.Id);
         }
 
         private Task ActivationRequest(IContext context, ActivationRequest msg)

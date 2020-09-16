@@ -28,7 +28,7 @@ namespace Proto.Cluster
         private readonly ConcurrentSet<string> _bannedMembers = new ConcurrentSet<string>();
         private readonly Cluster _cluster;
         private readonly EventStream _eventStream;
-        private readonly ILogger _logger = null!;
+        private readonly ILogger _logger;
 
         //TODO: the members here are only from the cluster provider
         //The partition lookup broadcasts and use broadcasted information
@@ -59,7 +59,7 @@ namespace Proto.Cluster
 
         public bool IsLeader => _cluster.Id.Equals(_leader?.MemberId);
 
-        public string GetActivator(string kind)
+        public string GetActivatorAddress(string kind)
         {
             //TODO: clean this lock logic up
             var locked = _rwLock.TryEnterReadLock(1000);
@@ -72,9 +72,44 @@ namespace Proto.Cluster
 
             try
             {
-                return _memberStrategyByKind.TryGetValue(kind, out var memberStrategy)
-                    ? memberStrategy.GetActivator()
-                    : "";
+                if (_memberStrategyByKind.TryGetValue(kind, out var memberStrategy))
+                {
+                    return memberStrategy.GetActivatorAddress();
+                }
+                else
+                {
+                    _logger.LogDebug("MemberList did not find any activator for kind '{Kind}'",kind);
+                    return "";
+                }
+            }
+            finally
+            {
+                _rwLock.ExitReadLock();
+            }
+        }
+        
+        public Member? GetActivator(string kind)
+        {
+            //TODO: clean this lock logic up
+            var locked = _rwLock.TryEnterReadLock(1000);
+
+            while (!locked)
+            {
+                _logger.LogDebug("MemberList did not acquire reader lock within 1 seconds, retry");
+                locked = _rwLock.TryEnterReadLock(1000);
+            }
+
+            try
+            {
+                if (_memberStrategyByKind.TryGetValue(kind, out var memberStrategy))
+                {
+                    return memberStrategy.GetActivator();
+                }
+                else
+                {
+                    _logger.LogDebug("MemberList did not find any activator for kind '{Kind}'",kind);
+                    return null;
+                }
             }
             finally
             {
@@ -135,6 +170,7 @@ namespace Proto.Cluster
 
             try
             {
+                _logger.LogDebug("Updating Cluster Topology");
                 var topology = new ClusterTopology {EventId = eventId};
 
                 //TLDR:
@@ -194,6 +230,8 @@ namespace Proto.Cluster
                 }
 
                 topology.Members.AddRange(_members.Values);
+                
+                _logger.LogDebug("Published ClusterTopology event {ClusterTopology}",topology);
 
                 _eventStream.Publish(topology);
             }
@@ -269,5 +307,7 @@ namespace Proto.Cluster
         }
 
         public bool ContainsMemberId(string memberId) => _members.ContainsKey(memberId);
+
+        public bool TryGetMember(string memberId, out Member value) => _members.TryGetValue(memberId, out value);
     }
 }

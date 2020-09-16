@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,8 +23,8 @@ namespace ClusterExperiment1
 
             var cluster = SpawnMember();
 
-            Console.ReadLine();
-            await cluster.ShutdownAsync();
+            Thread.Sleep(Timeout.Infinite);
+
         }
 
         private static async Task RunLeader()
@@ -66,8 +65,7 @@ namespace ClusterExperiment1
             );
 
 
-            Console.ReadLine();
-            await cluster.ShutdownAsync();
+            Thread.Sleep(Timeout.Infinite);
         }
 
         private static ILogger SetupLogger()
@@ -102,9 +100,14 @@ namespace ClusterExperiment1
         {
             var system = new ActorSystem();
             var clusterProvider = ClusterProvider();
-            var remote = new SelfHostedRemote(system, "127.0.0.1", 0, remote =>
+            var port = Environment.GetEnvironmentVariable("PROTOPORT") ?? "0";
+            var p = int.Parse(port);
+            var host = Environment.GetEnvironmentVariable("PROTOHOST") ?? "127.0.0.1";
+            var advertiseHostname = Environment.GetEnvironmentVariable("PROTOHOSTPUBLIC");
+            var remote = new SelfHostedRemote(system, host, p, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
+                remote.RemoteConfig.AdvertisedHostname = advertiseHostname!;
             });
             var identity = GetIdentityLookup();
             var cluster = new Cluster(system, remote);
@@ -118,16 +121,21 @@ namespace ClusterExperiment1
         {
             var system = new ActorSystem();
             var clusterProvider = ClusterProvider();
-            var remote = new SelfHostedRemote(system, "127.0.0.1", 0, remote =>
+            var port = Environment.GetEnvironmentVariable("PROTOPORT") ?? "0";
+            var p = int.Parse(port);
+            var host = Environment.GetEnvironmentVariable("PROTOHOST") ?? "127.0.0.1";
+            var advertiseHostname = Environment.GetEnvironmentVariable("PROTOHOSTPUBLIC");
+            var remote = new SelfHostedRemote(system, host, p, remote =>
             {
                 remote.Serialization.RegisterFileDescriptor(MessagesReflection.Descriptor);
                 remote.RemoteKindRegistry.RegisterKnownKind("hello", Props.FromProducer(() => new HelloActor()));
+                remote.RemoteConfig.AdvertisedHostname = advertiseHostname!;
             });
             var identity = GetIdentityLookup();
             var cluster = new Cluster(system, remote);
 
             var config = GetClusterConfig(clusterProvider, identity);
-            cluster.StartMemberAsync(config);
+            _ = cluster.StartMemberAsync(config);
             return cluster;
         }
 
@@ -138,10 +146,25 @@ namespace ClusterExperiment1
 
         private static IClusterProvider ClusterProvider()
         {
-            var kubernetesConfig = KubernetesClientConfiguration.BuildConfigFromConfigFile();
+            Console.WriteLine("Running with InClusterConfig");
+            // var namespaceFile = Path.Combine(
+            //     $"{Path.DirectorySeparatorChar}var",
+            //     "run",
+            //     "secrets",
+            //     "kubernetes.io",
+            //     "serviceaccount",
+            //     "namespace"
+            // );
+            // Console.WriteLine(namespaceFile);
+            //
+            // KubernetesClientConfiguration.InClusterConfig();
+            //
+            // var cachedNamespace = File.ReadAllText(namespaceFile);
+
+            var kubernetesConfig = KubernetesClientConfiguration.InClusterConfig(); //   KubernetesClientConfiguration.BuildConfigFromConfigFile(cachedNamespace);
             var kubernetes = new Kubernetes(kubernetesConfig);
             return new KubernetesProvider(kubernetes);
-          //  return new ConsulProvider(new ConsulProviderOptions());
+            //  return new ConsulProvider(new ConsulProviderOptions());
         }
 
         private static MongoIdentityLookup GetIdentityLookup()
@@ -153,8 +176,7 @@ namespace ClusterExperiment1
 
         static IMongoDatabase GetMongo()
         {
-            var connectionString =
-                "mongodb://127.0.0.1:27017/ProtoMongo";
+            var connectionString = Environment.GetEnvironmentVariable("MONGO") ?? "mongodb://127.0.0.1:27017/ProtoMongo";
             var url = MongoUrl.Create(connectionString);
             var settings = MongoClientSettings.FromUrl(url);
             var client = new MongoClient(settings);

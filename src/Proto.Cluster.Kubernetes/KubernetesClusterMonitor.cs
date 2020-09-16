@@ -24,8 +24,7 @@ namespace Proto.Cluster.Kubernetes
 
         private readonly Dictionary<string, V1Pod> _clusterPods = new Dictionary<string, V1Pod>();
         private readonly IKubernetes _kubernetes;
-
-        private readonly ActorSystem _system;
+        
         private string _address;
 
         private string _clusterName;
@@ -34,10 +33,12 @@ namespace Proto.Cluster.Kubernetes
         private Watcher<V1Pod> _watcher;
         private Task<HttpOperationResponse<V1PodList>> _watcherTask;
         private bool _watching;
+        private readonly Cluster _cluster;
+        private string _memberId;
 
-        public KubernetesClusterMonitor(ActorSystem system, IKubernetes kubernetes)
+        public KubernetesClusterMonitor(Cluster cluster, IKubernetes kubernetes)
         {
-            _system = system;
+            _cluster = cluster;
             _kubernetes = kubernetes;
         }
 
@@ -58,6 +59,7 @@ namespace Proto.Cluster.Kubernetes
             _clusterName = cmd.ClusterName;
             _address = cmd.Address;
             _podName = KubernetesExtensions.GetPodName();
+            _memberId = cmd.MemberId;
             return Actor.Done;
         }
 
@@ -152,8 +154,9 @@ namespace Proto.Cluster.Kubernetes
                 .Select(x => x.Status)
                 .ToList();
             Logger.LogInformation("Cluster members updated {@Members}", memberStatuses);
-
-            _system.EventStream.Publish(new ClusterTopologyEvent(memberStatuses));
+            _cluster.MemberList.UpdateClusterTopology(memberStatuses,0ul);
+            var topology = new ClusterTopologyEvent(memberStatuses);
+           _cluster.System.EventStream.Publish(topology);
         }
     }
 }

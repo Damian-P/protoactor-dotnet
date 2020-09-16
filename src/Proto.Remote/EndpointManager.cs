@@ -119,7 +119,12 @@ namespace Proto.Remote
         }
 
         private PID GetEndpoint(string address)
-            => _connections.GetOrAdd(address, v =>
+        {
+            if (string.IsNullOrWhiteSpace(address))
+            {
+                throw new ArgumentNullException(nameof(address));
+            }
+            return _connections.GetOrAdd(address, v =>
             {
                 _logger.LogDebug("[EndpointManager] Requesting new endpoint for {Address}", v);
                 var props = Props
@@ -130,6 +135,7 @@ namespace Proto.Remote
                 _logger.LogDebug("[EndpointManager] Created new endpoint for {Address}", v);
                 return endpointActorPid;
             });
+        }
 
         public void SendMessage(PID pid, object msg, int serializerId)
         {

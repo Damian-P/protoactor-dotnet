@@ -25,6 +25,12 @@ namespace Proto.Cluster
         {
             System = system;
             Remote = remote;
+            system.EventStream.Subscribe<ClusterTopology>(e =>
+                {
+                    //don't make it harder than it has to be....
+                    _pidCache.Clear();
+                }
+            );
         }
 
         public Guid Id { get; } = Guid.NewGuid();
@@ -126,11 +132,12 @@ namespace Proto.Cluster
         public async Task<T> RequestAsync<T>(string identity, string kind, object message, CancellationToken ct)
         {
             var key = kind + "." + identity;
-
+            _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message}",identity,kind,message);
             try
             {
                 if (_pidCache.TryGetValue(key, out var cachedPid))
                 {
+                    _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message} - Got PID from cache",identity,kind,message,cachedPid);
                     var res = await System.Root.RequestAsync<T>(cachedPid, message, ct);
                     if (res != null)
                     {
@@ -153,12 +160,15 @@ namespace Proto.Cluster
                 var delay = i * 20;
                 i++;
                 var pid = await GetAsync(identity, kind, ct);
-
+                
+               
                 if (pid == null)
                 {
+                    _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message} - Did not get any PID from IdentityLookup",identity,kind,message);
                     await Task.Delay(delay, CancellationToken.None);
                     continue;
                 }
+                _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message} - Got PID {PID} from IdentityLookup",identity,kind,message,pid);
                 //update cache
                 _pidCache[key] = pid;
 
