@@ -122,7 +122,7 @@ namespace Proto.Cluster.MongoIdentityLookup
             );
 
             if (isClient) return Task.CompletedTask;
-            var props = Props.FromProducer(() => new MongoPlacementActor(_cluster,this));
+            var props = Props.FromProducer(() => new MongoPlacementActor(_cluster,_cluster.Remote, this));
             _placementActor = _system.Root.SpawnNamed(props, MongoPlacementActorName);
 
             return Task.CompletedTask;
