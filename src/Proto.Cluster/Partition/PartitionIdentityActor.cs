@@ -209,8 +209,13 @@ namespace Proto.Cluster.Partition
             if (ownerAddress != _myAddress)
             {
                 var ownerPid = _partitionManager.RemotePartitionIdentityActor(ownerAddress);
-                _logger.LogWarning("Tried to spawn on wrong node, forwarding");
-                context.Forward(ownerPid);
+                if(context.Sender != null)
+                {
+                    _logger.LogWarning("Tried to spawn on wrong node, forwarding to {ownerAddress}", ownerAddress);
+                    context.Forward(ownerPid);
+                }
+                else
+                    _logger.LogCritical("No sender, we cannot forward ActivationRequest {ActivationRequest} to {ownerAddress}", msg, ownerAddress);
 
                 return Actor.Done;
             }
@@ -278,8 +283,9 @@ namespace Proto.Cluster.Partition
                         return Actor.Done;
                     }
 
-
-                    _partitionLookup[msg.Identity] = (response.Pid, msg.Kind);
+                    if (response== null) return Actor.Done;
+                    if (response.Pid != null)
+                        _partitionLookup[msg.Identity] = (response.Pid, msg.Kind);
 
                     context.Send(sender, response);
 

@@ -263,9 +263,9 @@ namespace Proto.Cluster
             
             _members.Remove(memberThatLeft.Id);
 
-            var endpointTerminated = new EndpointTerminatedEvent {Address = memberThatLeft.Address};
-            _logger.LogInformation("Published event {@EndpointTerminated}", endpointTerminated);
-            _cluster.System.EventStream.Publish(endpointTerminated);
+            // var endpointTerminated = new EndpointTerminatedEvent {Address = memberThatLeft.Address};
+            // _logger.LogInformation("Published event {@EndpointTerminated}", endpointTerminated);
+            // _cluster.System.EventStream.Publish(endpointTerminated);
         }
 
         private void MemberJoin(Member newMember)

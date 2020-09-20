@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------
 
 using System.Linq;
+using Proto.Mailbox;
 
 namespace Proto.Cluster.Partition
 {
@@ -31,6 +32,18 @@ namespace Proto.Cluster.Partition
 
         internal PartitionMemberSelector Selector { get; } = new PartitionMemberSelector();
 
+        private int PriorityDecider(object message)
+        {
+            return message switch
+            {
+                ClusterTopology _ => 5,
+                IdentityHandoverRequest _ => 4,
+                ActivationTerminated _ => 3,
+                ActivationRequest _ => 0,
+                _ => 2
+            };
+        }
+
         public void Setup()
         {
 
@@ -52,11 +65,15 @@ namespace Proto.Cluster.Partition
             {
                 var partitionActorProps = Props
                     .FromProducer(() => new PartitionIdentityActor(_cluster, this))
-                    .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
+                    .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy)
+                    .WithMailbox(() => PrioritizedUnboundedMailbox.Create(5, PriorityDecider));
+
                 _partitionActor = _context.SpawnNamed(partitionActorProps, PartitionIdentityActorName);
 
                 var partitionActivatorProps =
-                    Props.FromProducer(() => new PartitionPlacementActor(_cluster, this));
+                    Props.FromProducer(() => new PartitionPlacementActor(_cluster, this))
+                    .WithMailbox(() => PrioritizedUnboundedMailbox.Create(5, PriorityDecider));
+                    
                 _partitionActivator = _context.SpawnNamed(partitionActivatorProps, PartitionPlacementActorName);
 
                 //synchronous subscribe to keep accurate
@@ -78,12 +95,12 @@ namespace Proto.Cluster.Partition
                 );
             }
         }
-        
+
         public void Shutdown()
         {
             if (_isClient)
             {
-                 
+
             }
             else
             {

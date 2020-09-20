@@ -55,7 +55,7 @@ namespace Proto.Cluster
 
         public async Task StartMemberAsync(ClusterConfig config)
         {
-            BeginStart(config,false);
+            BeginStart(config, false);
 
             var (host, port) = System.GetAddress();
 
@@ -76,7 +76,7 @@ namespace Proto.Cluster
 
         public async Task StartClientAsync(ClusterConfig config)
         {
-            BeginStart(config,true);
+            BeginStart(config, true);
 
             var (host, port) = System.GetAddress();
 
@@ -128,30 +128,36 @@ namespace Proto.Cluster
 
         public Task<PID?> GetAsync(string identity, string kind, CancellationToken ct) => IdentityLookup!.GetAsync(identity, kind, ct);
 
-        private ConcurrentDictionary<string,PID> _pidCache = new ConcurrentDictionary<string, PID>();
+        private ConcurrentDictionary<string, PID> _pidCache = new ConcurrentDictionary<string, PID>();
         public async Task<T> RequestAsync<T>(string identity, string kind, object message, CancellationToken ct)
         {
             var key = kind + "." + identity;
-            _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message}",identity,kind,message);
+            _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message}", identity, kind, message);
+            PID? cachedPid = null;
             try
             {
-                if (_pidCache.TryGetValue(key, out var cachedPid))
+                if (_pidCache.TryGetValue(key, out cachedPid))
                 {
-                    _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message} - Got PID from cache",identity,kind,message,cachedPid);
-                    var res = await System.Root.RequestAsync<T>(cachedPid, message, ct);
+                    var internalToken = new CancellationTokenSource(500).Token;
+                    var combined = CancellationTokenSource.CreateLinkedTokenSource(internalToken, ct);
+
+                    _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message} - Got PID from cache", identity, kind, message, cachedPid);
+                    var res = await System.Root.RequestAsync<T>(cachedPid, message, combined.Token);
                     if (res != null)
                     {
                         return res;
                     }
+                    else
+                    {
+                        _logger.LogInformation("Received null response when requesting {Identity}-{Kind} Message {Message} with PID from cache. Removing from cache.", identity, kind, message, cachedPid);
+                        _pidCache.TryRemove(key, out _);
+                    }
                 }
             }
-            catch
+            catch (Exception e)
             {
-                //YOLO
-            }
-            finally
-            {
-                _pidCache.TryRemove(key,out _);
+                _logger.LogError(e, "Error when requesting {Identity}-{Kind} Message {Message} with PID from cache. Removing from cache.", identity, kind, message, cachedPid);
+                _pidCache.TryRemove(key, out _);
             }
 
             var i = 0;
@@ -160,15 +166,15 @@ namespace Proto.Cluster
                 var delay = i * 20;
                 i++;
                 var pid = await GetAsync(identity, kind, ct);
-                
-               
+
+
                 if (pid == null)
                 {
-                    _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message} - Did not get any PID from IdentityLookup",identity,kind,message);
+                    _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message} - Did not get any PID from IdentityLookup", identity, kind, message);
                     await Task.Delay(delay, CancellationToken.None);
                     continue;
                 }
-                _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message} - Got PID {PID} from IdentityLookup",identity,kind,message,pid);
+                _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message} - Got PID {PID} from IdentityLookup", identity, kind, message, pid);
                 //update cache
                 _pidCache[key] = pid;
 

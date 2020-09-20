@@ -165,6 +165,7 @@ namespace Proto
                     Logger.LogWarning("SystemMessage cannot be forwarded. {Message}", _messageOrEnvelope);
                     return;
                 default:
+                    Logger.LogDebug("Forwarding {msg} to {target}", Message, target);
                     SendUserMessage(target, _messageOrEnvelope);
                     break;
             }
@@ -405,10 +406,14 @@ namespace Proto
                 //slow path
                 _props.SenderMiddlewareChain(EnsureExtras().Context, target, MessageEnvelope.Wrap(message));
             }
-            else
+            else if (target != null)
             {
                 //fast path, 0 alloc
                 target.SendUserMessage(System, message);
+            }
+            else
+            {
+                Logger.LogWarning("{Self} No target for message {message}", Self, message);
             }
         }
 
