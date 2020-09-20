@@ -15,7 +15,7 @@ namespace Proto.Router.Routers
 
         public Props Props()
         {
-            PID SpawnRouterProcess(ActorSystem system, string name, Props props, PID? parent)
+            PID SpawnRouterProcess(ActorSystem system, string name, Props props, PID? parent, RootActorTree parentActorTree)
             {
                 var routerState = CreateRouterState();
                 var wg = new AutoResetEvent(false);
@@ -31,7 +31,7 @@ namespace Proto.Router.Routers
                     throw new ProcessNameExistException(name, self);
                 }
 
-                var ctx = new ActorContext(system, p, parent, self);
+                var ctx = new ActorContext(system, p, parent, self, parentActorTree);
                 mailbox.RegisterHandlers(ctx, dispatcher);
                 mailbox.PostSystemMessage(Started.Instance);
                 mailbox.Start();

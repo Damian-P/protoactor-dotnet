@@ -27,6 +27,8 @@ namespace Proto.Mailbox
             var priority = _priority(message);
             if (priority > _maxPriority)
                 priority = _maxPriority;
+            else if (priority < 0)
+                priority = 0;
             _messages[priority].Enqueue(message);
         }
 

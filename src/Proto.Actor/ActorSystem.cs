@@ -19,6 +19,7 @@ namespace Proto
             EventStream = new EventStream();
             var eventStreamProcess = new EventStreamProcess(this);
             ProcessRegistry.TryAdd("eventstream", eventStreamProcess);
+            ActorTree = new RootActorTree();
         }
 
         public string Address { get; private set; } = NoHost;
@@ -33,6 +34,8 @@ namespace Proto
 
         public EventStream EventStream { get; }
 
+        public RootActorTree ActorTree { get; }
+
         public void SetAddress(string host, int port)
         {
             _host = host;
@@ -41,6 +44,6 @@ namespace Proto
         }
 
         public (string Host, int Port) GetAddress() => (_host, _port);
-
+    
     }
 }

@@ -20,7 +20,7 @@ namespace Proto.Tests
         {
             var spawnedPid = new PID("test", "test");
             var props = Props.FromFunc(EmptyReceive)
-                .WithSpawner((s, id, p, parent) => spawnedPid);
+                .WithSpawner((s, id, p, parent, actorTree) => spawnedPid);
 
             var pid = Context.Spawn(props);
 

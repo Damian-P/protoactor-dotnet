@@ -31,6 +31,11 @@ namespace Proto.Cluster
                     _pidCache.Clear();
                 }
             );
+            system.EventStream.Subscribe<ActivationTerminated>(e =>
+                {
+                    _pidCache.TryRemove(e.Kind + "." + e.Identity, out _);
+                }
+            );
         }
 
         public Guid Id { get; } = Guid.NewGuid();
@@ -156,7 +161,7 @@ namespace Proto.Cluster
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error when requesting {Identity}-{Kind} Message {Message} with PID from cache. Removing from cache.", identity, kind, message, cachedPid);
+                _logger.LogInformation(e, "Error when requesting {Identity}-{Kind} Message {Message} with PID from cache. Removing from cache.", identity, kind, message, cachedPid);
                 _pidCache.TryRemove(key, out _);
             }
 
@@ -177,6 +182,7 @@ namespace Proto.Cluster
                 _logger.LogDebug("Requesting {Identity}-{Kind} Message {Message} - Got PID {PID} from IdentityLookup", identity, kind, message, pid);
                 //update cache
                 _pidCache[key] = pid;
+                _logger.LogDebug($"{key} added to cache");
 
                 var res = await System.Root.RequestAsync<T>(pid, message, ct);
                 if (res == null)

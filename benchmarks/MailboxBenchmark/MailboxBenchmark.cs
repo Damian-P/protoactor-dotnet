@@ -20,6 +20,9 @@ public class MailboxBenchmark
     [Benchmark]
     public Task Unbound() => RunTest(() => BoundedMailbox.Create(1024 * 1024));
 
+    [Benchmark]
+    public Task Prioritized() => RunTest(() => PrioritizedUnboundedMailbox.Create(1, (o) => 1));
+
     private static async Task RunTest(MailboxProducer mailbox)
     {
         var context = new RootContext(new ActorSystem());

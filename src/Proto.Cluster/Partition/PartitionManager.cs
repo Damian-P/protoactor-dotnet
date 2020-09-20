@@ -104,8 +104,8 @@ namespace Proto.Cluster.Partition
             }
             else
             {
-                _context.Stop(_partitionActor);
-                _context.Stop(_partitionActivator);
+                _context.StopAsync(_partitionActivator).GetAwaiter().GetResult();
+                _context.StopAsync(_partitionActor).GetAwaiter().GetResult();
             }
         }
 

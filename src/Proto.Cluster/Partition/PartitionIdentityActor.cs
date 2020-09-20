@@ -176,6 +176,7 @@ namespace Proto.Cluster.Partition
             //TODO: handle correct incarnation/version
             _logger.LogDebug("Terminated {Pid}", msg.Pid);
             _partitionLookup.Remove(msg.Identity);
+            _cluster.MemberList.BroadcastEvent(msg);
             return Actor.Done;
         }
 

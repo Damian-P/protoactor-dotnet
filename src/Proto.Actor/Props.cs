@@ -44,7 +44,7 @@ namespace Proto
 
         private static IMailbox ProduceDefaultMailbox() => UnboundedMailbox.Create();
 
-        public static PID DefaultSpawner(ActorSystem system, string name, Props props, PID? parent)
+        public static PID DefaultSpawner(ActorSystem system, string name, Props props, PID? parent, RootActorTree parentActorTree)
         {
             var mailbox = props.MailboxProducer();
             var dispatcher = props.Dispatcher;
@@ -56,7 +56,7 @@ namespace Proto
                 throw new ProcessNameExistException(name, pid);
             }
 
-            var ctx = new ActorContext(system, props, parent, pid);
+            var ctx = new ActorContext(system, props, parent, pid, parentActorTree);
             mailbox.RegisterHandlers(ctx, dispatcher);
             mailbox.PostSystemMessage(Started.Instance);
             mailbox.Start();
@@ -136,12 +136,12 @@ namespace Proto
             return props;
         }
 
-        internal PID Spawn(ActorSystem system, string name, PID? parent) => Spawner(system, name, this, parent);
+        internal PID Spawn(ActorSystem system, string name, PID? parent, RootActorTree parentActorTree) => Spawner(system, name, this, parent, parentActorTree);
         public static Props FromProducer(Producer producer) => new Props().WithProducer(producer);
         public static Props FromFunc(Receive receive) => FromProducer(() => new EmptyActor(receive));
     }
 
-    public delegate PID Spawner(ActorSystem system, string id, Props props, PID? parent);
+    public delegate PID Spawner(ActorSystem system, string id, Props props, PID? parent, RootActorTree parentActorTree);
 
     public delegate IActor? Producer();
 

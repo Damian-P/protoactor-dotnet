@@ -27,12 +27,13 @@ namespace Proto
         private ActorContextExtras? _extras;
         private object? _messageOrEnvelope;
         private ContextState _state;
+        private readonly ActorTree _actorTree;
 
-        public ActorContext(ActorSystem system, Props props, PID? parent, PID self)
+        public ActorContext(ActorSystem system, Props props, PID? parent, PID self, RootActorTree parentActorTree)
         {
             System = system;
             _props = props;
-
+            _actorTree = new ActorTree(self, parentActorTree);
             //Parents are implicitly watching the child
             //The parent is not part of the Watchers set
             Parent = parent;
@@ -69,12 +70,12 @@ namespace Proto
         {
             if (Sender != null)
             {
-                Logger.LogDebug("{Self} Responding to {Sender} with message {Message}",Self, Sender,message);
+                Logger.LogDebug("{Self} Responding to {Sender} with message {Message}", Self, Sender, message);
                 Send(Sender, message);
             }
             else
             {
-                Logger.LogWarning("{Self} Tried to respond but sender is null, with message {Message}",Self, message);
+                Logger.LogWarning("{Self} Tried to respond but sender is null, with message {Message}", Self, message);
             }
         }
 
@@ -96,8 +97,8 @@ namespace Proto
             {
                 throw new ArgumentException("Props used to spawn child cannot have GuardianStrategy.");
             }
-
-            var pid = props.Spawn(System, $"{Self.Id}/{name}", Self);
+            
+            var pid = props.Spawn(System, $"{Self.Id}/{name}", Self, _actorTree);
             EnsureExtras().AddChild(pid);
 
             return pid;
@@ -432,7 +433,7 @@ namespace Proto
         }
 
         private Task HandleUnwatch(Unwatch uw)
-        { 
+        {
             _extras?.Unwatch(uw.Watcher);
             return Done;
         }
@@ -530,6 +531,7 @@ namespace Proto
         //Last and final termination step
         private async Task FinalizeStopAsync()
         {
+            _actorTree.Parent.Remove(Self);
             System.ProcessRegistry.Remove(Self);
             //This is intentional
             await InvokeUserMessageAsync(Stopped.Instance);

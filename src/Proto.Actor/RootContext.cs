@@ -29,7 +29,7 @@ namespace Proto
         public RootContext(ActorSystem system, MessageHeader? messageHeader, params Func<Sender, Sender>[] middleware)
         {
             System = system;
-
+            
             SenderMiddleware = middleware.Reverse()
                 .Aggregate((Sender) DefaultSender, (inner, outer) => outer(inner));
             Headers = messageHeader ?? MessageHeader.Empty;
@@ -55,7 +55,7 @@ namespace Proto
             var parent = props.GuardianStrategy != null
                 ? System.Guardians.GetGuardianPid(props.GuardianStrategy)
                 : null;
-            return props.Spawn(System, name, parent);
+            return props.Spawn(System, name, parent, System.ActorTree);
         }
 
         public PID SpawnPrefix(Props props, string prefix)
