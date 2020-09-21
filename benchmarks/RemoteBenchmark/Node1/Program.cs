@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Messages;
 using Microsoft.Extensions.Logging;
 using Proto;
+using Proto.Mailbox;
 using Proto.Remote;
 using ProtosReflection = Messages.ProtosReflection;
 
@@ -31,27 +32,36 @@ class Program
         Remote.Start();
         var messageCount = 1000000;
         var cancellationTokenSource = new CancellationTokenSource();
-        var semaphore = new SemaphoreSlim(0);
-        var props = Props.FromProducer(() => new LocalActor(0, messageCount, semaphore));
-
-        var pid = context.Spawn(props);
-        var remote = new PID{ Address = "127.0.0.1:8080", Id = "remote"};
-        await context.RequestAsync<Start>(remote, new StartRemote { Sender = pid });
-        var start = DateTime.Now;
-        Console.WriteLine("Starting to send");
-        var msg = new Ping();
-        for (var i = 0; i < messageCount; i++)
+        _ = Task.Run(async () =>
         {
-            context.Send(remote, msg);
-        }
-        await semaphore.WaitAsync(cancellationTokenSource.Token);
-        var elapsed = DateTime.Now - start;
-        Console.WriteLine("Elapsed {0}", elapsed);
+            while (!cancellationTokenSource.IsCancellationRequested)
+            {
+                var semaphore = new SemaphoreSlim(0);
+                var props = Props.FromProducer(() => new LocalActor(0, messageCount, semaphore));
 
-        var t = messageCount * 2.0 / elapsed.TotalMilliseconds * 1000;
-        Console.WriteLine("Throughput {0} msg / sec", t);
+                var pid = context.Spawn(props);
+                var remote = new PID { Address = "127.0.0.1:8080", Id = "remote" };
+                await context.RequestAsync<Start>(remote, new StartRemote { Sender = pid }, cancellationTokenSource.Token);
+                var start = DateTime.Now;
+                Console.WriteLine("Starting to send");
+                var msg = new Ping();
+                for (var i = 0; i < messageCount; i++)
+                {
+                    context.Send(remote, msg);
+                }
+                await semaphore.WaitAsync(cancellationTokenSource.Token);
+                var elapsed = DateTime.Now - start;
+                Console.WriteLine("Elapsed {0}", elapsed);
+
+                var t = messageCount * 2.0 / elapsed.TotalMilliseconds * 1000;
+                Console.Clear();
+                Console.WriteLine("Throughput {0} msg / sec", t);
+                await Task.Delay(2_000);
+            }
+        }, cancellationTokenSource.Token);
 
         Console.ReadLine();
+        cancellationTokenSource.Cancel();
         await Remote.ShutdownAsync();
     }
 
