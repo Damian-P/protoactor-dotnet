@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -52,12 +53,12 @@ namespace Proto.Cluster.Partition
         public Task ReceiveAsync(IContext context) =>
             context.Message switch
             {
-                Started _                => Start(),
-                ReceiveTimeout _         => ReceiveTimeout(context),
-                ActivationRequest msg    => GetOrSpawn(msg, context),
+                Started _ => Start(),
+                ReceiveTimeout _ => ReceiveTimeout(context),
+                ActivationRequest msg => GetOrSpawn(msg, context),
                 ActivationTerminated msg => ActivationTerminated(msg, context),
-                ClusterTopology msg      => ClusterTopology(msg, context),
-                _                        => Unhandled()
+                ClusterTopology msg => ClusterTopology(msg, context),
+                _ => Unhandled()
             };
 
         private static Task Unhandled() => Actor.Done;
@@ -83,6 +84,15 @@ namespace Proto.Cluster.Partition
             {
                 return;
             }
+            var sub = context.System.EventStream.Subscribe<ClusterTopology>((newClusterTopology) =>
+            {
+                msg = newClusterTopology;
+            });
+            await Task.Delay(HandoverTimeout, context.CancellationToken);
+            sub.Unsubscribe();
+
+            var HandoverCancellationTokenSource = new CancellationTokenSource(HandoverTimeout);
+            var combinedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(HandoverCancellationTokenSource.Token, context.CancellationToken); 
 
             _eventId = msg.EventId;
             _lastEventTimestamp = DateTime.Now;
@@ -110,7 +120,7 @@ namespace Proto.Cluster.Partition
             {
                 var activatorPid = _partitionManager.RemotePartitionPlacementActor(member.Address);
                 var request =
-                    context.RequestAsync<IdentityHandoverResponse>(activatorPid, requestMsg, HandoverTimeout);
+                    context.RequestAsync<IdentityHandoverResponse>(activatorPid, requestMsg, combinedTokenSource.Token);
                 requests.Add(request);
             }
 
@@ -141,7 +151,7 @@ namespace Proto.Cluster.Partition
             }
             catch (Exception x)
             {
-                _logger.LogError(x,"Failed to get identities");
+                _logger.LogError(x, "Failed to get identities");
             }
 
 
@@ -198,19 +208,20 @@ namespace Proto.Cluster.Partition
 
         private Task GetOrSpawn(ActivationRequest msg, IContext context)
         {
-            
+
             if (context.Sender == null)
             {
-                _logger.LogCritical("NO SENDER IN GET OR SPAWN!!");
+                // _logger.LogCritical("NO SENDER IN GET OR SPAWN!!");
+                return Actor.Done;
             }
-            
+
             PID sender = context.Sender!;
 
             var ownerAddress = _rdv.GetOwnerMemberByIdentity(msg.Identity);
             if (ownerAddress != _myAddress)
             {
                 var ownerPid = _partitionManager.RemotePartitionIdentityActor(ownerAddress);
-                if(context.Sender != null)
+                if (context.Sender != null)
                 {
                     _logger.LogWarning("Tried to spawn on wrong node, forwarding to {ownerAddress}", ownerAddress);
                     context.Forward(ownerPid);
@@ -228,7 +239,7 @@ namespace Proto.Cluster.Partition
                 {
                     _logger.LogCritical("No sender 4");
                 }
-                context.Respond(new ActivationResponse {Pid = info.pid});
+                context.Respond(new ActivationResponse { Pid = info.pid });
                 return Actor.Done;
             }
 
@@ -244,7 +255,7 @@ namespace Proto.Cluster.Partition
             {
                 //No activator currently available, return unavailable
                 _logger.LogWarning("No members currently available for kind {Kind}", msg.Kind);
-                context.Respond(new ActivationResponse {Pid = null});
+                context.Respond(new ActivationResponse { Pid = null });
                 return Actor.Done;
             }
 
@@ -273,18 +284,18 @@ namespace Proto.Cluster.Partition
                     //This is necessary to avoid race condition during partition map transfer.
                     if (_partitionLookup.TryGetValue(msg.Identity, out info))
                     {
-                        context.Send(sender,new ActivationResponse {Pid = info.pid});
+                        context.Send(sender, new ActivationResponse { Pid = info.pid });
                         return Actor.Done;
                     }
 
                     //Check if process is faulted
                     if (rst.IsFaulted)
                     {
-                        context.Send(sender,response);
+                        context.Send(sender, response);
                         return Actor.Done;
                     }
 
-                    if (response== null) return Actor.Done;
+                    if (response == null) return Actor.Done;
                     if (response.Pid != null)
                         _partitionLookup[msg.Identity] = (response.Pid, msg.Kind);
 
@@ -294,7 +305,7 @@ namespace Proto.Cluster.Partition
                     {
                         _spawns.Remove(msg.Identity);
                     }
-                    catch(Exception x)
+                    catch (Exception x)
                     {
                         //debugging hack
                         Console.WriteLine(x);
