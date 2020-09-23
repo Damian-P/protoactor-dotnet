@@ -25,7 +25,7 @@ namespace Proto.Cluster.MongoIdentityLookup
             new Dictionary<string, (PID pid, string kind)>();
 
         private readonly IRemote _remote;
-        private MongoIdentityLookup _mongoIdentityLookup;
+        private readonly MongoIdentityLookup _mongoIdentityLookup;
 
         public MongoPlacementActor(Cluster cluster, IRemote remote, MongoIdentityLookup mongoIdentityLookup)
         {

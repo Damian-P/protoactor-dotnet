@@ -4,8 +4,7 @@ namespace Proto.Remote.Tests
 {
     public class RemoteManager
     {
-        public static string RemoteAddress = "127.0.0.1:12000";
-
+        public const string RemoteAddress = "localhost:12000";
         static RemoteManager()
         {
             system = new ActorSystem();
@@ -30,7 +29,7 @@ namespace Proto.Remote.Tests
         {
             if (remoteStarted) return (remote, system);
 
-            var service = new ProtoService(12000, "127.0.0.1");
+            var service = new ProtoService(12000, "localhost");
             service.StartAsync().GetAwaiter().GetResult();
 
             remote.Start();

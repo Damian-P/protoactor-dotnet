@@ -159,10 +159,10 @@ namespace Proto.Cluster
                     }
                 }
             }
-            catch (Exception e)
+            catch
             {
-                _logger.LogInformation(e, "Error when requesting {Identity}-{Kind} Message {Message} with PID from cache. Removing from cache.", identity, kind, message, cachedPid);
-                _pidCache.TryRemove(key, out _);
+                //YOLO
+                _pidCache.TryRemove(key,out _);
             }
 
             var i = 0;
