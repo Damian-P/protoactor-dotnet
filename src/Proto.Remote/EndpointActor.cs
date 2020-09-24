@@ -88,7 +88,7 @@ namespace Proto.Remote
                     try
                     {
                         await _stream.ResponseStream.MoveNext();
-                        Logger.LogInformation("[EndpointActor] Lost connection to address {Address}", _address);
+                        Logger.LogDebug("[EndpointActor] {Address} disconnected", _address);
                         var terminated = new EndpointTerminatedEvent
                         {
                             Address = _address
@@ -130,7 +130,6 @@ namespace Proto.Remote
         }
         private Task EndpointError(EndpointErrorEvent evt)
         {
-            Logger.LogInformation("Endpoint error to {Address}", _address);
             throw evt.Exception;
         }
         private Task EndpointTerminated(IContext context)

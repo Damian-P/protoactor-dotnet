@@ -32,15 +32,15 @@ namespace Proto.Cluster.Partition
 
         internal PartitionMemberSelector Selector { get; } = new PartitionMemberSelector();
 
-        private int PriorityDecider(object message)
+        private ushort PriorityDecider(object message)
         {
             return message switch
             {
                 ClusterTopology _ => 5,
                 IdentityHandoverRequest _ => 4,
                 ActivationTerminated _ => 3,
-                ActivationRequest _ => 0,
-                _ => 2
+                ActivationRequest _ => 2,
+                _ => 0
             };
         }
 

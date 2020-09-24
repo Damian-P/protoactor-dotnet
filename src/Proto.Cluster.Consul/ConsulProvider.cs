@@ -61,6 +61,7 @@ namespace Proto.Cluster.Consul
         private MemberList _memberList;
         private int _port;
         private bool _shutdown;
+        private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
 
         public ConsulProvider(ConsulProviderOptions options) : this(options, config => { })
         {
@@ -88,7 +89,7 @@ namespace Proto.Cluster.Consul
             MemberList memberList)
         {
             SetState(cluster, clusterName, host, port, kinds, memberList);
-            
+
             await RegisterMemberAsync();
 
             StartUpdateTtlLoop();
@@ -111,9 +112,9 @@ namespace Proto.Cluster.Consul
         public Task StartClientAsync(Cluster cluster, string clusterName, string host, int port,  MemberList memberList)
         {
             SetState(cluster, clusterName, host, port, null, memberList);
-            
+
             StartMonitorMemberStatusChangesLoop();
-            
+
             return Task.CompletedTask;
         }
 
@@ -123,6 +124,7 @@ namespace Proto.Cluster.Consul
             _logger.LogInformation("Shutting down consul provider");
             //flag for shutdown. used in thread loops
             _shutdown = true;
+            _cancellationTokenSource.Cancel();
             if (!graceful)
             {
                 return;
@@ -188,7 +190,7 @@ namespace Proto.Cluster.Consul
                         _cluster.System.EventStream.Publish(res);
                     }
                 }
-            );
+            ,_cancellationTokenSource.Token);
 
             Member ToMember(ServiceEntry v)
             {
@@ -218,7 +220,7 @@ namespace Proto.Cluster.Consul
 
                     _logger.LogInformation("Exiting TTL loop");
                 }
-            );
+            ,_cancellationTokenSource.Token);
         }
 
         private void StartLeaderElectionLoop()
@@ -242,11 +244,11 @@ namespace Proto.Cluster.Consul
                         _consulLeaderKey = leaderKey;
 
                         var json = JsonConvert.SerializeObject(new ConsulLeader
-                            {
-                                Host = _host,
-                                Port = _port,
-                                MemberId = _cluster.Id
-                            }
+                        {
+                            Host = _host,
+                            Port = _port,
+                            MemberId = _cluster.Id
+                        }
                         );
                         var kvp = new KVPair(leaderKey)
                         {
@@ -317,7 +319,7 @@ namespace Proto.Cluster.Consul
                         _logger.LogCritical("Leader Election Failed {x}", x);
                     }
                 }
-            );
+            , _cancellationTokenSource.Token);
         }
 
         //register this cluster in consul.

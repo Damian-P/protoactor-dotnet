@@ -88,86 +88,104 @@ namespace Proto.Cluster.Partition
             {
                 msg = newClusterTopology;
             });
-            await Task.Delay(HandoverTimeout, context.CancellationToken);
+            try
+            {
+                await Task.Delay(1_000, context.CancellationToken);
+            }
+            catch
+            {
+            }
             sub.Unsubscribe();
+            if (context.CancellationToken.IsCancellationRequested) return;
 
             var HandoverCancellationTokenSource = new CancellationTokenSource(HandoverTimeout);
-            var combinedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(HandoverCancellationTokenSource.Token, context.CancellationToken); 
-
-            _eventId = msg.EventId;
-            _lastEventTimestamp = DateTime.Now;
-            var members = msg.Members.ToArray();
-
-            _rdv.UpdateMembers(members);
-
-            //remove all identities we do no longer own.
-            _partitionLookup.Clear();
-
-            _logger.LogInformation("Topology change --- {EventId} --- pausing interactions for {Timeout}",
-                _eventId, TopologyChangeTimeout
-            );
-
-            var requests = new List<Task<IdentityHandoverResponse>>();
-            var requestMsg = new IdentityHandoverRequest
-            {
-                EventId = _eventId,
-                Address = _myAddress
-            };
-
-            requestMsg.Members.AddRange(members);
-
-            foreach (var member in members)
-            {
-                var activatorPid = _partitionManager.RemotePartitionPlacementActor(member.Address);
-                var request =
-                    context.RequestAsync<IdentityHandoverResponse>(activatorPid, requestMsg, combinedTokenSource.Token);
-                requests.Add(request);
-            }
+            var combinedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(HandoverCancellationTokenSource.Token, context.CancellationToken);
 
             try
             {
-                _logger.LogDebug("Requesting ownerships");
-
-                //built in timeout on each request above
-                var responses = await Task.WhenAll(requests);
-                _logger.LogDebug("Got ownerships {EventId}", _eventId);
-
-                foreach (var response in responses)
+                await Task.Run(async () =>
                 {
-                    foreach (var actor in response.Actors)
-                    {
-                        TakeOwnership(actor);
+                    _eventId = msg.EventId;
+                    _lastEventTimestamp = DateTime.Now;
+                    var members = msg.Members.ToArray();
 
-                        if (!_partitionLookup.ContainsKey(actor.Identity))
+                    _rdv.UpdateMembers(members);
+
+                    //remove all identities we do no longer own.
+                    _partitionLookup.Clear();
+
+                    _logger.LogInformation("Topology change --- {EventId} --- pausing interactions for {Timeout}",
+                        _eventId, TopologyChangeTimeout
+                    );
+
+                    var requests = new List<Task<IdentityHandoverResponse>>();
+                    var requestMsg = new IdentityHandoverRequest
+                    {
+                        EventId = _eventId,
+                        Address = _myAddress
+                    };
+
+                    requestMsg.Members.AddRange(members);
+
+                    foreach (var member in members)
+                    {
+                        var activatorPid = _partitionManager.RemotePartitionPlacementActor(member.Address);
+                        var request =
+                            context.RequestAsync<IdentityHandoverResponse>(activatorPid, requestMsg, combinedTokenSource.Token);
+                        requests.Add(request);
+                    }
+
+                    try
+                    {
+                        _logger.LogDebug("Requesting ownerships");
+
+                        //built in timeout on each request above
+                        var responses = await Task.WhenAll(requests);
+                        _logger.LogDebug("Got ownerships {EventId}", _eventId);
+
+                        foreach (var response in responses)
                         {
-                            _logger.LogError("Ownership bug, we should own {Identity}", actor.Identity);
-                        }
-                        else
-                        {
-                            _logger.LogDebug("I have ownership of {Identity}", actor.Identity);
+                            foreach (var actor in response.Actors)
+                            {
+                                TakeOwnership(actor);
+
+                                if (!_partitionLookup.ContainsKey(actor.Identity))
+                                {
+                                    _logger.LogError("Ownership bug, we should own {Identity}", actor.Identity);
+                                }
+                                else
+                                {
+                                    _logger.LogDebug("I have ownership of {Identity}", actor.Identity);
+                                }
+                            }
                         }
                     }
-                }
+                    catch (Exception x)
+                    {
+                        _logger.LogError(x, "Failed to get identities");
+                    }
+
+
+                    //always do this when a member leaves, we need to redistribute the distributed-hash-table
+                    //no ifs or else, just always
+                    //ClearInvalidOwnership(context);
+
+                    var membersLookup = msg.Members.ToDictionary(m => m.Address, m => m);
+
+                    //scan through all id lookups and remove cases where the address is no longer part of cluster members
+                    foreach (var (actorId, (pid, _)) in _partitionLookup.ToArray())
+                    {
+                        if (!membersLookup.ContainsKey(pid.Address))
+                        {
+                            _partitionLookup.Remove(actorId);
+                        }
+                    }
+                }, combinedTokenSource.Token);
             }
-            catch (Exception x)
+            catch (System.Exception e)
             {
-                _logger.LogError(x, "Failed to get identities");
-            }
 
-
-            //always do this when a member leaves, we need to redistribute the distributed-hash-table
-            //no ifs or else, just always
-            //ClearInvalidOwnership(context);
-
-            var membersLookup = msg.Members.ToDictionary(m => m.Address, m => m);
-
-            //scan through all id lookups and remove cases where the address is no longer part of cluster members
-            foreach (var (actorId, (pid, _)) in _partitionLookup.ToArray())
-            {
-                if (!membersLookup.ContainsKey(pid.Address))
-                {
-                    _partitionLookup.Remove(actorId);
-                }
+                _logger.LogError(e, "Error");
             }
         }
 
@@ -265,7 +283,9 @@ namespace Proto.Cluster.Partition
             //once spawned, the key is removed from this dict
             if (!_spawns.TryGetValue(msg.Identity, out var res))
             {
-                res = SpawnRemoteActor(msg, activatorAddress);
+                var configTimeoutToken = new CancellationTokenSource(_cluster.Config!.TimeoutTimespan);
+                var combinedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(configTimeoutToken.Token, context.CancellationToken);
+                res = SpawnRemoteActor(msg, activatorAddress, combinedTokenSource.Token);
                 _spawns.Add(msg.Identity, res);
             }
 
@@ -338,14 +358,14 @@ namespace Proto.Cluster.Partition
         }
 
 
-        private async Task<ActivationResponse> SpawnRemoteActor(ActivationRequest req, string activator)
+        private async Task<ActivationResponse> SpawnRemoteActor(ActivationRequest req, string activator, CancellationToken cancellationToken)
         {
             try
             {
                 _logger.LogDebug("Spawning Remote Actor {Activator} {Identity} {Kind}", activator, req.Identity,
                     req.Kind
                 );
-                return await ActivateAsync(activator, req.Identity, req.Kind, _cluster.Config!.TimeoutTimespan);
+                return await ActivateAsync(activator, req.Identity, req.Kind, cancellationToken);
             }
             catch
             {
@@ -355,7 +375,7 @@ namespace Proto.Cluster.Partition
 
         //identical to Remote.SpawnNamedAsync, just using the special partition-activator for spawning
         private async Task<ActivationResponse> ActivateAsync(string address, string identity, string kind,
-            TimeSpan timeout)
+            CancellationToken cancellationToken)
         {
             var activator = _partitionManager.RemotePartitionPlacementActor(address);
 
@@ -365,7 +385,7 @@ namespace Proto.Cluster.Partition
                 {
                     Kind = kind,
                     Identity = identity
-                }, timeout
+                }, cancellationToken
             );
 
             return res;
