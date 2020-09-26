@@ -32,11 +32,6 @@ namespace Proto.Cluster
                     }
                 }
             );
-            system.EventStream.Subscribe<ActivationTerminated>(e =>
-                {
-                    _pidCache.TryRemove(e.Kind + "." + e.Identity, out _);
-                }
-            );
         }
 
         public Guid Id { get; } = Guid.NewGuid();
@@ -160,11 +155,6 @@ namespace Proto.Cluster
                         }
 
                         PidCache.TryRemove(kind, identity, cachedPid);
-                    }
-                    else
-                    {
-                        _logger.LogInformation("Received null response when requesting {Identity}-{Kind} Message {Message} with PID from cache. Removing from cache.", identity, kind, message, cachedPid);
-                        _pidCache.TryRemove(key, out _);
                     }
                 }
                 catch
