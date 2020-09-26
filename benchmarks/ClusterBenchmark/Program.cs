@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using ClusterExperiment1.Messages;
@@ -33,39 +32,45 @@ namespace ClusterExperiment1
 
             var cluster = await SpawnClient();
 
-            await Task.Delay(1000);
+            await Task.Delay(5000);
 
             _ = Task.Run(async () =>
                 {
                     var rnd = new Random();
                     while (true)
                     {
-                        try
-                        {
-                            var id = "myactor" + rnd.Next(0, 1000);
-                            var res = await cluster.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
-                                new CancellationTokenSource(TimeSpan.FromSeconds(15)).Token
-                            );
+                        Task.Run(async () =>
+                            {
+                                var id = "myactor" + rnd.Next(0, 1000);
+                                try
+                                {
 
-                            if (res == null)
-                            {
-                                logger.LogError("Null response");
+                                    var res = await cluster.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
+                                        new CancellationTokenSource(TimeSpan.FromSeconds(15)).Token
+                                    );
+
+                                    if (res == null)
+                                    {
+                                        logger.LogError("Null response");
+                                    }
+                                    else
+                                    {
+                                        Console.Write(".");
+                                    }
+                                }
+                                catch (Exception x)
+                                {
+                                    logger.LogError(x, "Request timeout for {Id}", id);
+                                }
                             }
-                            else
-                            {
-                                Console.Write(".");
-                            }
-                        }
-                        catch (Exception)
-                        {
-                            logger.LogError("Request timeout");
-                        }
+                        );
                     }
                 }
             );
 
+            Console.ReadLine();
 
-            Thread.Sleep(Timeout.Infinite);
+            //   Thread.Sleep(Timeout.Infinite);
         }
 
         private static ILogger SetupLogger()
@@ -149,19 +154,6 @@ namespace ClusterExperiment1
             try
             {
                 Console.WriteLine("Running with InClusterConfig");
-                // var namespaceFile = Path.Combine(
-                //     $"{Path.DirectorySeparatorChar}var",
-                //     "run",
-                //     "secrets",
-                //     "kubernetes.io",
-                //     "serviceaccount",
-                //     "namespace"
-                // );
-                // Console.WriteLine(namespaceFile);
-                //
-                // KubernetesClientConfiguration.InClusterConfig();
-                //
-                // var cachedNamespace = File.ReadAllText(namespaceFile);
 
                 var kubernetesConfig =
                     KubernetesClientConfiguration
@@ -187,6 +179,8 @@ namespace ClusterExperiment1
             var connectionString = Environment.GetEnvironmentVariable("MONGO") ?? "mongodb://127.0.0.1:27017/ProtoMongo";
             var url = MongoUrl.Create(connectionString);
             var settings = MongoClientSettings.FromUrl(url);
+            settings.WriteConcern = WriteConcern.Acknowledged;
+            settings.ReadConcern = ReadConcern.Majority;
             var client = new MongoClient(settings);
             var database = client.GetDatabase("ProtoMongo");
             return database;
