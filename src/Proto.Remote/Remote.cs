@@ -15,11 +15,21 @@ using Microsoft.Extensions.Logging;
 
 namespace Proto.Remote
 {
+    public interface IRemote
+    {
+        RemoteConfig Config { get; }
+        ActorSystem System { get; }
+        // Only used in tests ?
+        void SendMessage(PID pid, object msg, int serializerId);
+        Task ShutdownAsync(bool graceful = true);
+        Task StartAsync();
+    }
+
     [PublicAPI]
-    public class Remote
+    public class Remote : IRemote
     {
         private static readonly ILogger Logger = Log.CreateLogger<Remote>();
-        
+
         private readonly ActorSystem _system;
         private EndpointManager _endpointManager = null!;
         private EndpointReader _endpointReader = null!;
@@ -27,42 +37,25 @@ namespace Proto.Remote
 
         private Server _server = null!;
 
-        public Remote(ActorSystem system,string host, int port, RemoteConfig config) : this(system,config.WithHost(host).WithPort(port))
+        public Remote(ActorSystem system, string host, int port, RemoteConfig config) : this(system, config.WithHost(host).WithPort(port))
         {
         }
-        
-        public Remote(ActorSystem system,RemoteConfig config)
+
+        public Remote(ActorSystem system, RemoteConfig config)
         {
             _system = system;
             Config = config;
         }
 
         public RemoteConfig Config { get; private set; }
-        public PID? ActivatorPid { get; private set; }
-
-        public string[] GetRemoteKinds() => Config.RemoteKinds.Keys.ToArray();
-
-        // public void RegisterKnownKind(string kind, Props props) => Config.KnownKinds.Add(kind, props);
-        //
-        // public void UnregisterKnownKind(string kind) => Config.KnownKinds.Remove(kind);
-        public Props GetRemoteKind(string kind)
-        {
-            if (!Config.RemoteKinds.TryGetValue(kind, out var props))
-            {
-                throw new ArgumentException($"No Props found for kind '{kind}'");
-            }
-
-            return props;
-        }
-
+        public ActorSystem System { get => _system; }
         public Task StartAsync()
         {
             var config = Config;
-            _endpointManager = new EndpointManager(this, _system);
+            _endpointManager = new EndpointManager(_system, Config);
             _endpointReader = new EndpointReader(_system, _endpointManager, config.Serialization);
             _healthCheck = new HealthServiceImpl();
-            _system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(this, _system, _endpointManager, pid)
-            );
+            _system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(_system, _endpointManager, pid));
 
             _server = new Server
             {
@@ -71,7 +64,7 @@ namespace Proto.Remote
                     Remoting.BindService(_endpointReader),
                     Health.BindService(_healthCheck)
                 },
-                Ports = {new ServerPort(config.Host, config.Port, config.ServerCredentials)}
+                Ports = { new ServerPort(config.Host, config.Port, config.ServerCredentials) }
             };
             _server.Start();
 
@@ -79,7 +72,6 @@ namespace Proto.Remote
             _system.SetAddress(config.AdvertisedHostname ?? config.Host, config.AdvertisedPort ?? boundPort
             );
             _endpointManager.Start();
-            SpawnActivator();
 
             Logger.LogDebug("Starting Proto.Actor server on {Host}:{Port} ({Address})", config.Host, boundPort,
                 _system.Address
@@ -95,9 +87,7 @@ namespace Proto.Remote
                 if (graceful)
                 {
                     _endpointManager.Stop();
-                    _endpointReader.Suspend(true);
-                    StopActivator();
-                    await _server.KillAsync(); //TODO: was ShutdownAsync but that never returns?
+                    await _server.ShutdownAsync();
                 }
                 else
                 {
@@ -120,21 +110,38 @@ namespace Proto.Remote
             }
         }
 
+        // Only used in tests ?
+        public void SendMessage(PID pid, object msg, int serializerId)
+        {
+            _endpointManager.SendMessage(pid, msg, serializerId);
+        }
+    }
+
+    public static class Extensions
+    {
         /// <summary>
-        ///     Span a remote actor with auto-generated name
+        ///     Spawn a remote actor with auto-generated name
         /// </summary>
         /// <param name="address">Remote node address</param>
         /// <param name="kind">Actor kind, must be known on the remote node</param>
         /// <param name="timeout">Timeout for the confirmation to be received from the remote node</param>
         /// <returns></returns>
-        public Task<ActorPidResponse> SpawnAsync(string address, string kind, TimeSpan timeout) =>
-            SpawnNamedAsync(address, "", kind, timeout);
+        public static Task<ActorPidResponse> SpawnAsync(this IRemote remote, string address, string kind, TimeSpan timeout) =>
+            SpawnNamedAsync(remote, address, "", kind, timeout);
 
-        public async Task<ActorPidResponse> SpawnNamedAsync(string address, string name, string kind, TimeSpan timeout)
+        /// <summary>
+        ///     Spawn a remote actor with a name
+        /// </summary>
+        /// <param name="address">Remote node address</param>
+        /// <param name="name">Remote actor name</param>
+        /// <param name="kind">Actor kind, must be known on the remote node</param>
+        /// <param name="timeout">Timeout for the confirmation to be received from the remote node</param>
+        /// <returns></returns>
+        public static async Task<ActorPidResponse> SpawnNamedAsync(this IRemote remote, string address, string name, string kind, TimeSpan timeout)
         {
             var activator = ActivatorForAddress(address);
 
-            var res = await _system.Root.RequestAsync<ActorPidResponse>(
+            var res = await remote.System.Root.RequestAsync<ActorPidResponse>(
                 activator, new ActorPidRequest
                 {
                     Kind = kind,
@@ -146,22 +153,5 @@ namespace Proto.Remote
 
             static PID ActivatorForAddress(string address) => new PID(address, "activator");
         }
-
-        public void SendMessage(PID pid, object msg, int serializerId)
-        {
-            var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
-
-            var env = new RemoteDeliver(header!, message, pid, sender!, serializerId);
-            _endpointManager.RemoteDeliver(env);
-        }
-
-        private void SpawnActivator()
-        {
-            var props = Props.FromProducer(() => new Activator(this, _system))
-                .WithGuardianSupervisorStrategy(Supervision.AlwaysRestartStrategy);
-            ActivatorPid = _system.Root.SpawnNamed(props, "activator");
-        }
-
-        private void StopActivator() => _system.Root.Stop(ActivatorPid);
     }
 }

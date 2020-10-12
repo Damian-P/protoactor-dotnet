@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Proto.Remote;
 
 namespace Proto.Cluster.Partition
 {
@@ -26,7 +27,7 @@ namespace Proto.Cluster.Partition
         private readonly PartitionManager _partitionManager;
         private readonly Rendezvous _rdv = new Rendezvous();
 
-        private readonly Remote.Remote _remote;
+        private readonly IRemote _remote;
         private readonly ActorSystem _system;
         
         //cluster wide eventId.

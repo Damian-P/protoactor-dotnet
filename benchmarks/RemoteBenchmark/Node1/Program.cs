@@ -30,7 +30,6 @@ class Program
         var pid = context.Spawn(props);
         var remote = new PID("127.0.0.1:12000", "remote");
         context.RequestAsync<Start>(remote, new StartRemote { Sender = pid }).Wait();
-
         var start = DateTime.Now;
         Console.WriteLine("Starting to send");
         var msg = new Ping();

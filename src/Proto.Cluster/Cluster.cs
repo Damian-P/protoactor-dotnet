@@ -12,6 +12,7 @@ using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using Proto.Cluster.IdentityLookup;
 using Proto.Cluster.Partition;
+using Proto.Remote;
 
 namespace Proto.Cluster
 {
@@ -20,16 +21,17 @@ namespace Proto.Cluster
     {
         private ClusterHeartBeat _clusterHeartBeat;
 
-        public Cluster(ActorSystem system, ClusterConfig config)
+        public Cluster(IRemote remote, ClusterConfig config)
         {
             Id = Guid.NewGuid();
             PidCache = new PidCache();
-            System = system;
+            Remote = remote;
+            System = remote.System;
             Config = config;
             Config.RemoteConfig.WithProtoMessages(ProtosReflection.Descriptor);
 
             _clusterHeartBeat = new ClusterHeartBeat(this);
-            system.EventStream.Subscribe<ClusterTopology>(e =>
+            System.EventStream.Subscribe<ClusterTopology>(e =>
                 {
                     foreach (var member in e.Left) PidCache.RemoveByMember(member);
                 }
@@ -45,7 +47,7 @@ namespace Proto.Cluster
 
         public ActorSystem System { get; }
 
-        public Remote.Remote Remote { get; private set; } = null!;
+        public IRemote Remote { get; private set; }
 
         public MemberList MemberList { get; private set; } = null!;
 

@@ -93,8 +93,8 @@ namespace Proto.Cluster.MongoIdentityLookup.Tests
                 .WithClusterKind("sender", senderProps)
                 .WithClusterKind("aggregator", aggProps);
            
-
-            var cluster = new Cluster(system, config);
+            var remote = new Remote.Remote(system, config.RemoteConfig);
+            var cluster = new Cluster(remote, config);
             
             await cluster.StartMemberAsync();
             return cluster;

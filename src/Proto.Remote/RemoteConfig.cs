@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Google.Protobuf.Reflection;
 using Grpc.Core;
 
@@ -76,6 +77,16 @@ namespace Proto.Remote
 
         public Serialization Serialization { get; set; } = new Serialization();
 
+        public string[] GetRemoteKinds() => RemoteKinds.Keys.ToArray();
+        public Props GetRemoteKind(string kind)
+        {
+            if (!RemoteKinds.TryGetValue(kind, out var props))
+            {
+                throw new ArgumentException($"No Props found for kind '{kind}'");
+            }
+
+            return props;
+        }
 
         public RemoteConfig WithChannelOptions(IEnumerable<ChannelOption> options)
         {
@@ -136,25 +147,25 @@ namespace Proto.Remote
             EndpointWriterOptions.RetryBackOff = endpointWriterRetryBackoff;
             return this;
         }
-        
+
         public RemoteConfig WithAnyHost()
         {
             Host = "0.0.0.0";
             return this;
         }
-        
+
         public RemoteConfig WithHost(string host)
         {
             Host = host;
             return this;
         }
-        
+
         public RemoteConfig WithPort(int port)
         {
             Port = port;
             return this;
         }
-        
+
         public RemoteConfig WithAnyFreePort()
         {
             Port = 0;
@@ -167,7 +178,7 @@ namespace Proto.Remote
 
             return this;
         }
-        
+
         public RemoteConfig WithRemoteKind(string kind, Props prop)
         {
             RemoteKinds.Add(kind, prop);
