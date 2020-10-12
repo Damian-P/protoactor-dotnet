@@ -11,7 +11,7 @@ namespace Proto.Remote.Tests
         {
             var props = new Props();
             var kind = Guid.NewGuid().ToString();
-            var remoteConfig = new RemoteConfig()
+            var remoteConfig = RemoteConfig.BindToLocalhost()
                 .WithRemoteKinds((kind, props));
 
             Assert.Equal(props, remoteConfig.GetRemoteKind(kind));
@@ -23,7 +23,7 @@ namespace Proto.Remote.Tests
             var props = new Props();
             var kind1 = Guid.NewGuid().ToString();
             var kind2 = Guid.NewGuid().ToString();
-            var remoteConfig = new RemoteConfig()
+            var remoteConfig = RemoteConfig.BindToLocalhost()
                 .WithRemoteKinds(
                     (kind1, props),
                     (kind2, props));
@@ -36,8 +36,7 @@ namespace Proto.Remote.Tests
         [Fact]
         public void UnknownKindThrowsException()
         {
-            var remoteConfig = new RemoteConfig();
-
+            var remoteConfig = RemoteConfig.BindToLocalhost();
             Assert.Throws<ArgumentException>(() => { remoteConfig.GetRemoteKind("not registered"); });
         }
     }
