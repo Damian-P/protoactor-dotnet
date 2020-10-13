@@ -24,14 +24,16 @@ namespace Proto.Remote
         private readonly Subscription<object>? _endpointTerminatedEvnSub;
         private readonly Subscription<object> _endpointErrorEvnSub;
         private readonly RemoteConfig _remoteConfig;
+        private readonly IChannelProvider _channelProvider;
         private readonly object _synLock = new object();
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
         public PID? ActivatorPid { get; private set; }
 
-        public EndpointManager(ActorSystem system, RemoteConfig remoteConfig)
+        public EndpointManager(ActorSystem system, RemoteConfig remoteConfig, IChannelProvider channelProvider)
         {
             _system = system;
             _remoteConfig = remoteConfig;
+            _channelProvider = channelProvider;
             _endpointTerminatedEvnSub = _system.EventStream.Subscribe<EndpointTerminatedEvent>(OnEndpointTerminated, Dispatchers.DefaultDispatcher);
             _endpointConnectedEvnSub = _system.EventStream.Subscribe<EndpointConnectedEvent>(OnEndpointConnected);
             _endpointErrorEvnSub = _system.EventStream.Subscribe<EndpointErrorEvent>(OnEndpointError);
@@ -158,7 +160,7 @@ namespace Proto.Remote
             {
                 Logger.LogDebug("[EndpointManager] Requesting new endpoint for {Address}", v);
                 var props = Props
-                    .FromProducer(() => new EndpointActor(v, _system, this, _remoteConfig))
+                    .FromProducer(() => new EndpointActor(v, _system, this, _remoteConfig, _channelProvider))
                     .WithMailbox(() => new EndpointWriterMailbox(_system, _remoteConfig.EndpointWriterOptions.EndpointWriterBatchSize, v))
                     .WithGuardianSupervisorStrategy(new EndpointSupervisorStrategy(v, _remoteConfig, _system));
                 var endpointActorPid = _system.Root.SpawnNamed(props, $"endpoint-{v}");

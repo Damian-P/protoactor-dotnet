@@ -118,10 +118,12 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DeadLetterThrottling", "DeadLetterThrottling", "{219A39CD-BC09-4F55-9A2B-67F9960A02E4}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".meta", ".meta", "{222D5932-627D-406B-9FA5-B60B38FD3019}"
-ProjectSection(SolutionItems) = preProject
-	README.md = README.md
-	Terminology.md = Terminology.md
-EndProjectSection
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+		Terminology.md = Terminology.md
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Proto.Remote.GrpcNet", "src\Proto.Remote.GrpcNet\Proto.Remote.GrpcNet.csproj", "{E9A38A14-C388-4631-9A4A-6ED068DFE873}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -603,6 +605,18 @@ Global
 		{C912F331-E740-44F7-A573-B1432C5DCF98}.Release|x64.Build.0 = Release|Any CPU
 		{C912F331-E740-44F7-A573-B1432C5DCF98}.Release|x86.ActiveCfg = Release|Any CPU
 		{C912F331-E740-44F7-A573-B1432C5DCF98}.Release|x86.Build.0 = Release|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Debug|x64.Build.0 = Debug|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Debug|x86.Build.0 = Debug|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Release|x64.ActiveCfg = Release|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Release|x64.Build.0 = Release|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Release|x86.ActiveCfg = Release|Any CPU
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -660,6 +674,7 @@ Global
 		{03206305-8B1B-45E9-92DF-B17A9F6B73AE} = {9AA2BCF0-19AB-4DD9-8D91-7D188E463806}
 		{219A39CD-BC09-4F55-9A2B-67F9960A02E4} = {59DCCC96-DDAF-469F-9E8E-9BC733285082}
 		{C912F331-E740-44F7-A573-B1432C5DCF98} = {219A39CD-BC09-4F55-9A2B-67F9960A02E4}
+		{E9A38A14-C388-4631-9A4A-6ED068DFE873} = {771514F1-12AE-4A26-89CB-2646D3EF7034}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CD0D1E44-8118-4682-8793-6B20ABFA824C}

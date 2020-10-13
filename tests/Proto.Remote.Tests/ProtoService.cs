@@ -9,7 +9,7 @@ namespace Proto.Remote.Tests
         private readonly ILogger<ProtoService> _logger;
         private readonly int _port;
         private readonly string _host;
-        private Remote _remote;
+        private IRemote _remote;
         
         public ProtoService(int port, string host)
         {
@@ -26,7 +26,7 @@ namespace Proto.Remote.Tests
             var actorSystem = new ActorSystem();
             var props = Props.FromProducer(() => new EchoActor(_host, _port));
             
-            _remote = new Remote(actorSystem, RemoteConfig
+            _remote = new SelfHostedRemote(actorSystem, RemoteConfig
                 .BindTo(_host, _port)
                 .WithProtoMessages(Messages.ProtosReflection.Descriptor)
                 .WithRemoteKinds(("EchoActor", props)));

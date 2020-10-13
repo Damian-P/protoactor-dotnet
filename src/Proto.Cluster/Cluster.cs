@@ -103,7 +103,6 @@ namespace Proto.Cluster
         {
             //default to partition identity lookup
             IdentityLookup = Config.IdentityLookup ?? new PartitionIdentityLookup();
-            Remote = new Remote.Remote(System, Config.RemoteConfig);
             await Remote.StartAsync();
             Logger = Log.CreateLogger($"Cluster-{LoggerId}");
             Logger.LogInformation("Starting");

@@ -4,7 +4,7 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Proto.Remote\Proto.Remote.csproj" />
+    <ProjectReference Include="..\..\..\src\Proto.Remote.Grpc\Proto.Remote.Grpc.csproj" />
     <ProjectReference Include="..\Messages\Chat.Messages.csproj" />
   </ItemGroup>
 </Project>

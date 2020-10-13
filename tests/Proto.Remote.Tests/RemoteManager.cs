@@ -9,7 +9,7 @@ namespace Proto.Remote.Tests
     {
         public const string RemoteAddress = "localhost:12000";
 
-        public static async Task<(Remote, ActorSystem)> EnsureRemote()
+        public static async Task<(IRemote, ActorSystem)> EnsureRemote()
         {
             var system = new ActorSystem();
 
@@ -23,7 +23,7 @@ namespace Proto.Remote.Tests
             var service = new ProtoService(12000, "localhost");
             service.StartAsync().Wait();
 
-            var remote = new Remote(system, config);
+            var remote = new SelfHostedRemote(system, config);
             await remote.StartAsync();
 
             return (remote, system);

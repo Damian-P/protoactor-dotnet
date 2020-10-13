@@ -10,6 +10,7 @@ using Messages;
 using Proto;
 using Proto.Remote;
 using ProtosReflection = Messages.ProtosReflection;
+using Microsoft.Extensions.Logging;
 
 namespace Node2
 {
@@ -37,15 +38,21 @@ namespace Node2
 
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
+            Log.SetLoggerFactory(LoggerFactory.Create(c => c
+                .SetMinimumLevel(LogLevel.Information)
+                .AddFilter("Proto.EventStream", LogLevel.None)
+                .AddConsole()
+            ));
             var system = new ActorSystem();
             var context = new RootContext(system);
             var remoteConfig =  RemoteConfig.BindToLocalhost(12000).WithProtoMessages(ProtosReflection.Descriptor);
-            var remote = new Remote(system, remoteConfig);
-            remote.StartAsync();
+            var remote = new SelfHostedRemote(system, remoteConfig);
+            await remote.StartAsync();
             context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");
             Console.ReadLine();
+            await remote.ShutdownAsync();
         }
     }
 }

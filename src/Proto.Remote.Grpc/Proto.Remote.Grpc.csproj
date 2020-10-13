@@ -5,12 +5,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Grpc" Version="2.32.0" />
+    <PackageReference Include="Grpc.HealthCheck" Version="2.32.0" />
     <PackageReference Include="Grpc.Tools" Version="2.32.0" PrivateAssets="All" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Proto.Remote\Proto.Remote.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Protobuf Include="Protos.proto" GrpcServices="Server" ProtoRoot=".; ..\..\src" />
   </ItemGroup>
 </Project>

@@ -25,13 +25,15 @@ namespace Proto.Remote
         private int _serializerId;
         private readonly Dictionary<string, HashSet<PID>> _watchedActors = new Dictionary<string, HashSet<PID>>();
         private readonly string _address;
+        private readonly IChannelProvider _channelProvider;
         public EndpointActor(string address, ActorSystem system, EndpointManager endpointManager,
-            RemoteConfig remoteConfig)
+            RemoteConfig remoteConfig, IChannelProvider channelProvider)
         {
             _address = address;
             _endpointManager = endpointManager;
             _remoteConfig = remoteConfig;
             _behavior = new Behavior(ConnectingAsync);
+            _channelProvider = channelProvider;
         }
         private static Task Ignore => Task.CompletedTask;
         public Task ReceiveAsync(IContext context) => _behavior.ReceiveAsync(context);
@@ -60,7 +62,7 @@ namespace Proto.Remote
             Logger.LogDebug("[EndpointActor] Connecting to address {Address}", _address);
             try
             {
-                _channel = new Channel(_address, _remoteConfig.ChannelCredentials, _remoteConfig.ChannelOptions);
+                _channel = _channelProvider.GetChannel(_address);
             }
             catch (Exception e)
             {
