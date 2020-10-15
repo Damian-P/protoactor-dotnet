@@ -33,7 +33,7 @@ namespace Proto.Cluster.MongoIdentityLookup.Tests
             // ));
         }
 
-        [Theory]
+        [Theory (Skip = "Requires Consul and Mongo to be available on localhost")]
         [InlineData(1, 100, 10, true)]
         [InlineData(3, 100, 10, true)]
         [InlineData(2, 1, 1, false)]

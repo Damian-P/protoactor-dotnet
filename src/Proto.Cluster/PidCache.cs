@@ -22,12 +22,12 @@ namespace Proto.Cluster
             {
                 throw new ArgumentNullException(nameof(kind));
             }
-            
+
             if (string.IsNullOrEmpty(identity))
             {
                 throw new ArgumentNullException(nameof(identity));
             }
-            
+
             return _cacheDict.TryGetValue((kind, identity), out pid);
         }
 
@@ -37,17 +37,17 @@ namespace Proto.Cluster
             {
                 throw new ArgumentNullException(nameof(kind));
             }
-            
+
             if (string.IsNullOrEmpty(identity))
             {
                 throw new ArgumentNullException(nameof(identity));
             }
-            
+
             if (pid == null)
             {
                 throw new ArgumentNullException(nameof(pid));
             }
-            
+
             return _cacheDict.TryAdd((kind, identity), pid);
         }
 
@@ -57,22 +57,22 @@ namespace Proto.Cluster
             {
                 throw new ArgumentNullException(nameof(kind));
             }
-            
+
             if (string.IsNullOrEmpty(identity))
             {
                 throw new ArgumentNullException(nameof(identity));
             }
-            
+
             if (newPid == null)
             {
                 throw new ArgumentNullException(nameof(newPid));
             }
-            
+
             if (existingPid == null)
             {
                 throw new ArgumentNullException(nameof(existingPid));
             }
-            
+
             return _cacheDict.TryUpdate((kind, identity), newPid, existingPid);
         }
 
@@ -82,12 +82,12 @@ namespace Proto.Cluster
             {
                 throw new ArgumentNullException(nameof(kind));
             }
-            
+
             if (string.IsNullOrEmpty(identity))
             {
                 throw new ArgumentNullException(nameof(identity));
             }
-            
+
             return _cacheDict.TryRemove((kind, identity), out _);
         }
 
@@ -106,6 +106,11 @@ namespace Proto.Cluster
         public void RemoveByMember(Member member)
         {
             RemoveByPredicate(pair => member.Address.Equals(pair.Value.Address));
+        }
+
+        public void Clear()
+        {
+            _cacheDict.Clear();
         }
 
         private void RemoveByPredicate(Func<KeyValuePair<(string kind, string identity), PID>, bool> predicate)

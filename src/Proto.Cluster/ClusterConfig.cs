@@ -15,11 +15,11 @@ namespace Proto.Cluster
     [PublicAPI]
     public class ClusterConfig
     {
-        private ClusterConfig(string clusterName, IClusterProvider clusterProvider, IIdentityLookup identityLookup,RemoteConfig remoteConfig)
+        private ClusterConfig(string clusterName, IClusterProvider clusterProvider, IIdentityLookup? identityLookup,RemoteConfig remoteConfig)
         {
             ClusterName = clusterName ?? throw new ArgumentNullException(nameof(clusterName));
             ClusterProvider = clusterProvider ?? throw new ArgumentNullException(nameof(clusterProvider));
-            IdentityLookup = identityLookup;
+            IdentityLookup = identityLookup ?? new Partition.PartitionIdentityLookup();
             RemoteConfig = remoteConfig ?? throw new ArgumentNullException(nameof(remoteConfig));
             TimeoutTimespan = TimeSpan.FromSeconds(5);
             HeartBeatInterval = TimeSpan.FromSeconds(30);
