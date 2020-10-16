@@ -13,7 +13,7 @@
     <ProjectReference Include="..\Proto.Actor\Proto.Actor.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Protobuf Include="Protos.proto" GrpcServices="Client;Server" ProtoRoot=".; ..\..\src" />
+    <Protobuf Include="Protos.proto" GrpcServices="Client;Server" AdditionalImportDirs=".; ..\..\src" />
     <None Remove="HealthCheck.proto" />
   </ItemGroup>
 </Project>
