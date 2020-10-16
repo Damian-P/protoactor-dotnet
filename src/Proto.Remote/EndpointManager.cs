@@ -20,9 +20,9 @@ namespace Proto.Remote
         private readonly ConcurrentDictionary<string, PID> _connections = new ConcurrentDictionary<string, PID>();
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private readonly ActorSystem _system;
-        private readonly Subscription<object>? _endpointConnectedEvnSub;
-        private readonly Subscription<object>? _endpointTerminatedEvnSub;
-        private readonly Subscription<object> _endpointErrorEvnSub;
+        private readonly EventStreamSubscription<object>? _endpointConnectedEvnSub;
+        private readonly EventStreamSubscription<object>? _endpointTerminatedEvnSub;
+        private readonly EventStreamSubscription<object> _endpointErrorEvnSub;
         private readonly RemoteConfig _remoteConfig;
         private readonly IChannelProvider _channelProvider;
         private readonly object _synLock = new object();
