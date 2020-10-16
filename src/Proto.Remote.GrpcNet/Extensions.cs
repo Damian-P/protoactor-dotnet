@@ -48,7 +48,7 @@ namespace Proto.Remote
             services.AddSingleton<EndpointReader, EndpointReader>();
             services.AddSingleton<Serialization>(sp=> sp.GetRequiredService<RemoteConfig>().Serialization);
             services.AddSingleton<Remoting.RemotingBase, EndpointReader>(sp => sp.GetRequiredService<EndpointReader>());
-            services.AddSingleton<IChannelProvider, GrpcNetChannelProvider>();
+            services.AddSingleton<IChannelProvider, ChannelProvider>();
         }
 
         private static GrpcServiceEndpointConventionBuilder AddProtoRemoteEndpoint(IEndpointRouteBuilder endpoints)

@@ -11,10 +11,10 @@ using Grpc.Net.Client;
 
 namespace Proto.Remote
 {
-    public class GrpcNetChannelProvider : IChannelProvider
+    public class ChannelProvider : IChannelProvider
     {
         private readonly GrpcNetRemoteConfig _remoteConfig;
-        public GrpcNetChannelProvider(GrpcNetRemoteConfig remoteConfig)
+        public ChannelProvider(GrpcNetRemoteConfig remoteConfig)
         {
             _remoteConfig = remoteConfig;
         }

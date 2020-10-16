@@ -44,7 +44,7 @@ namespace Proto.Remote
 
         public Task StartAsync()
         {
-            var channelProvider = new GrpcNetChannelProvider(_config);
+            var channelProvider = new ChannelProvider(_config);
             _endpointManager = new EndpointManager(System, Config, channelProvider);
             _endpointReader = new EndpointReader(System, _endpointManager, Config.Serialization);
             _healthCheck = new HealthServiceImpl();
