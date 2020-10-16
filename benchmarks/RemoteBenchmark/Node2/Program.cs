@@ -40,11 +40,11 @@ namespace Node2
     {
         static async Task Main(string[] args)
         {
-            Log.SetLoggerFactory(LoggerFactory.Create(c => c
-                .SetMinimumLevel(LogLevel.Information)
-                .AddFilter("Proto.EventStream", LogLevel.None)
-                .AddConsole()
-            ));
+            // Log.SetLoggerFactory(LoggerFactory.Create(c => c
+            //     .SetMinimumLevel(LogLevel.Information)
+            //     .AddFilter("Proto.EventStream", LogLevel.None)
+            //     .AddConsole()
+            // ));
             var system = new ActorSystem();
             var context = new RootContext(system);
             var remoteConfig =  GrpcNetRemoteConfig.BindToLocalhost(12000).WithProtoMessages(ProtosReflection.Descriptor);

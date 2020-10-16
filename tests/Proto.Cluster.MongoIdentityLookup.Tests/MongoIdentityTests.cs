@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using ClusterTest.Messages;
 using Divergic.Logging.Xunit;
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
 using MongoDB.Driver;
 using Proto.Cluster.Consul;
 using Proto.Cluster.IdentityLookup;
@@ -26,25 +25,20 @@ namespace Proto.Cluster.MongoIdentityLookup.Tests
             var factory = LogFactory.Create(testOutputHelper);
             _testOutputHelper = testOutputHelper;
             Log.SetLoggerFactory(factory);
-            // Log.SetLoggerFactory(Microsoft.Extensions.Logging.LoggerFactory.Create(c => c
-            //     .SetMinimumLevel(LogLevel.Information)
-            //     .AddFilter("Proto.EventStream", LogLevel.None)
-            //     .AddConsole()
-            // ));
         }
 
         [Theory(Skip = "Requires Consul and Mongo to be available on localhost")]
         [InlineData(1, 100, 10, true)]
         [InlineData(3, 100, 10, true)]
-        [InlineData(2, 1, 1, false)]
-        [InlineData(3, 100, 10, false)]
+        // [InlineData(2, 1, 1, false)]
+        // [InlineData(3, 100, 10, false)]
         public async Task MongoIdentityClusterTest(int clusterNodes, int sendingActors, int messagesSentPerCall,
             bool useMongoIdentity)
         {
             const string aggregatorId = "agg-1";
             var clusterMembers = await SpawnMembers(clusterNodes, useMongoIdentity);
 
-            await Task.Delay(5000);
+            await Task.Delay(1000);
 
             var maxWait = new CancellationTokenSource(5000);
 
@@ -116,7 +110,8 @@ namespace Proto.Cluster.MongoIdentityLookup.Tests
             var remoteConfig = GrpcRemoteConfig.BindTo(host, port)
                 .WithProtoMessages(MessagesReflection.Descriptor)
                 .WithAdvertisedHost(Environment.GetEnvironmentVariable("PROTOHOSTPUBLIC") ?? host!);
-            return (ClusterConfig.Setup(clusterName, clusterProvider, remoteConfig, identityLookup), remoteConfig);
+            var clusterConfig = ClusterConfig.Setup(clusterName, clusterProvider, remoteConfig, identityLookup);
+            return (clusterConfig, remoteConfig);
         }
 
         private static IIdentityLookup GetIdentityLookup(string clusterName)
