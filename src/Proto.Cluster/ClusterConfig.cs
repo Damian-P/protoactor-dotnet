@@ -16,26 +16,26 @@ namespace Proto.Cluster
     [PublicAPI]
     public class ClusterConfig
     {
-        private ClusterConfig(string clusterName, IClusterProvider clusterProvider, IIdentityLookup identityLookup,RemoteConfig remoteConfig)
+        private ClusterConfig(string clusterName, IClusterProvider clusterProvider, RemoteConfig remoteConfig, IIdentityLookup? identityLookup)
         {
             ClusterName = clusterName ?? throw new ArgumentNullException(nameof(clusterName));
             ClusterProvider = clusterProvider ?? throw new ArgumentNullException(nameof(clusterProvider));
-            IdentityLookup = identityLookup?? new PartitionIdentityLookup();
+            IdentityLookup = identityLookup ?? new PartitionIdentityLookup();
             RemoteConfig = remoteConfig ?? throw new ArgumentNullException(nameof(remoteConfig));
             TimeoutTimespan = TimeSpan.FromSeconds(5);
-            HeartBeatInterval = TimeSpan.FromSeconds(30);
+            HeartBeatInterval = TimeSpan.FromSeconds(1);
             MemberStrategyBuilder = kind => new SimpleMemberStrategy();
             ClusterKinds = new Dictionary<string, Props>();
         }
 
         public string ClusterName { get; }
-        
-        public Dictionary<string, Props> ClusterKinds { get; } 
+
+        public Dictionary<string, Props> ClusterKinds { get; }
 
         public IClusterProvider ClusterProvider { get; }
 
         public RemoteConfig RemoteConfig { get; }
-        
+
         public TimeSpan TimeoutTimespan { get; private set; }
 
         public Func<string, IMemberStrategy> MemberStrategyBuilder { get; private set; }
@@ -66,11 +66,11 @@ namespace Proto.Cluster
             foreach (var (kind, prop) in knownKinds) ClusterKinds.Add(kind, prop);
             return this;
         }
-        
+
         public static ClusterConfig Setup(string clusterName, IClusterProvider clusterProvider,
-            IIdentityLookup identityLookup, RemoteConfig remoteConfig)
+            RemoteConfig remoteConfig, IIdentityLookup? identityLookup = null)
         {
-            return new ClusterConfig(clusterName, clusterProvider, identityLookup, remoteConfig);
+            return new ClusterConfig(clusterName, clusterProvider, remoteConfig, identityLookup);
         }
     }
 }

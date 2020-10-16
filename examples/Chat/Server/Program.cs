@@ -14,7 +14,7 @@ namespace Server
             var system = new ActorSystem();
             var context = new RootContext(system);
             
-            var remote = new SelfHostedRemote(system, RemoteConfig.BindToLocalhost(8000)
+            var remote = new SelfHostedRemote(system, GrpcRemoteConfig.BindToLocalhost(8000)
                 .WithProtoMessages(ChatReflection.Descriptor));
             remote.StartAsync();
 

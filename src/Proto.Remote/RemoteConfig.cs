@@ -4,10 +4,7 @@
 //   </copyright>
 // -----------------------------------------------------------------------
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using Google.Protobuf.Reflection;
 using Grpc.Core;
 using JetBrains.Annotations;
 
@@ -19,15 +16,7 @@ namespace Proto.Remote
         public const string AllInterfaces = "0.0.0.0";
         public const string Localhost = "127.0.0.1";
         public const int AnyFreePort = 0;
-        
-        public static RemoteConfig BinToAllInterfaces(string advertisedHost, int port = 0) =>
-            new RemoteConfig(AllInterfaces, port).WithAdvertisedHost(advertisedHost);
-        
-        public static RemoteConfig BindToLocalhost(int port = 0) => new RemoteConfig(Localhost, port);
-        
-        public static RemoteConfig BindTo(string host, int port = 0) => new RemoteConfig(host, port);
-        
-        private RemoteConfig(string host, int port)
+        protected RemoteConfig(string host, int port)
         {
             Host = host;
             Port = port;
@@ -49,24 +38,9 @@ namespace Proto.Remote
         public Dictionary<string, Props> RemoteKinds { get; private set; } = new Dictionary<string, Props>();
 
         /// <summary>
-        ///     Gets or sets the ChannelOptions for the gRPC channel.
-        /// </summary>
-        public IEnumerable<ChannelOption> ChannelOptions { get; set; } = null!;
-
-        /// <summary>
         ///     Gets or sets the CallOptions for the gRPC channel.
         /// </summary>
         public CallOptions CallOptions { get; set; }
-
-        /// <summary>
-        ///     Gets or sets the ChannelCredentials for the gRPC channel. The default is Insecure.
-        /// </summary>
-        public ChannelCredentials ChannelCredentials { get; set; } = ChannelCredentials.Insecure;
-
-        /// <summary>
-        ///     Gets or sets the ServerCredentials for the gRPC server. The default is Insecure.
-        /// </summary>
-        public ServerCredentials ServerCredentials { get; set; } = ServerCredentials.Insecure;
 
         /// <summary>
         ///     Gets or sets the advertised hostname for the remote system.
@@ -86,104 +60,6 @@ namespace Proto.Remote
 
         public Serialization Serialization { get; set; } = new Serialization();
 
-        public string[] GetRemoteKinds() => RemoteKinds.Keys.ToArray();
-        public Props GetRemoteKind(string kind)
-        {
-            if (!RemoteKinds.TryGetValue(kind, out var props))
-            {
-                throw new ArgumentException($"No Props found for kind '{kind}'");
-            }
-
-            return props;
-        }
-
-        public RemoteConfig WithChannelOptions(IEnumerable<ChannelOption> options)
-        {
-            ChannelOptions = options;
-            return this;
-        }
-
-        public RemoteConfig WithCallOptions(CallOptions options)
-        {
-            CallOptions = options;
-            return this;
-        }
-
-        public RemoteConfig WithChannelCredentials(ChannelCredentials channelCredentials)
-        {
-            ChannelCredentials = channelCredentials;
-            return this;
-        }
-
-        public RemoteConfig WithServerCredentials(ServerCredentials serverCredentials)
-        {
-            ServerCredentials = serverCredentials;
-            return this;
-        }
-
-        public RemoteConfig WithAdvertisedHost(string? advertisedHostname)
-        {
-            AdvertisedHostname = advertisedHostname;
-            return this;
-        }
-
-        /// <summary>
-        /// Advertised port can be different from the bound port, e.g. in container scenarios
-        /// </summary>
-        /// <param name="advertisedPort"></param>
-        /// <returns></returns>
-        public RemoteConfig WithAdvertisedPort(int? advertisedPort)
-        {
-            AdvertisedPort = advertisedPort;
-            return this;
-        }
-
-        public RemoteConfig WithEndpointWriterBatchSize(int endpointWriterBatchSize)
-        {
-            EndpointWriterOptions.EndpointWriterBatchSize = endpointWriterBatchSize;
-            return this;
-        }
-
-        public RemoteConfig WithEndpointWriterMaxRetries(int endpointWriterMaxRetries)
-        {
-            EndpointWriterOptions.MaxRetries = endpointWriterMaxRetries;
-            return this;
-        }
-
-        public RemoteConfig WithEndpointWriterRetryTimeSpan(TimeSpan endpointWriterRetryTimeSpan)
-        {
-            EndpointWriterOptions.RetryTimeSpan = endpointWriterRetryTimeSpan;
-            return this;
-        }
-
-        public RemoteConfig WithEndpointWriterRetryBackOff(TimeSpan endpointWriterRetryBackoff)
-        {
-            EndpointWriterOptions.RetryBackOff = endpointWriterRetryBackoff;
-            return this;
-        }
-
-        public RemoteConfig WithProtoMessages(params FileDescriptor[] fileDescriptors)
-        {
-            foreach (var fd in fileDescriptors) Serialization.RegisterFileDescriptor(fd);
-            return this;
-        }
-
-        public RemoteConfig WithRemoteKind(string kind, Props prop)
-        {
-            RemoteKinds.Add(kind, prop);
-            return this;
-        }
-
-        public RemoteConfig WithRemoteKinds(params (string kind, Props prop)[] knownKinds)
-        {
-            foreach (var (kind, prop) in knownKinds) RemoteKinds.Add(kind, prop);
-            return this;
-        }
         
-        public RemoteConfig WithSerializer(ISerializer serializer, bool makeDefault = false)
-        {
-            Serialization.RegisterSerializer(serializer,makeDefault);
-            return this;
-        }
     }
 }

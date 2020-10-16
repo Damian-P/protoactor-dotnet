@@ -26,7 +26,7 @@ namespace Proto.Remote.Tests
             var actorSystem = new ActorSystem();
             var props = Props.FromProducer(() => new EchoActor(_host, _port));
             
-            _remote = new SelfHostedRemote(actorSystem, RemoteConfig
+            _remote = new SelfHostedRemote(actorSystem, GrpcRemoteConfig
                 .BindTo(_host, _port)
                 .WithProtoMessages(Messages.ProtosReflection.Descriptor)
                 .WithRemoteKinds(("EchoActor", props)));

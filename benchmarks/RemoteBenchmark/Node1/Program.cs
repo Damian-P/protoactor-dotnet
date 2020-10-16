@@ -26,7 +26,7 @@ class Program
         var context = new RootContext(system);
 
         var remote = new SelfHostedRemote(system,
-            RemoteConfig.BindToLocalhost(12001).WithProtoMessages(ProtosReflection.Descriptor));
+            GrpcNetRemoteConfig.BindToLocalhost(12001).WithProtoMessages(ProtosReflection.Descriptor));
         await remote.StartAsync();
 
         var messageCount = 1000000;

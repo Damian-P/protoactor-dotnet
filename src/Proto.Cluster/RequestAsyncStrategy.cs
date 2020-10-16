@@ -112,8 +112,8 @@ namespace Proto.Cluster
                 _logger.LogWarning(x, $"TryRequestAsync failed with exception, PID from {source}");
                 
             }
-            _pidCache.Clear();
-            // TryClearPidCache(kind, identity);
+            // _pidCache.Clear();
+            TryClearPidCache(kind, identity);
 
             return (false,default)!;
         }

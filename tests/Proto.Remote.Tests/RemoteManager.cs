@@ -14,7 +14,7 @@ namespace Proto.Remote.Tests
             var system = new ActorSystem();
 
             var config =
-                RemoteConfig.BindToLocalhost()
+                GrpcRemoteConfig.BindToLocalhost()
                     .WithEndpointWriterMaxRetries(2)
                     .WithEndpointWriterRetryBackOff(TimeSpan.FromMilliseconds(10))
                     .WithEndpointWriterRetryTimeSpan(TimeSpan.FromSeconds(120))

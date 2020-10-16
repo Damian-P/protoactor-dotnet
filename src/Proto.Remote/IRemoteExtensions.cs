@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 //   <copyright file="Remote.cs" company="Asynkron AB">
 //       Copyright (C) 2015-2020 Asynkron AB All rights reserved
 //   </copyright>
@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Proto.Remote
 {
-    public static class Extensions
+    public static class IRemoteExtensions
     {
         /// <summary>
         ///     Spawn a remote actor with auto-generated name

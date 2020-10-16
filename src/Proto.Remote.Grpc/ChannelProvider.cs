@@ -9,9 +9,9 @@ namespace Proto.Remote
 {
     public class ChannelProvider : IChannelProvider
     {
-        private readonly RemoteConfig _remoteConfig;
+        private readonly GrpcRemoteConfig _remoteConfig;
 
-        public ChannelProvider(RemoteConfig remoteConfig)
+        public ChannelProvider(GrpcRemoteConfig remoteConfig)
         {
             _remoteConfig = remoteConfig;
         }

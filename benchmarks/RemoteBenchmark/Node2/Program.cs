@@ -47,7 +47,7 @@ namespace Node2
             ));
             var system = new ActorSystem();
             var context = new RootContext(system);
-            var remoteConfig =  RemoteConfig.BindToLocalhost(12000).WithProtoMessages(ProtosReflection.Descriptor);
+            var remoteConfig =  GrpcNetRemoteConfig.BindToLocalhost(12000).WithProtoMessages(ProtosReflection.Descriptor);
             var remote = new SelfHostedRemote(system, remoteConfig);
             await remote.StartAsync();
             context.SpawnNamed(Props.FromProducer(() => new EchoActor()), "remote");

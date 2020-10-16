@@ -24,7 +24,7 @@ namespace ClusterExperiment1
             SpawnMember();
 
             Thread.Sleep(Timeout.Infinite);
-            return Task.CompletedTask;            
+            return Task.CompletedTask;
         }
 
         private static async Task RunLeader()
@@ -67,7 +67,7 @@ namespace ClusterExperiment1
             }
             );
 
-        Console.ReadLine();
+            Console.ReadLine();
 
             //   Thread.Sleep(Timeout.Infinite);
         }
@@ -90,7 +90,7 @@ namespace ClusterExperiment1
 
         public static async Task Main(string[] args)
         {
-            if (args.Length == 0 )
+            if (args.Length == 0)
             {
                 await RunLeader();
             }
@@ -105,9 +105,9 @@ namespace ClusterExperiment1
             var system = new ActorSystem();
             var clusterProvider = ClusterProvider();
             var identity = GetIdentityLookup();
-            var config = GetClusterConfig(clusterProvider, identity);
-            var remote = new SelfHostedRemote(system, config.RemoteConfig);
-            var cluster = new Cluster(remote, config);
+            var (clusterConfig, remoteConfig) = GetClusterConfig(clusterProvider, identity);
+            var remote = new SelfHostedRemote(system, remoteConfig);
+            var cluster = new Cluster(remote, clusterConfig);
             await cluster.StartClientAsync();
             return cluster;
         }
@@ -118,28 +118,27 @@ namespace ClusterExperiment1
             var clusterProvider = ClusterProvider();
             var identity = GetIdentityLookup();
             var helloProps = Props.FromProducer(() => new HelloActor());
-            var config = GetClusterConfig(clusterProvider, identity)
-                .WithClusterKind("hello", helloProps);
-            var remote = new SelfHostedRemote(system, config.RemoteConfig);
-            var cluster = new Cluster(remote, config);
-            
+            var (clusterConfig, remoteConfig) = GetClusterConfig(clusterProvider, identity);
+            clusterConfig.WithClusterKind("hello", helloProps);
+            var remote = new SelfHostedRemote(system, remoteConfig);
+            var cluster = new Cluster(remote, clusterConfig);
+
             cluster.StartMemberAsync();
             return cluster;
         }
 
-        private static ClusterConfig GetClusterConfig(IClusterProvider clusterProvider, IIdentityLookup identityLookup)
+        private static (ClusterConfig, GrpcRemoteConfig) GetClusterConfig(IClusterProvider clusterProvider, IIdentityLookup identityLookup)
         {
             var portStr = Environment.GetEnvironmentVariable("PROTOPORT") ?? $"{RemoteConfig.AnyFreePort}";
             var port = int.Parse(portStr);
             var host = Environment.GetEnvironmentVariable("PROTOHOST") ?? RemoteConfig.Localhost;
             var advertisedHost = Environment.GetEnvironmentVariable("PROTOHOSTPUBLIC");
-            return ClusterConfig
-                .Setup("mycluster", clusterProvider, identityLookup,
-                    RemoteConfig
-                        .BindTo(host, port)
-                        .WithAdvertisedHost(advertisedHost)
-                        .WithProtoMessages(MessagesReflection.Descriptor)
-                );
+            var remoteConfig = GrpcRemoteConfig
+                                    .BindTo(host, port)
+                                    .WithAdvertisedHost(advertisedHost)
+                                    .WithProtoMessages(MessagesReflection.Descriptor);
+            return (ClusterConfig
+                .Setup("mycluster", clusterProvider, remoteConfig, identityLookup), remoteConfig);
         }
 
         private static IClusterProvider ClusterProvider()
@@ -179,8 +178,8 @@ namespace ClusterExperiment1
             return database;
         }
     }
-    
-    
+
+
 
     public class HelloActor : IActor
     {

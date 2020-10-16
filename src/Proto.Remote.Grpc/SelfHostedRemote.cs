@@ -19,28 +19,28 @@ namespace Proto.Remote
     [PublicAPI]
     public class SelfHostedRemote : IRemote
     {
-        private static readonly ILogger Logger = Log.CreateLogger<IRemote>();
+        private static readonly ILogger Logger = Log.CreateLogger<SelfHostedRemote>();
         private EndpointManager _endpointManager = null!;
         private EndpointReader _endpointReader = null!;
         private HealthServiceImpl _healthCheck = null!;
         private Server _server = null!;
+        private readonly GrpcRemoteConfig _config;
 
-        public SelfHostedRemote(ActorSystem system,RemoteConfig config)
+        public SelfHostedRemote(ActorSystem system, GrpcRemoteConfig config)
         {
             System = system;
             Config = config;
+            _config = config;
         }
 
         public RemoteConfig Config { get; }
         public ActorSystem System { get; }
         public Task StartAsync()
         {
-            var channelProvider = new ChannelProvider(Config);
+            var channelProvider = new ChannelProvider(_config);
             _endpointManager = new EndpointManager(System, Config, channelProvider);
             _endpointReader = new EndpointReader(System, _endpointManager, Config.Serialization);
             _healthCheck = new HealthServiceImpl();
-            System.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(System, _endpointManager, pid));
-
             _server = new Server
             {
                 Services =
@@ -48,7 +48,7 @@ namespace Proto.Remote
                     Remoting.BindService(_endpointReader),
                     Health.BindService(_healthCheck)
                 },
-                Ports = { new ServerPort(Config.Host, Config.Port, Config.ServerCredentials) }
+                Ports = { new ServerPort(Config.Host, Config.Port, _config.ServerCredentials) }
             };
             _server.Start();
 

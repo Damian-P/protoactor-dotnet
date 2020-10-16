@@ -33,7 +33,7 @@ namespace Proto.Cluster.MongoIdentityLookup.Tests
             // ));
         }
 
-        [Theory (Skip = "Requires Consul and Mongo to be available on localhost")]
+        [Theory(Skip = "Requires Consul and Mongo to be available on localhost")]
         [InlineData(1, 100, 10, true)]
         [InlineData(3, 100, 10, true)]
         [InlineData(2, 1, 1, false)]
@@ -95,29 +95,28 @@ namespace Proto.Cluster.MongoIdentityLookup.Tests
             var senderProps = Props.FromProducer(() => new SenderActor(_testOutputHelper));
             var aggProps = Props.FromProducer(() => new VerifyOrderActor());
 
-            var config = GetClusterConfig(clusterProvider, clusterName, identityLookup)
-                .WithClusterKind("sender", senderProps)
+            var (clusterConfig, remoteConfig) = GetClusterConfig(clusterProvider, clusterName, identityLookup);
+            clusterConfig.WithClusterKind("sender", senderProps)
                 .WithClusterKind("aggregator", aggProps);
 
-            var remote = new SelfHostedRemote(system, config.RemoteConfig);
-            var cluster = new Cluster(remote, config);
+            var remote = new SelfHostedRemote(system, remoteConfig);
+            var cluster = new Cluster(remote, clusterConfig);
 
             await cluster.StartMemberAsync();
             return cluster;
         }
 
 
-        private static ClusterConfig GetClusterConfig(IClusterProvider clusterProvider, string clusterName,
+        private static (ClusterConfig, GrpcRemoteConfig) GetClusterConfig(IClusterProvider clusterProvider, string clusterName,
             IIdentityLookup identityLookup)
         {
             var portStr = Environment.GetEnvironmentVariable("PROTOPORT") ?? "0";
             var port = int.Parse(portStr);
             var host = Environment.GetEnvironmentVariable("PROTOHOST") ?? "127.0.0.1";
-
-            return ClusterConfig.Setup(clusterName, clusterProvider, identityLookup, 
-                RemoteConfig.BindTo(host, port)
+            var remoteConfig = GrpcRemoteConfig.BindTo(host, port)
                 .WithProtoMessages(MessagesReflection.Descriptor)
-                .WithAdvertisedHost(Environment.GetEnvironmentVariable("PROTOHOSTPUBLIC") ?? host!));
+                .WithAdvertisedHost(Environment.GetEnvironmentVariable("PROTOHOSTPUBLIC") ?? host!);
+            return (ClusterConfig.Setup(clusterName, clusterProvider, remoteConfig, identityLookup), remoteConfig);
         }
 
         private static IIdentityLookup GetIdentityLookup(string clusterName)

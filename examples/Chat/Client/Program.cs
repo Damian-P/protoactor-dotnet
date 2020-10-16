@@ -11,7 +11,7 @@ namespace Client
         static void Main()
         {
             var system = new ActorSystem();
-            var remote = new SelfHostedRemote(system, RemoteConfig.BindToLocalhost()
+            var remote = new SelfHostedRemote(system, GrpcRemoteConfig.BindToLocalhost()
                 .WithProtoMessages(ChatReflection.Descriptor));
             
             remote.StartAsync();

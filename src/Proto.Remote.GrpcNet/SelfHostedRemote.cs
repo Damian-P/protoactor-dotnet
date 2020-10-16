@@ -21,21 +21,21 @@ namespace Proto.Remote
 {
     public class SelfHostedRemote : IRemote
     {
-        private readonly ILogger _logger = Log.CreateLogger<IRemote>();
+        private readonly ILogger _logger = Log.CreateLogger<SelfHostedRemote>();
         private EndpointManager _endpointManager = null!;
         private EndpointReader _endpointReader = null!;
         private HealthServiceImpl _healthCheck = null!;
-        private readonly GrpcNetRemoteConfig _grpcNetRemoteConfig;
+        private readonly GrpcNetRemoteConfig _config;
         private IWebHost? _host;
 
 
-        public SelfHostedRemote(ActorSystem system, RemoteConfig config, GrpcNetRemoteConfig? grpcNetRemoteConfig = null)
+        public SelfHostedRemote(ActorSystem system, GrpcNetRemoteConfig config)
         {
             System = system;
             Config = config;
-            _grpcNetRemoteConfig = grpcNetRemoteConfig ?? new GrpcNetRemoteConfig();
+            _config = config;
             // Allows tu use Grpc.Net over http
-            if (!_grpcNetRemoteConfig.UseHttps)
+            if (!config.UseHttps)
                 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
         }
 
@@ -44,11 +44,10 @@ namespace Proto.Remote
 
         public Task StartAsync()
         {
-            var channelProvider = new GrpcNetChannelProvider(_grpcNetRemoteConfig);
+            var channelProvider = new GrpcNetChannelProvider(_config);
             _endpointManager = new EndpointManager(System, Config, channelProvider);
             _endpointReader = new EndpointReader(System, _endpointManager, Config.Serialization);
             _healthCheck = new HealthServiceImpl();
-            System.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(System, _endpointManager, pid));
 
             if (!IPAddress.TryParse(Config.Host, out var ipAddress))
                 ipAddress = IPAddress.Any;
@@ -58,13 +57,13 @@ namespace Proto.Remote
                 .UseKestrel()
                 .ConfigureKestrel(serverOptions =>
                     {
-                        if (_grpcNetRemoteConfig.ConfigureKestrel == null)
+                        if (_config.ConfigureKestrel == null)
                             serverOptions.Listen(ipAddress, Config.Port,
                                 listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; }
                             );
                         else
                             serverOptions.Listen(ipAddress, Config.Port,
-                                listenOptions => _grpcNetRemoteConfig.ConfigureKestrel(listenOptions)
+                                listenOptions => _config.ConfigureKestrel(listenOptions)
                             );
                     }
                 )
@@ -95,9 +94,7 @@ namespace Proto.Remote
                     Config.AdvertisedPort ?? boundPort
                 );
             _endpointManager.Start();
-            _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", Config.Host, Config.Port,
-                System.Address
-            );
+            _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", Config.Host, Config.Port, System.Address);
             return Task.CompletedTask;
         }
 

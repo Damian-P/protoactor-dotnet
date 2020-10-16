@@ -32,6 +32,7 @@ namespace Proto.Remote
         public EndpointManager(ActorSystem system, RemoteConfig remoteConfig, IChannelProvider channelProvider)
         {
             _system = system;
+            _system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(_system, this, pid));
             _remoteConfig = remoteConfig;
             _channelProvider = channelProvider;
             _endpointTerminatedEvnSub = _system.EventStream.Subscribe<EndpointTerminatedEvent>(OnEndpointTerminated, Dispatchers.DefaultDispatcher);
