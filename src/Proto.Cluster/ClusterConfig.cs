@@ -20,7 +20,7 @@ namespace Proto.Cluster
         {
             ClusterName = clusterName ?? throw new ArgumentNullException(nameof(clusterName));
             ClusterProvider = clusterProvider ?? throw new ArgumentNullException(nameof(clusterProvider));
-            IdentityLookup = identityLookup ?? new PartitionIdentityLookup();
+            _identityLookup = identityLookup;
             RemoteConfig = remoteConfig ?? throw new ArgumentNullException(nameof(remoteConfig));
             TimeoutTimespan = TimeSpan.FromSeconds(5);
             HeartBeatInterval = TimeSpan.FromSeconds(1);
@@ -40,8 +40,19 @@ namespace Proto.Cluster
 
         public Func<string, IMemberStrategy> MemberStrategyBuilder { get; private set; }
 
-        public IIdentityLookup? IdentityLookup { get; }
+        private IIdentityLookup? _identityLookup;
+        public IIdentityLookup IdentityLookup
+        {
+            get => _identityLookup ??= new PartitionIdentityLookup();
+            private set => _identityLookup = value;
+        }
         public TimeSpan HeartBeatInterval { get; set; }
+
+        public ClusterConfig WithIdentityLookup(IIdentityLookup identityLookup)
+        {
+            IdentityLookup = identityLookup;
+            return this;
+        }
 
         public ClusterConfig WithTimeout(TimeSpan timeSpan)
         {
