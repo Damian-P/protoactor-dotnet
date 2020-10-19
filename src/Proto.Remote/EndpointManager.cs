@@ -60,7 +60,7 @@ namespace Proto.Remote
 
         private void OnEndpointTerminated(EndpointTerminatedEvent evt)
         {
-            _logger.LogDebug("[EndpointManager] Endpoint {Address} terminated removing from connections", evt.Address);
+            _logger.LogInformation("[EndpointManager] Endpoint {Address} terminated removing from connections", evt.Address);
             lock (_synLock)
             {
                 if (_connections.TryRemove(evt.Address, out var endpoint))

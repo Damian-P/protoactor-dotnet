@@ -76,9 +76,9 @@ namespace Proto.Remote
 
             Logger.LogDebug("[EndpointActor] Created channel and client for address {Address}", _address);
 
-            var res = await _client.ConnectAsync(new ConnectRequest());
+            var res = await _client.ConnectAsync(new ConnectRequest(), cancellationToken: context.CancellationToken);
             _serializerId = res.DefaultSerializerId;
-            _stream = _client.Receive(_remoteConfig.CallOptions);
+            _stream = _client.Receive(cancellationToken: context.CancellationToken);
 
             Logger.LogDebug("[EndpointActor] Connected client for address {Address}", _address);
 
@@ -88,7 +88,7 @@ namespace Proto.Remote
                     try
                     {
                         await _stream.ResponseStream.MoveNext();
-                        Logger.LogDebug("[EndpointActor] {Address} disconnected", _address);
+                        Logger.LogInformation("[EndpointActor] {Address} disconnected", _address);
                         var terminated = new EndpointTerminatedEvent
                         {
                             Address = _address
@@ -105,7 +105,7 @@ namespace Proto.Remote
                         };
                         context.System.EventStream.Publish(endpointError);
                     }
-                }
+                }, context.CancellationToken
             );
 
             Logger.LogDebug("[EndpointActor] Created reader for address {Address}", _address);
@@ -122,7 +122,9 @@ namespace Proto.Remote
         private async Task ShutDownChannel()
         {
             if (_stream != null)
+            {
                 await _stream.RequestStream.CompleteAsync();
+            }
             if (_channel != null)
             {
                 await _channel.ShutdownAsync();

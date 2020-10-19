@@ -47,7 +47,7 @@ namespace Node2
             ));
             var system = new ActorSystem();
             var context = new RootContext(system);
-            var remote = system.AddRemote("127.0.0.1", 8080, remoteConfiguration =>
+            var remote = system.AddRemote("127.0.0.1", 12000, remoteConfiguration =>
             {
                 remoteConfiguration.Serialization.RegisterFileDescriptor(ProtosReflection.Descriptor);
             });

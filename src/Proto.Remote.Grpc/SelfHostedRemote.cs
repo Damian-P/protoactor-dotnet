@@ -76,7 +76,8 @@ namespace Proto.Remote
                 await _remote.ShutdownAsync(graceful);
                 if (graceful)
                 {
-                    await _server.KillAsync(); //TODO: was ShutdownAsync but that never returns?
+                    await _server.ShutdownAsync(); //TODO: was ShutdownAsync but that never returns?
+                    
                 }
                 else
                 {
