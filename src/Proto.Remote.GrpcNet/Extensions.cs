@@ -40,6 +40,7 @@ namespace Proto.Remote
 
         private static void AddAllServices(IServiceCollection services)
         {
+            services.TryAddSingleton<ActorSystem>();
             services.AddHostedService<RemoteHostedService>();
             services.AddSingleton<HostedRemote>();
             services.AddSingleton<IRemote, HostedRemote>(sp => sp.GetRequiredService<HostedRemote>());
