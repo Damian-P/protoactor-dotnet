@@ -5,7 +5,9 @@
 // -----------------------------------------------------------------------
 // ReSharper disable once CheckNamespace
 
+using System;
 using JetBrains.Annotations;
+using Proto.Future;
 
 // ReSharper disable once CheckNamespace
 namespace Proto
@@ -16,7 +18,7 @@ namespace Proto
         public DeadLetterEvent(PID pid, object message, PID? sender) : this(pid, message, sender, MessageHeader.Empty)
         {
         }
-        
+
         public DeadLetterEvent(PID pid, object message, PID? sender, MessageHeader? header)
         {
             Pid = pid;
@@ -28,7 +30,7 @@ namespace Proto
         public PID Pid { get; }
         public object Message { get; }
         public PID? Sender { get; }
-        public MessageHeader Header { get;  }
+        public MessageHeader Header { get; }
     }
 
     public class DeadLetterProcess : Process
@@ -40,7 +42,9 @@ namespace Proto
         protected internal override void SendUserMessage(PID pid, object message)
         {
             var (msg, sender, header) = MessageEnvelope.Unwrap(message);
-            System.EventStream.Publish(new DeadLetterEvent(pid, msg, sender,header));
+            if (sender != null)
+                System.Root.Send(sender, new TimeoutResponse());
+            System.EventStream.Publish(new DeadLetterEvent(pid, msg, sender, header));
         }
 
         protected internal override void SendSystemMessage(PID pid, object message)

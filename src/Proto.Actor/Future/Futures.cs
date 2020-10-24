@@ -81,6 +81,11 @@ namespace Proto.Future
                     case null:
                         _tcs.TrySetResult((T) msg!);
                         break;
+                    case TimeoutResponse _:
+                        _tcs.TrySetException(
+                            new TimeoutException("Request didn't receive any Response within the expected time.")
+                        );
+                        break;
                     default:
                         _tcs.TrySetException(
                             new InvalidOperationException(

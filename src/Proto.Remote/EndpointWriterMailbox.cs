@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Microsoft.Extensions.Logging;
+using Proto.Future;
 using Proto.Mailbox;
 
 namespace Proto.Remote
@@ -127,6 +128,8 @@ namespace Proto.Remote
                                     break;
                                 case RemoteDeliver rd:
                                     droppedRemoteDeliverCount++;
+                                    if (rd.Sender != null && _system.ProcessRegistry.Get(rd.Sender).GetType() == typeof(FutureProcess<>))
+                                        _system.Root.Send(rd.Sender, new TimeoutResponse());
                                     _system.EventStream.Publish(new DeadLetterEvent(rd.Target, rd.Message, rd.Sender));
                                     break;
                                 default:
@@ -158,7 +161,7 @@ namespace Proto.Remote
                                 continue;
                         }
 
-                        batch.Add((RemoteDeliver) msg);
+                        batch.Add((RemoteDeliver)msg);
 
                         if (batch.Count >= _batchSize)
                         {

@@ -13,6 +13,8 @@ message PoisonPill {}
 //special event to terminate/fail ongoing Future requests
 message VoidResponse {}
 
+message TimeoutResponse {}
+
 //system messages
 message Watch {
   PID Watcher = 1;

@@ -32,65 +32,76 @@ namespace Proto.Remote
             Config = config;
             _config = config;
         }
-
+        public bool Started { get; private set; }
         public RemoteConfig Config { get; }
         public ActorSystem System { get; }
         public Task StartAsync()
         {
-            var channelProvider = new ChannelProvider(_config);
-            _endpointManager = new EndpointManager(System, Config, channelProvider);
-            _endpointReader = new EndpointReader(System, _endpointManager, Config.Serialization);
-            _healthCheck = new HealthServiceImpl();
-            _server = new Server
+            lock (this)
             {
-                Services =
+                if (Started)
+                    return Task.CompletedTask;
+                var channelProvider = new ChannelProvider(_config);
+                _endpointManager = new EndpointManager(System, Config, channelProvider);
+                _endpointReader = new EndpointReader(System, _endpointManager, Config.Serialization);
+                _healthCheck = new HealthServiceImpl();
+                _server = new Server
                 {
-                    Remoting.BindService(_endpointReader),
-                    Health.BindService(_healthCheck)
-                },
-                Ports = { new ServerPort(Config.Host, Config.Port, _config.ServerCredentials) }
-            };
-            _server.Start();
+                    Services =
+                    {
+                        Remoting.BindService(_endpointReader),
+                        Health.BindService(_healthCheck)
+                    },
+                    Ports = { new ServerPort(Config.Host, Config.Port, _config.ServerCredentials) }
+                };
+                _server.Start();
 
-            var boundPort = _server.Ports.Single().BoundPort;
-            System.SetAddress(Config.AdvertisedHostname ?? Config.Host, Config.AdvertisedPort ?? boundPort
-            );
-            _endpointManager.Start();
+                var boundPort = _server.Ports.Single().BoundPort;
+                System.SetAddress(Config.AdvertisedHostname ?? Config.Host, Config.AdvertisedPort ?? boundPort
+                );
+                _endpointManager.Start();
 
-            Logger.LogDebug("Starting Proto.Actor server on {Host}:{Port} ({Address})", Config.Host, boundPort,
-                System.Address
-            );
-
-            return Task.CompletedTask;
+                Logger.LogDebug("Starting Proto.Actor server on {Host}:{Port} ({Address})", Config.Host, boundPort,
+                    System.Address
+                );
+                Started = true;
+                return Task.CompletedTask;
+            }
         }
 
-        public async Task ShutdownAsync(bool graceful = true)
+        public Task ShutdownAsync(bool graceful = true)
         {
-            try
+            lock (this)
             {
-                if (graceful)
+                if (!Started)
+                    return Task.CompletedTask;
+                try
                 {
-                    _endpointManager.Stop();
-                    await _server.ShutdownAsync();
+                    if (graceful)
+                    {
+                        _endpointManager.Stop();
+                        _server.ShutdownAsync().GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        _server.KillAsync().GetAwaiter().GetResult();
+                    }
+
+                    Logger.LogDebug(
+                        "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
+                        System.Address, graceful
+                    );
                 }
-                else
+                catch (Exception ex)
                 {
-                    await _server.KillAsync();
+                    Logger.LogError(
+                        ex, "Proto.Actor server stopped on {Address} with error: {Message}",
+                        System.Address, ex.Message
+                    );
+                    _server.KillAsync().GetAwaiter().GetResult();
                 }
-
-                Logger.LogDebug(
-                    "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
-                    System.Address, graceful
-                );
-            }
-            catch (Exception ex)
-            {
-                await _server.KillAsync();
-
-                Logger.LogError(
-                    ex, "Proto.Actor server stopped on {Address} with error: {Message}",
-                    System.Address, ex.Message
-                );
+                Started = false;
+                return Task.CompletedTask;
             }
         }
 

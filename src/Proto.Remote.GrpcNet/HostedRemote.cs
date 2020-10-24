@@ -37,43 +37,47 @@ namespace Proto.Remote
         public bool Started { get; private set; }
         public Task StartAsync()
         {
-            if (Started)
+            lock (this)
             {
+                if (Started)
+                    return Task.CompletedTask;
+                var uri = ServerAddressesFeature?.Addresses.Where(a => a.Contains(Config.Host)).Select(address => new Uri(address)).FirstOrDefault();
+                var boundPort = uri?.Port ?? Config.Port;
+                System.SetAddress(Config.AdvertisedHostname ?? Config.Host,
+                        Config.AdvertisedPort ?? boundPort
+                    );
+                _endpointManager.Start();
+                _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", Config.Host, boundPort, System.Address);
+                Started = true;
                 return Task.CompletedTask;
             }
-            Started = true;
-            
-            var uri = ServerAddressesFeature?.Addresses.Where(a => a.Contains(Config.Host)).Select(address => new Uri(address)).FirstOrDefault();
-            var boundPort = uri?.Port ?? Config.Port;
-            System.SetAddress(Config.AdvertisedHostname ?? Config.Host,
-                    Config.AdvertisedPort ?? boundPort
-                );
-            _endpointManager.Start();
-            _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", Config.Host, boundPort, System.Address);
-            return Task.CompletedTask;
         }
 
         public Task ShutdownAsync(bool graceful = true)
         {
-            try
+            lock (this)
             {
-                if (!Started) return Task.CompletedTask;
-                else Started = false;
-                _endpointManager.Stop();
-                _logger.LogDebug(
-                    "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
-                    System.Address, graceful
-                );
+                if (!Started)
+                    return Task.CompletedTask;
+                try
+                {
+                    _endpointManager.Stop();
+                    _logger.LogDebug(
+                        "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
+                        System.Address, graceful
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex, "Proto.Actor server stopped on {Address} with error: {Message}",
+                        System.Address, ex.Message
+                    );
+                    throw;
+                }
+                Started = false;
+                return Task.CompletedTask;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex, "Proto.Actor server stopped on {Address} with error: {Message}",
-                    System.Address, ex.Message
-                );
-                throw;
-            }
-            return Task.CompletedTask;
         }
 
         public void SendMessage(PID pid, object msg, int serializerId)

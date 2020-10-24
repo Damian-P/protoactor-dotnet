@@ -35,8 +35,7 @@ namespace SpawnBenchmark
         public Task ReceiveAsync(IContext context)
         {
             var msg = context.Message;
-            var r = msg as Request;
-            if (r != null)
+            if (msg is Request r)
             {
                 if (r.Size == 1)
                 {
@@ -48,7 +47,7 @@ namespace SpawnBenchmark
                 _replyTo = context.Sender;
                 for (var i = 0; i < r.Div; i++)
                 {
-                    var child = _system.Root.Spawn(Props(_system));
+                    var child = context.Spawn(Props(_system));
                     context.Request(child, new Request
                     {
                         Num = r.Num + i * (r.Size / r.Div),
@@ -59,7 +58,7 @@ namespace SpawnBenchmark
 
                 return Task.CompletedTask;
             }
-            if (msg is Int64 res)
+            if (msg is long res)
             {
                 _sum += res;
                 _replies--;

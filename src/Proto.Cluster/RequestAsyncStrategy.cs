@@ -25,7 +25,7 @@ namespace Proto.Cluster
             _context = context;
             _logger = logger;
         }
-        
+
         void TryClearPidCache(string kind,string identity)
         {
             _logger.LogDebug(
@@ -50,7 +50,7 @@ namespace Proto.Cluster
                     var (ok, res) = await TryRequestAsync<T>(identity, kind, message, cachedPid, "PidCache");
                     if (ok) return res;
                 }
-                
+
                 var delay = i * 20;
                 i++;
 
@@ -105,12 +105,12 @@ namespace Proto.Cluster
             catch (TimeoutException)
             {
                 _logger.LogWarning($"TryRequestAsync timed out, PID from {source}");
-                
+
             }
             catch (Exception x)
             {
                 _logger.LogWarning(x, $"TryRequestAsync failed with exception, PID from {source}");
-                
+
             }
             // _pidCache.Clear();
             TryClearPidCache(kind, identity);

@@ -24,15 +24,17 @@ namespace Proto.Cluster.Partition
         private readonly Dictionary<string, (PID pid, string kind, ulong eventId)> _myActors =
             new Dictionary<string, (PID pid, string kind, ulong eventId)>();
 
+        private readonly Dictionary<PID, string> _reverseLookup = new Dictionary<PID, string>();
+
         private readonly PartitionManager _partitionManager;
         private readonly Rendezvous _rdv = new Rendezvous();
 
         private readonly IRemote _remote;
         private readonly ActorSystem _system;
-        
+
         //cluster wide eventId.
         //this is useful for knowing if we are in sync with, ahead of or behind other nodes requests
-        private ulong _eventId; 
+        private ulong _eventId;
 
         public PartitionPlacementActor(Cluster cluster, PartitionManager partitionManager)
         {
@@ -72,7 +74,8 @@ namespace Proto.Cluster.Partition
         private Task Terminated(IContext context, Terminated msg)
         {
             //TODO: if this turns out to be perf intensive, lets look at optimizations for reverse lookups
-            var (identity, (pid, kind, eventId)) = _myActors.FirstOrDefault(kvp => kvp.Value.pid.Equals(msg.Who));
+            var identity = _reverseLookup[msg.Who];
+            var (pid, kind, eventId) = _myActors[identity];
 
             var activationTerminated = new ActivationTerminated
             {
@@ -87,6 +90,7 @@ namespace Proto.Cluster.Partition
 
             context.Send(ownerPid, activationTerminated);
             _myActors.Remove(identity);
+            _reverseLookup.Remove(pid);
             return Task.CompletedTask;
         }
 
@@ -116,7 +120,7 @@ namespace Proto.Cluster.Partition
             //use a local selector, which is based on the requesters view of the world
             var rdv = new Rendezvous();
             rdv.UpdateMembers(msg.Members);
-            
+
             foreach (var (identity, (pid, kind, eventId)) in _myActors)
             {
                 //who owns this identity according to the requesters memberlist?
@@ -131,7 +135,7 @@ namespace Proto.Cluster.Partition
                 _logger.LogDebug("Transfer {Identity} to {newOwnerAddress} -- {EventId}", identity, ownerAddress,
                     msg.EventId
                 );
-                
+
                 var actor = new Activation {Identity = identity, Kind = kind, Pid = pid, EventId = eventId};
                 response.Actors.Add(actor);
                 count++;
@@ -166,7 +170,7 @@ namespace Proto.Cluster.Partition
                 else
                 {
                     //this actor did not exist, lets spawn a new activation
-                    
+
                     //spawn and remember this actor
                     //as this id is unique for this activation (id+counter)
                     //we cannot get ProcessNameAlreadyExists exception here
@@ -174,6 +178,7 @@ namespace Proto.Cluster.Partition
                     var pid = context.SpawnPrefix(clusterProps, identity);
 
                     _myActors[identity] = (pid, kind, _eventId);
+                    _reverseLookup[pid] = identity;
 
                     var response = new ActivationResponse
                     {

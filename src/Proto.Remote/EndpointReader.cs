@@ -115,7 +115,7 @@ namespace Proto.Remote
                     }
                 }
             }
-            Logger.LogInformation("[EndpointReader] Stream closed by {Remote}", context.Peer);
+            Logger.LogDebug("[EndpointReader] Stream closed by {Remote}", context.Peer);
         }
 
         private void ReceiveMessages(MessageEnvelope envelope, object message, PID target)

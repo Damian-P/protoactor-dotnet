@@ -39,7 +39,7 @@ namespace Proto.Cluster.Partition
                     )
                     : await _cluster.System.Root.RequestAsync<ActivationResponse>(remotePid, req, ct);
 
-                return resp.Pid;
+                return resp?.Pid;
             }
             //TODO: decide if we throw or return null
             catch (TimeoutException)

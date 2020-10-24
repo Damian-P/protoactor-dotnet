@@ -19,7 +19,7 @@ using Proto.Remote;
 
 namespace {{CsNamespace}}
 {
-    public class Grains
+    public class Grains : IGrains
     {
         public Cluster Cluster { get; }
 

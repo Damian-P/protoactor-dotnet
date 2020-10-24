@@ -27,8 +27,9 @@ namespace Proto.Remote
         private HealthServiceImpl _healthCheck = null!;
         private readonly GrpcNetRemoteConfig _config;
         private IWebHost? _host;
-
-
+        public bool Started { get; private set; }
+        public RemoteConfig Config { get; }
+        public ActorSystem System { get; }
         public SelfHostedRemote(ActorSystem system, GrpcNetRemoteConfig config)
         {
             System = system;
@@ -38,88 +39,100 @@ namespace Proto.Remote
             if (!config.UseHttps)
                 AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
         }
-
-        public RemoteConfig Config { get; }
-        public ActorSystem System { get; }
-
         public Task StartAsync()
         {
-            var channelProvider = new ChannelProvider(_config);
-            _endpointManager = new EndpointManager(System, Config, channelProvider);
-            _endpointReader = new EndpointReader(System, _endpointManager, Config.Serialization);
-            _healthCheck = new HealthServiceImpl();
+            lock (this)
+            {
+                if (Started)
+                    return Task.CompletedTask;
+                var channelProvider = new ChannelProvider(_config);
+                _endpointManager = new EndpointManager(System, Config, channelProvider);
+                _endpointReader = new EndpointReader(System, _endpointManager, Config.Serialization);
+                _healthCheck = new HealthServiceImpl();
 
-            if (!IPAddress.TryParse(Config.Host, out var ipAddress))
-                ipAddress = IPAddress.Any;
-            IServerAddressesFeature? serverAddressesFeature = null;
+                if (!IPAddress.TryParse(Config.Host, out var ipAddress))
+                    ipAddress = IPAddress.Any;
+                IServerAddressesFeature? serverAddressesFeature = null;
 
-            _host = new WebHostBuilder()
-                .UseKestrel()
-                .ConfigureKestrel(serverOptions =>
-                    {
-                        if (_config.ConfigureKestrel == null)
-                            serverOptions.Listen(ipAddress, Config.Port,
-                                listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; }
-                            );
-                        else
-                            serverOptions.Listen(ipAddress, Config.Port,
-                                listenOptions => _config.ConfigureKestrel(listenOptions)
-                            );
-                    }
-                )
-                .ConfigureServices((serviceCollection) =>
-                    {
-                        serviceCollection.AddSingleton<ILoggerFactory>(Log.GetLoggerFactory());
-                        serviceCollection.AddGrpc();
-                        serviceCollection.AddSingleton<Remoting.RemotingBase>(_endpointReader);
-                        serviceCollection.AddSingleton<Grpc.Health.V1.Health.HealthBase>(_healthCheck);
-                        serviceCollection.AddSingleton<IRemote>(this);
-                    }
-                ).Configure(app =>
-                    {
-                        app.UseRouting();
-                        app.UseEndpoints(endpoints =>
+                _host = new WebHostBuilder()
+                    .UseKestrel()
+                    .ConfigureKestrel(serverOptions =>
                         {
-                            endpoints.MapGrpcService<Remoting.RemotingBase>();
-                            endpoints.MapGrpcService<Grpc.Health.V1.Health.HealthBase>();
-                        });
+                            if (_config.ConfigureKestrel == null)
+                                serverOptions.Listen(ipAddress, Config.Port,
+                                    listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; }
+                                );
+                            else
+                                serverOptions.Listen(ipAddress, Config.Port,
+                                    listenOptions => _config.ConfigureKestrel(listenOptions)
+                                );
+                        }
+                    )
+                    .ConfigureServices((serviceCollection) =>
+                        {
+                            serviceCollection.AddSingleton<ILoggerFactory>(Log.GetLoggerFactory());
+                            serviceCollection.AddGrpc(options =>
+                            {
+                                options.MaxReceiveMessageSize = null;
+                                options.EnableDetailedErrors = true;
+                            });
+                            serviceCollection.AddSingleton<Remoting.RemotingBase>(_endpointReader);
+                            serviceCollection.AddSingleton<Grpc.Health.V1.Health.HealthBase>(_healthCheck);
+                            serviceCollection.AddSingleton<IRemote>(this);
+                        }
+                    ).Configure(app =>
+                        {
+                            app.UseRouting();
+                            app.UseEndpoints(endpoints =>
+                            {
+                                endpoints.MapGrpcService<Remoting.RemotingBase>();
+                                endpoints.MapGrpcService<Grpc.Health.V1.Health.HealthBase>();
+                            });
 
-                        serverAddressesFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
-                    }
-                )
-                .Start();
-            var uri = serverAddressesFeature!.Addresses.Select(address => new Uri(address)).First();
-            var boundPort = uri.Port;
-            System.SetAddress(Config.AdvertisedHostname ?? Config.Host,
-                    Config.AdvertisedPort ?? boundPort
-                );
-            _endpointManager.Start();
-            _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", Config.Host, Config.Port, System.Address);
-            return Task.CompletedTask;
+                            serverAddressesFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
+                        }
+                    )
+                    .Start();
+                var uri = serverAddressesFeature!.Addresses.Select(address => new Uri(address)).First();
+                var boundPort = uri.Port;
+                System.SetAddress(Config.AdvertisedHostname ?? Config.Host,
+                        Config.AdvertisedPort ?? boundPort
+                    );
+                _endpointManager.Start();
+                _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", Config.Host, Config.Port, System.Address);
+                Started = true;
+                return Task.CompletedTask;
+            }
         }
 
         public Task ShutdownAsync(bool graceful = true)
         {
-            try
+            lock (this)
             {
-                using (_host)
+                if (!Started)
+                    return Task.CompletedTask;
+                try
                 {
-                    _endpointManager.Stop();
-                    _logger.LogDebug(
-                        "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
-                        System.Address, graceful
+                    using (_host)
+                    {
+                        if (graceful)
+                            _endpointManager.Stop();
+                    }
+                    _logger.LogInformation(
+                            "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
+                            System.Address, graceful
+                        );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex, "Proto.Actor server stopped on {Address} with error: {Message}",
+                        System.Address, ex.Message
                     );
                 }
+                Started = false;
+                return Task.CompletedTask;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex, "Proto.Actor server stopped on {Address} with error: {Message}",
-                    System.Address, ex.Message
-                );
-                throw ex;
-            }
-            return Task.CompletedTask;
         }
 
         // Only used in tests ?
