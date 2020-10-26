@@ -16,15 +16,14 @@ namespace Proto.Cluster
     [PublicAPI]
     public class ClusterConfig
     {
-        private ClusterConfig(string clusterName, IClusterProvider clusterProvider, RemoteConfig remoteConfig, IIdentityLookup? identityLookup)
+        private ClusterConfig(string clusterName, IClusterProvider clusterProvider, IIdentityLookup identityLookup,RemoteConfig remoteConfig)
         {
             ClusterName = clusterName ?? throw new ArgumentNullException(nameof(clusterName));
             ClusterProvider = clusterProvider ?? throw new ArgumentNullException(nameof(clusterProvider));
-            _identityLookup = identityLookup;
             RemoteConfig = remoteConfig ?? throw new ArgumentNullException(nameof(remoteConfig));
             TimeoutTimespan = TimeSpan.FromSeconds(5);
-            HeartBeatInterval = TimeSpan.FromSeconds(1);
-            MemberStrategyBuilder = kind => new SimpleMemberStrategy();
+            HeartBeatInterval = TimeSpan.FromSeconds(30);
+            MemberStrategyBuilder = (cluster, kind) => new SimpleMemberStrategy();
             ClusterKinds = new Dictionary<string, Props>();
             IdentityLookup = identityLookup;
         }
@@ -39,7 +38,7 @@ namespace Proto.Cluster
 
         public TimeSpan TimeoutTimespan { get; private set; }
 
-        public Func<string, IMemberStrategy> MemberStrategyBuilder { get; private set; }
+        public Func<Cluster, string, IMemberStrategy> MemberStrategyBuilder { get; private set; }
 
         private IIdentityLookup? _identityLookup;
         public IIdentityLookup IdentityLookup
@@ -63,6 +62,12 @@ namespace Proto.Cluster
 
         public ClusterConfig WithMemberStrategyBuilder(Func<string, IMemberStrategy> builder)
         {
+            MemberStrategyBuilder = (_, s) => builder(s);
+            return this;
+        }
+        
+        public ClusterConfig WithMemberStrategyBuilder(Func<Cluster, string, IMemberStrategy> builder)
+        {
             MemberStrategyBuilder = builder;
             return this;
         }
@@ -80,9 +85,9 @@ namespace Proto.Cluster
         }
 
         public static ClusterConfig Setup(string clusterName, IClusterProvider clusterProvider,
-            RemoteConfig remoteConfig, IIdentityLookup? identityLookup = null)
+            IIdentityLookup identityLookup, RemoteConfig remoteConfig)
         {
-            return new ClusterConfig(clusterName, clusterProvider, remoteConfig, identityLookup);
+            return new ClusterConfig(clusterName, clusterProvider, identityLookup, remoteConfig);
         }
     }
 }

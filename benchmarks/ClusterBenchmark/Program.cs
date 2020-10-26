@@ -138,7 +138,7 @@ namespace ClusterExperiment1
                                     .WithAdvertisedHost(advertisedHost)
                                     .WithProtoMessages(MessagesReflection.Descriptor);
             return (ClusterConfig
-                .Setup("mycluster", clusterProvider, remoteConfig, identityLookup), remoteConfig);
+                .Setup("mycluster", clusterProvider, identityLookup, remoteConfig), remoteConfig);
         }
 
         private static IClusterProvider ClusterProvider()

@@ -10,13 +10,10 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="3.1.8" />
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Proto.Cluster.Consul\Proto.Cluster.Consul.csproj" />
         <ProjectReference Include="..\..\src\Proto.Cluster.MongoIdentityLookup\Proto.Cluster.MongoIdentityLookup.csproj" />
+        <ProjectReference Include="..\..\src\Proto.Cluster.TestProvider\Proto.Cluster.TestProvider.csproj" />
         <ProjectReference Include="..\..\src\Proto.Cluster\Proto.Cluster.csproj" />
         <ProjectReference Include="..\..\src\Proto.Remote.Grpc\Proto.Remote.Grpc.csproj" />
-    </ItemGroup>
-    
-    <ItemGroup>
-        <Protobuf Include="messages.proto" GrpcServices="Server" />
+        <ProjectReference Include="..\Proto.Cluster.Tests\Proto.Cluster.Tests.csproj" />
     </ItemGroup>
 </Project>

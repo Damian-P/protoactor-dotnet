@@ -1,25 +1,11 @@
 ﻿version: '3.7'
 services:
-
-  consul:
-    image: bitnami/consul:latest
-    ports:
-      - '8300:8300'
-      - '8301:8301'
-      - '8301:8301/udp'
-      - '8500:8500'
-      - '8600:8600'
-      - '8600:8600/udp'
-
   mongodb:
     image: mongo:latest
     ports:
       - 27017:27017
     volumes:
       - mongodb_data:/data/db
-
-networks:
-  consul:
 
 volumes:
   mongodb_data:
