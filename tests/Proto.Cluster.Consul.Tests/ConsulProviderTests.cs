@@ -11,7 +11,7 @@ namespace Proto.Cluster.Consul.Tests
         
         public ConsulProviderTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper) { }
 
-        [Theory(Skip = SkipReason)]
+        [Theory]
         [InlineData(1, 100, 1000)]
         public override Task OrderedDeliveryFromActors(int clusterNodes, int sendingActors, int messagesSentPerCall)
         {

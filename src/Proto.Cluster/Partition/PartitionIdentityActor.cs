@@ -278,7 +278,7 @@ namespace Proto.Cluster.Partition
                     //Check if process is faulted
                     if (rst.IsFaulted || response is null)
                     {
-                        context.Send(sender, (object?)response ?? new VoidResponse());
+                        context.Send(sender, (object?)response ?? new TimeoutResponse());
                         _spawns.Remove(msg.Identity);
                         return Task.CompletedTask;
                     }

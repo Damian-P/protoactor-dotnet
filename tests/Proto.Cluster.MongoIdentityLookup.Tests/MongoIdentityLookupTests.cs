@@ -15,7 +15,7 @@ namespace Proto.Cluster.MongoIdentityLookup.Tests
         
         public MongoIdentityLookupTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper) { }
 
-        [Theory(Skip = SkipReason)]
+        [Theory]
         [InlineData(1, 100, 100)]
         public override Task OrderedDeliveryFromActors(int clusterNodes, int sendingActors, int messagesSentPerCall)
         {

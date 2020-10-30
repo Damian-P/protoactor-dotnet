@@ -69,7 +69,12 @@ namespace Proto.Future
         {
             try
             {
-                _tcs.TrySetResult(MessageEnvelope.UnwrapMessage(message)!);
+                if (message is TimeoutResponse)
+                    _tcs.TrySetException(
+                        new TimeoutException("Request didn't receive any Response within the expected time.")
+                    );
+                else
+                    _tcs.TrySetResult(MessageEnvelope.UnwrapMessage(message)!);
             }
             finally
             {

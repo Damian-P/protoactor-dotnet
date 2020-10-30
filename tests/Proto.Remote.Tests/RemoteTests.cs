@@ -103,7 +103,7 @@ namespace Proto.Remote.Tests
             var (_, system) = await RemoteManager.EnsureRemote();
             var unknownRemoteActor = PID.FromAddress(RemoteManager.RemoteAddress, "doesn't exist");
 
-            await Assert.ThrowsAsync<TimeoutException>(
+            await Assert.ThrowsAsync<DeadLetterException>(
                 async () =>
                 {
                     await system.Root.RequestAsync<Pong>(unknownRemoteActor, new Ping {Message = "Hello"},
