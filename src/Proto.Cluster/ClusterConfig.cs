@@ -41,19 +41,8 @@ namespace Proto.Cluster
 
         public Func<Cluster, string, IMemberStrategy?> MemberStrategyBuilder { get; private set; }
 
-        private IIdentityLookup? _identityLookup;
-        public IIdentityLookup IdentityLookup
-        {
-            get => _identityLookup ??= new PartitionIdentityLookup();
-            private set => _identityLookup = value;
-        }
+        public IIdentityLookup IdentityLookup { get; }
         public TimeSpan HeartBeatInterval { get; set; }
-
-        public ClusterConfig WithIdentityLookup(IIdentityLookup identityLookup)
-        {
-            IdentityLookup = identityLookup;
-            return this;
-        }
 
         public ClusterConfig WithTimeout(TimeSpan timeSpan)
         {
