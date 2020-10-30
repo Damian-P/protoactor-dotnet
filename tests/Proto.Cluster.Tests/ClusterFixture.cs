@@ -49,14 +49,16 @@
                 clusterName,
                 GetClusterProvider(),
                 GetIdentityLookup(clusterName),
-                RemoteConfig.BindToLocalhost()
+                GrpcRemoteConfig.BindToLocalhost()
                     .WithProtoMessages(ProtosReflection.Descriptor)
                     .WithProtoMessages(MessagesReflection.Descriptor)
             ).WithClusterKinds(ClusterKinds);
 
             configure?.Invoke(config);
 
-            var cluster = new Cluster(new ActorSystem(), config);
+            var remote = new SelfHostedRemote(new ActorSystem(), config.RemoteConfig as GrpcRemoteConfig);
+
+            var cluster = new Cluster(remote, config);
 
             await cluster.StartMemberAsync();
             return cluster;
