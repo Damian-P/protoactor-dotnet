@@ -128,8 +128,8 @@ namespace Proto.Remote
                                     break;
                                 case RemoteDeliver rd:
                                     droppedRemoteDeliverCount++;
-                                    if (rd.Sender != null && _system.ProcessRegistry.Get(rd.Sender).GetType() == typeof(FutureProcess<>))
-                                        _system.Root.Send(rd.Sender, new TimeoutResponse());
+                                    if (rd.Sender != null)
+                                        _system.Root.Send(rd.Sender, new DeadLetterResponse { Target = rd.Target });
                                     _system.EventStream.Publish(new DeadLetterEvent(rd.Target, rd.Message, rd.Sender));
                                     break;
                                 default:

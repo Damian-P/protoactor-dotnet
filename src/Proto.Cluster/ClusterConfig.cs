@@ -16,7 +16,8 @@ namespace Proto.Cluster
     [PublicAPI]
     public class ClusterConfig
     {
-        private ClusterConfig(string clusterName, IClusterProvider clusterProvider, IIdentityLookup identityLookup,RemoteConfig remoteConfig)
+        private ClusterConfig(string clusterName, IClusterProvider clusterProvider, IIdentityLookup identityLookup,
+            RemoteConfig remoteConfig)
         {
             ClusterName = clusterName ?? throw new ArgumentNullException(nameof(clusterName));
             ClusterProvider = clusterProvider ?? throw new ArgumentNullException(nameof(clusterProvider));
@@ -38,7 +39,7 @@ namespace Proto.Cluster
 
         public TimeSpan TimeoutTimespan { get; private set; }
 
-        public Func<Cluster, string, IMemberStrategy> MemberStrategyBuilder { get; private set; }
+        public Func<Cluster, string, IMemberStrategy?> MemberStrategyBuilder { get; private set; }
 
         private IIdentityLookup? _identityLookup;
         public IIdentityLookup IdentityLookup
@@ -60,13 +61,13 @@ namespace Proto.Cluster
             return this;
         }
 
-        public ClusterConfig WithMemberStrategyBuilder(Func<string, IMemberStrategy> builder)
+        public ClusterConfig WithMemberStrategyBuilder(Func<string, IMemberStrategy?> builder)
         {
             MemberStrategyBuilder = (_, s) => builder(s);
             return this;
         }
-        
-        public ClusterConfig WithMemberStrategyBuilder(Func<Cluster, string, IMemberStrategy> builder)
+
+        public ClusterConfig WithMemberStrategyBuilder(Func<Cluster, string, IMemberStrategy?> builder)
         {
             MemberStrategyBuilder = builder;
             return this;

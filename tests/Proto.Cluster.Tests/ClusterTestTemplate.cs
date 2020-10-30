@@ -15,14 +15,15 @@ using Xunit.Abstractions;
 
 namespace Proto.Cluster.Tests
 {
-    public abstract class ClusterTests: IDisposable
+    [Collection("ClusterTests")]
+    public abstract class ClusterTestTemplate: IAsyncLifetime
     {
         protected readonly ITestOutputHelper TestOutputHelper;
         private readonly Lazy<InMemAgent> _inMemAgent = new Lazy<InMemAgent>(() => new InMemAgent());
         private readonly List<Cluster> _clusters = new List<Cluster>();
         private InMemAgent InMemAgent => _inMemAgent.Value;
 
-        protected ClusterTests(ITestOutputHelper testOutputHelper)
+        protected ClusterTestTemplate(ITestOutputHelper testOutputHelper)
         {
             var factory = LogFactory.Create(testOutputHelper);
             TestOutputHelper = testOutputHelper;
@@ -37,7 +38,7 @@ namespace Proto.Cluster.Tests
             const string aggregatorId = "agg-1";
             var clusterMembers = await SpawnMembers(clusterNodes);
 
-            await Task.Delay(5000);
+            await Task.Delay(3000);
             
             var maxWait = new CancellationTokenSource(5000).Token;
             
@@ -208,12 +209,14 @@ namespace Proto.Cluster.Tests
             }
         }
 
-        public void Dispose()
+        public Task InitializeAsync()
         {
-            foreach (var cluster in _clusters)
-            {
-                cluster.ShutdownAsync();
-            }
+            return Task.CompletedTask;
+        }
+
+        public Task DisposeAsync()
+        {
+            return Task.WhenAll(_clusters.Select(c => c.ShutdownAsync()));
         }
     }
 }

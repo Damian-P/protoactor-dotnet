@@ -10,7 +10,7 @@ using Proto.Remote;
 
 namespace Proto.Cluster.Tests
 {
-    public class PartitionIdentityLookupTests : ClusterTests
+    public class PartitionIdentityLookupTests : ClusterTestTemplate
     {
         public PartitionIdentityLookupTests(ITestOutputHelper testOutputHelper) : base(testOutputHelper)
         {

@@ -76,7 +76,7 @@ namespace Proto.Cluster
                 kinds,
                 MemberList
             );
-
+            
             Logger.LogInformation("Started as cluster member");
         }
 
