@@ -5,13 +5,17 @@
 // -----------------------------------------------------------------------
 
 using System.Collections.Generic;
+
+using System.Collections.Immutable;
+using System.Linq;
+using Google.Protobuf.Reflection;
 using Grpc.Core;
 using JetBrains.Annotations;
 
 namespace Proto.Remote
 {
     [PublicAPI]
-    public class RemoteConfig
+    public record RemoteConfig
     {
         public const string AllInterfaces = "0.0.0.0";
         public const string Localhost = "127.0.0.1";
@@ -35,31 +39,31 @@ namespace Proto.Remote
         /// <summary>
         ///     Known actor kinds that can be spawned remotely
         /// </summary>
-        public Dictionary<string, Props> RemoteKinds { get; private set; } = new Dictionary<string, Props>();
+        public ImmutableDictionary<string, Props> RemoteKinds { get; init; } =
+            ImmutableDictionary<string, Props>.Empty;
 
         /// <summary>
         ///     Gets or sets the CallOptions for the gRPC channel.
         /// </summary>
-        public CallOptions CallOptions { get; set; }
+        public CallOptions CallOptions { get; init; }
 
         /// <summary>
         ///     Gets or sets the advertised hostname for the remote system.
         ///     If the remote system is behind e.g. a NAT or reverse proxy, this needs to be set to
         ///     the external hostname in order for other systems to be able to connect to it.
         /// </summary>
-        public string? AdvertisedHostname { get; set; }
+        public string? AdvertisedHost { get; init; }
 
         /// <summary>
         ///     Gets or sets the advertised port for the remote system.
         ///     If the remote system is behind e.g. a NAT or reverse proxy, this needs to be set to
         ///     the external port in order for other systems to be able to connect to it.
         /// </summary>
-        public int? AdvertisedPort { get; set; }
+        public int? AdvertisedPort { get; init; }
 
-        public EndpointWriterOptions EndpointWriterOptions { get; set; } = new EndpointWriterOptions();
+        public EndpointWriterOptions EndpointWriterOptions { get; init; } = new EndpointWriterOptions();
 
-        public Serialization Serialization { get; set; } = new Serialization();
+        public Serialization Serialization { get; init; } = new Serialization();
 
-        
     }
 }

@@ -15,8 +15,8 @@ namespace Proto.Remote
     public static class RemoteConfigExtensions
     {
         public static string[] GetRemoteKinds<TRemoteConfig>(this TRemoteConfig remoteConfig)
-        where TRemoteConfig : RemoteConfig
-            => remoteConfig.RemoteKinds.Keys.ToArray();
+        where TRemoteConfig : RemoteConfig =>
+           remoteConfig.RemoteKinds.Keys.ToArray();
         public static Props GetRemoteKind<TRemoteConfig>(this TRemoteConfig remoteConfig, string kind)
         where TRemoteConfig : RemoteConfig
         {
@@ -29,18 +29,12 @@ namespace Proto.Remote
         }
         
         public static TRemoteConfig WithCallOptions<TRemoteConfig>(this TRemoteConfig remoteConfig, CallOptions options)
-        where TRemoteConfig : RemoteConfig
-        {
-            remoteConfig.CallOptions = options;
-            return remoteConfig;
-        }
+        where TRemoteConfig : RemoteConfig => 
+            remoteConfig with { CallOptions= options };
 
         public static TRemoteConfig WithAdvertisedHost<TRemoteConfig>(this TRemoteConfig remoteConfig, string? advertisedHostname)
-        where TRemoteConfig : RemoteConfig
-        {
-            remoteConfig.AdvertisedHostname = advertisedHostname;
-            return remoteConfig;
-        }
+        where TRemoteConfig : RemoteConfig =>
+            remoteConfig with { AdvertisedHost = advertisedHostname};
 
         /// <summary>
         /// Advertised port can be different from the bound port, e.g. in container scenarios
@@ -48,11 +42,8 @@ namespace Proto.Remote
         /// <param name="advertisedPort"></param>
         /// <returns></returns>
         public static TRemoteConfig WithAdvertisedPort<TRemoteConfig>(this TRemoteConfig remoteConfig, int? advertisedPort)
-        where TRemoteConfig : RemoteConfig
-        {
-            remoteConfig.AdvertisedPort = advertisedPort;
-            return remoteConfig;
-        }
+        where TRemoteConfig : RemoteConfig =>
+            remoteConfig with { AdvertisedPort = advertisedPort};
 
         public static TRemoteConfig WithEndpointWriterBatchSize<TRemoteConfig>(this TRemoteConfig remoteConfig, int endpointWriterBatchSize)
         where TRemoteConfig : RemoteConfig
@@ -90,18 +81,13 @@ namespace Proto.Remote
         }
 
         public static TRemoteConfig WithRemoteKind<TRemoteConfig>(this TRemoteConfig remoteConfig, string kind, Props prop)
-        where TRemoteConfig : RemoteConfig
-        {
-            remoteConfig.RemoteKinds.Add(kind, prop);
-            return remoteConfig;
-        }
+        where TRemoteConfig : RemoteConfig =>
+            remoteConfig with {RemoteKinds = remoteConfig.RemoteKinds.Add(kind, prop)};
 
         public static TRemoteConfig WithRemoteKinds<TRemoteConfig>(this TRemoteConfig remoteConfig, params (string kind, Props prop)[] knownKinds)
-        where TRemoteConfig : RemoteConfig
-        {
-            foreach (var (kind, prop) in knownKinds) remoteConfig.RemoteKinds.Add(kind, prop);
-            return remoteConfig;
-        }
+        where TRemoteConfig : RemoteConfig =>
+            remoteConfig with {RemoteKinds =
+                remoteConfig.RemoteKinds.AddRange(knownKinds.Select(kk => new KeyValuePair<string, Props>(kk.kind, kk.prop)))};
         
         public static TRemoteConfig WithSerializer<TRemoteConfig>(this TRemoteConfig remoteConfig, ISerializer serializer, bool makeDefault = false)
         where TRemoteConfig : RemoteConfig

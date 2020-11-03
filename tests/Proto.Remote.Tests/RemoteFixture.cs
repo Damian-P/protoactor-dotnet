@@ -6,14 +6,14 @@ using Xunit;
 
 namespace Proto.Remote.Tests
 {
-    public class RemoteFixture: IAsyncLifetime
+    public class RemoteFixture : IAsyncLifetime
     {
         private ProtoService _service;
         public const string RemoteAddress = "localhost:12000";
 
         public IRemote Remote { get; private set; }
         public ActorSystem ActorSystem { get; private set; }
-        
+
         public async Task InitializeAsync()
         {
             ActorSystem = new ActorSystem();
@@ -28,7 +28,7 @@ namespace Proto.Remote.Tests
             _service = new ProtoService(12000, "localhost");
             _service.StartAsync().Wait();
 
-           Remote = new SelfHostedRemote(ActorSystem, config);
+            Remote = new SelfHostedRemote(ActorSystem, config);
             await Remote.StartAsync();
         }
 

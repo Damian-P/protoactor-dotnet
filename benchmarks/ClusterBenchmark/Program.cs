@@ -119,7 +119,7 @@ namespace ClusterExperiment1
             var identity = GetIdentityLookup();
             var helloProps = Props.FromProducer(() => new HelloActor());
             var (clusterConfig, remoteConfig) = GetClusterConfig(clusterProvider, identity);
-            clusterConfig.WithClusterKind("hello", helloProps);
+            clusterConfig = clusterConfig.WithClusterKind("hello", helloProps);
             var remote = new SelfHostedRemote(system, remoteConfig);
             var cluster = new Cluster(remote, clusterConfig);
 

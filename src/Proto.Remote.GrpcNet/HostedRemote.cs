@@ -43,7 +43,7 @@ namespace Proto.Remote
                     return Task.CompletedTask;
                 var uri = ServerAddressesFeature?.Addresses.Where(a => a.Contains(Config.Host)).Select(address => new Uri(address)).FirstOrDefault();
                 var boundPort = uri?.Port ?? Config.Port;
-                System.SetAddress(Config.AdvertisedHostname ?? Config.Host,
+                System.SetAddress(Config.AdvertisedHost ?? Config.Host,
                         Config.AdvertisedPort ?? boundPort
                     );
                 _endpointManager.Start();

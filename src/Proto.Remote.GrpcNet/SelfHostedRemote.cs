@@ -95,7 +95,7 @@ namespace Proto.Remote
                     .Start();
                 var uri = serverAddressesFeature!.Addresses.Select(address => new Uri(address)).First();
                 var boundPort = uri.Port;
-                System.SetAddress(Config.AdvertisedHostname ?? Config.Host,
+                System.SetAddress(Config.AdvertisedHost ?? Config.Host,
                         Config.AdvertisedPort ?? boundPort
                     );
                 _endpointManager.Start();

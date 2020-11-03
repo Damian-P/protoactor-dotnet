@@ -76,7 +76,7 @@ namespace Proto.Cluster
                 kinds,
                 MemberList
             );
-            
+
             Logger.LogInformation("Started as cluster member");
         }
 
@@ -99,7 +99,7 @@ namespace Proto.Cluster
             Logger.LogInformation("Started as cluster client");
         }
 
-        private async Task BeginStartAsync( bool client)
+        private async Task BeginStartAsync(bool client)
         {
             //default to partition identity lookup
             IdentityLookup = Config.IdentityLookup ?? new PartitionIdentityLookup();

@@ -57,7 +57,7 @@ namespace Proto.Remote
                 _server.Start();
 
                 var boundPort = _server.Ports.Single().BoundPort;
-                System.SetAddress(Config.AdvertisedHostname ?? Config.Host, Config.AdvertisedPort ?? boundPort
+                System.SetAddress(Config.AdvertisedHost ?? Config.Host, Config.AdvertisedPort ?? boundPort
                 );
                 _endpointManager.Start();
 

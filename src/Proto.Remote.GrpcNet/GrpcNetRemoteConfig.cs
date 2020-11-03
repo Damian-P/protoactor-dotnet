@@ -10,9 +10,9 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 namespace Proto.Remote
 {
-    public class GrpcNetRemoteConfig : RemoteConfig
+    public record GrpcNetRemoteConfig : RemoteConfig
     {
-        GrpcNetRemoteConfig(string host, int port) : base(host, port)
+        protected GrpcNetRemoteConfig(string host, int port) : base(host, port)
         {
 
         }
@@ -22,8 +22,8 @@ namespace Proto.Remote
         public static GrpcNetRemoteConfig BindToLocalhost(int port = 0) => new GrpcNetRemoteConfig(Localhost, port);
         
         public static GrpcNetRemoteConfig BindTo(string host, int port = 0) => new GrpcNetRemoteConfig(host, port);
-        public bool UseHttps { get; set; }
-        public GrpcChannelOptions ChannelOptions { get; set; } = new GrpcChannelOptions();
-        public Action<ListenOptions>? ConfigureKestrel { get; set; }
+        public bool UseHttps { get; init; }
+        public GrpcChannelOptions ChannelOptions { get; init; } = new GrpcChannelOptions();
+        public Action<ListenOptions>? ConfigureKestrel { get; init; }
     }
 }

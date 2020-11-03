@@ -10,9 +10,9 @@ using Grpc.Core;
 
 namespace Proto.Remote
 {
-    public class GrpcRemoteConfig : RemoteConfig
+    public record GrpcRemoteConfig : RemoteConfig
     {
-        private GrpcRemoteConfig(string host, int port) : base(host, port)
+        protected GrpcRemoteConfig(string host, int port) : base(host, port)
         {
 
         }
@@ -25,16 +25,16 @@ namespace Proto.Remote
         /// <summary>
         ///     Gets or sets the ChannelOptions for the gRPC channel.
         /// </summary>
-        public IEnumerable<ChannelOption> ChannelOptions { get; set; } = null!;
+        public IEnumerable<ChannelOption> ChannelOptions { get; init; } = null!;
 
         /// <summary>
         ///     Gets or sets the ChannelCredentials for the gRPC channel. The default is Insecure.
         /// </summary>
-        public ChannelCredentials ChannelCredentials { get; set; } = ChannelCredentials.Insecure;
+        public ChannelCredentials ChannelCredentials { get; init; } = ChannelCredentials.Insecure;
 
         /// <summary>
         ///     Gets or sets the ServerCredentials for the gRPC server. The default is Insecure.
         /// </summary>
-        public ServerCredentials ServerCredentials { get; set; } = ServerCredentials.Insecure;
+        public ServerCredentials ServerCredentials { get; init; } = ServerCredentials.Insecure;
     }
 }

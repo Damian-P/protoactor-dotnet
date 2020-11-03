@@ -128,6 +128,15 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Proto.Remote.Grpc", "src\Proto.Remote.Grpc\Proto.Remote.Grpc.csproj", "{E9125A6D-3014-4509-B434-65AF5500B850}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Proto.Cluster.Consul.Tests", "tests\Proto.Cluster.Consul.Tests\Proto.Cluster.Consul.Tests.csproj", "{5EEDF9C5-F30B-445D-8C9C-2D7B82795037}"
+ProjectSection(SolutionItems) = preProject
+	README.md = README.md
+	Terminology.md = Terminology.md
+	.gitignore = .gitignore
+	.github\workflows\pull-request.yml = .github\workflows\pull-request.yml
+	.github\workflows\build-master.yml = .github\workflows\build-master.yml
+	.github\PULL_REQUEST_TEMPLATE.md = .github\PULL_REQUEST_TEMPLATE.md
+	.github\ISSUE_TEMPLATE.md = .github\ISSUE_TEMPLATE.md
+EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -246,7 +246,7 @@ namespace Proto.Remote
                     header.HeaderData.Add(rd.Header.ToDictionary());
                 }
 
-                var bytes = _remoteConfig.Serialization.Serialize(rd.Message, _serializerId);
+                var bytes = _remoteConfig.Serialization.Serialize(rd.Message, serializerId);
 
                 var envelope = new MessageEnvelope
                 {
@@ -254,7 +254,7 @@ namespace Proto.Remote
                     Sender = rd.Sender,
                     Target = targetId,
                     TypeId = typeId,
-                    SerializerId = _serializerId,
+                    SerializerId = serializerId,
                     MessageHeader = header
                 };
 
