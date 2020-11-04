@@ -4,6 +4,10 @@
 //   </copyright>
 // -----------------------------------------------------------------------
 // ReSharper disable once CheckNamespace
+
+
+// ReSharper disable once CheckNamespace
+
 namespace Proto
 {
     using System;

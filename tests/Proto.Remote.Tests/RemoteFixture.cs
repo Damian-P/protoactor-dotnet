@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Proto.Remote.Tests
 {
-    public class RemoteFixture : IAsyncLifetime
+    public class RemoteFixture: IAsyncLifetime
     {
         private ProtoService _service;
         public const string RemoteAddress = "localhost:12000";

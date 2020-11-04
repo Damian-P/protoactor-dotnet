@@ -1,7 +1,6 @@
 ﻿namespace Proto.Cluster.Tests
 {
     using System;
-    using System.Collections.Generic;
     using System.Collections.Immutable;
     using System.Linq;
     using System.Threading.Tasks;
@@ -11,7 +10,6 @@
     using Remote;
     using Testing;
     using Xunit;
-    using ProtosReflection = Remote.Tests.Messages.ProtosReflection;
 
     public interface IClusterFixture
     {
@@ -23,16 +21,16 @@
         public ImmutableList<Cluster> Members { get; private set; }
 
         private readonly int _clusterSize;
-        private readonly Action<ClusterConfig> _configure;
+        private readonly Func<ClusterConfig,ClusterConfig> _configure;
 
-        protected ClusterFixture(int clusterSize, Action<ClusterConfig> configure = null)
+        protected ClusterFixture(int clusterSize, Func<ClusterConfig,ClusterConfig> configure = null)
         {
             _clusterSize = clusterSize;
             _configure = configure;
         }
 
 
-        private async Task<ImmutableList<Cluster>> SpawnClusterNodes(int count, Action<ClusterConfig> configure = null)
+        private async Task<ImmutableList<Cluster>> SpawnClusterNodes(int count, Func<ClusterConfig,ClusterConfig> configure = null)
         {
             var clusterName = $"test-cluster-{count}";
             return (await Task.WhenAll(
@@ -41,22 +39,22 @@
             )).ToImmutableList();
         }
 
-        protected virtual async Task<Cluster> SpawnClusterMember(Action<ClusterConfig> configure, string clusterName)
+        protected virtual async Task<Cluster> SpawnClusterMember(Func<ClusterConfig,ClusterConfig> configure, string clusterName)
         {
-            var config = ClusterConfig.Setup(
+            var remoteConfig = GrpcRemoteConfig.BindToLocalhost()
+                    .WithProtoMessages(MessagesReflection.Descriptor);
+            var clusterConfig = ClusterConfig.Setup(
                 clusterName,
                 GetClusterProvider(),
                 GetIdentityLookup(clusterName),
-                GrpcRemoteConfig.BindToLocalhost()
-                    .WithProtoMessages(ProtosReflection.Descriptor)
-                    .WithProtoMessages(MessagesReflection.Descriptor)
+                remoteConfig
             ).WithClusterKinds(ClusterKinds);
 
-            configure?.Invoke(config);
+            clusterConfig = configure?.Invoke(clusterConfig) ?? clusterConfig;
 
-            var remote = new SelfHostedRemote(new ActorSystem(), config.RemoteConfig as GrpcRemoteConfig);
+            var remote = new SelfHostedRemote(new ActorSystem(), remoteConfig);
 
-            var cluster = new Cluster(remote, config);
+            var cluster = new Cluster(remote, clusterConfig);
 
             await cluster.StartMemberAsync();
             return cluster;
@@ -66,7 +64,11 @@
 
         protected virtual IIdentityLookup GetIdentityLookup(string clusterName) => new PartitionIdentityLookup();
 
-        protected virtual (string, Props)[] ClusterKinds => new[] {(EchoActor.Kind, EchoActor.Props)};
+        protected virtual (string, Props)[] ClusterKinds => new[]
+        {
+            (EchoActor.Kind, EchoActor.Props),
+            (EchoActor.Kind2, EchoActor.Props),
+        };
 
 
         public async Task InitializeAsync()
@@ -85,7 +87,7 @@
         private readonly Lazy<InMemAgent> _inMemAgent = new Lazy<InMemAgent>(() => new InMemAgent());
         private InMemAgent InMemAgent => _inMemAgent.Value;
 
-        protected BaseInMemoryClusterFixture(int clusterSize, Action<ClusterConfig> configure = null) : base(
+        protected BaseInMemoryClusterFixture(int clusterSize, Func<ClusterConfig,ClusterConfig> configure = null) : base(
             clusterSize, configure
         )
         {

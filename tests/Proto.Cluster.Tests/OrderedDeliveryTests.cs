@@ -108,12 +108,12 @@ namespace Proto.Cluster.Tests
                         break;
                     case AskAggregator _:
                         context.Respond(new AggregatorResult
-                        {
-                            SequenceKeyCount = _lastReceivedSeq.Count,
-                            TotalMessages = _seqRequests,
-                            OutOfOrderCount = _outOfOrderErrors,
-                            SenderKeyCount = _senders.Count
-                        }
+                            {
+                                SequenceKeyCount = _lastReceivedSeq.Count,
+                                TotalMessages = _seqRequests,
+                                OutOfOrderCount = _outOfOrderErrors,
+                                SenderKeyCount = _senders.Count
+                            }
                         );
                         break;
                 }

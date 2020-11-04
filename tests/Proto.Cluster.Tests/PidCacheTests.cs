@@ -8,6 +8,8 @@ using Xunit;
 
 namespace Proto.Cluster.Tests
 {
+    using ClusterTest.Messages;
+
     public class DummyIdentityLookup : IIdentityLookup
     {
         private readonly PID _pid;
@@ -17,7 +19,7 @@ namespace Proto.Cluster.Tests
             _pid = pid;
         }
 
-        public Task<PID?> GetAsync(string identity, string kind, CancellationToken ct)
+        public Task<PID?> GetAsync(ClusterIdentity clusterIdentity, CancellationToken ct)
         {
             return Task.FromResult(_pid)!;
         }
@@ -40,25 +42,26 @@ namespace Proto.Cluster.Tests
         {
             var system = new ActorSystem();
             var props = Props.FromProducer(() => new EchoActor());
-            var pid = system.Root.SpawnNamed(props, "stopped");
-            var pid2 = system.Root.SpawnNamed(props, "alive");
-            await system.Root.StopAsync(pid);
+            var deadPid = system.Root.SpawnNamed(props, "stopped");
+            var alivePid = system.Root.SpawnNamed(props, "alive");
+            await system.Root.StopAsync(deadPid);
 
-            var dummyIdentityLookup = new DummyIdentityLookup(pid2);
+            var dummyIdentityLookup = new DummyIdentityLookup(alivePid);
             var pidCache = new PidCache();
 
             var logger = Log.CreateLogger("dummylog");
-            pidCache.TryAdd("kind", "identity", pid);
+            var clusterIdentity = new ClusterIdentity {Identity = "identity", Kind = "kind"};
+            pidCache.TryAdd(clusterIdentity, deadPid);
             var requestAsyncStrategy = new DefaultClusterContext(dummyIdentityLookup, pidCache, system.Root, logger);
 
-            var res = await requestAsyncStrategy.RequestAsync<Pong>("identity", "kind", new Ping {Message = "msg"},
-                new CancellationTokenSource(60000).Token
+            var res = await requestAsyncStrategy.RequestAsync<Pong>(clusterIdentity, new Ping {Message = "msg"},
+                new CancellationTokenSource(6000).Token
             );
 
-            res.Message.Should().Be(":msg");
-            var foundInCache = pidCache.TryGet("kind", "identity", out var pidInCache);
+            res.Message.Should().Be("msg");
+            var foundInCache = pidCache.TryGet(clusterIdentity, out var pidInCache);
             foundInCache.Should().BeTrue();
-            pidInCache.Should().BeEquivalentTo(pid2);
+            pidInCache.Should().BeEquivalentTo(alivePid);
         }
     }
 }
