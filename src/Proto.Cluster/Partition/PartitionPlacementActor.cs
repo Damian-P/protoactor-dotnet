@@ -66,8 +66,8 @@ namespace Proto.Cluster.Partition
 
         private Task Terminated(IContext context, Terminated msg)
         {
-            //TODO: if this turns out to be perf intensive, lets look at optimizations for reverse lookups
-            var (clusterIdentity, (pid, eventId)) = _myActors.FirstOrDefault(kvp => kvp.Value.pid.Equals(msg.Who));
+            var clusterIdentity = _reverseLookup[msg.Who];
+            var (pid, eventId) = _myActors[clusterIdentity];
 
             var activationTerminated = new ActivationTerminated
             {
@@ -81,6 +81,7 @@ namespace Proto.Cluster.Partition
 
             context.Send(ownerPid, activationTerminated);
             _myActors.Remove(clusterIdentity);
+            _reverseLookup.Remove(msg.Who);
             return Task.CompletedTask;
         }
 
@@ -164,6 +165,7 @@ namespace Proto.Cluster.Partition
                     var pid = context.SpawnPrefix(clusterProps, msg.ClusterIdentity.Identity);
 
                     _myActors[msg.ClusterIdentity] = (pid, _eventId);
+                    _reverseLookup[pid] = msg.ClusterIdentity;
 
                     var response = new ActivationResponse
                     {
