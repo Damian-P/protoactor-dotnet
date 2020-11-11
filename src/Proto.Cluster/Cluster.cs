@@ -64,18 +64,10 @@ namespace Proto.Cluster
         public async Task StartMemberAsync()
         {
             await BeginStartAsync(false);
-            var (host, port) = System.GetAddress();
-
             Provider = Config.ClusterProvider;
             var kinds = GetClusterKinds();
             await Provider.StartMemberAsync(
-                this,
-                Config.ClusterName,
-                host,
-                port,
-                kinds,
-                MemberList
-            );
+                this);
 
             Logger.LogInformation("Started as cluster member");
         }
@@ -83,18 +75,9 @@ namespace Proto.Cluster
         public async Task StartClientAsync()
         {
             await BeginStartAsync(true);
-
-            var (host, port) = System.GetAddress();
-
             Provider = Config.ClusterProvider;
 
-            await Provider.StartClientAsync(
-                this,
-                Config.ClusterName,
-                host,
-                port,
-                MemberList
-            );
+            await Provider.StartClientAsync(this);
 
             Logger.LogInformation("Started as cluster client");
         }
