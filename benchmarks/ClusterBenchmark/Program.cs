@@ -108,7 +108,7 @@ namespace ClusterExperiment1
             var identity = GetIdentityLookup();
             var (clusterConfig, remoteConfig) = GetClusterConfig(clusterProvider, identity);
             var remote = new SelfHostedRemote(system, remoteConfig);
-            var cluster = new Cluster(remote, clusterConfig);
+            var cluster = new Cluster(system, clusterConfig);
             await cluster.StartClientAsync();
             return cluster;
         }
@@ -122,7 +122,7 @@ namespace ClusterExperiment1
             var (clusterConfig, remoteConfig) = GetClusterConfig(clusterProvider, identity);
             clusterConfig = clusterConfig.WithClusterKind("hello", helloProps);
             var remote = new SelfHostedRemote(system, remoteConfig);
-            var cluster = new Cluster(remote, clusterConfig);
+            var cluster = new Cluster(system, clusterConfig);
 
             cluster.StartMemberAsync();
             return cluster;

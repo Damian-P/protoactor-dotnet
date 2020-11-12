@@ -54,9 +54,11 @@
 
             clusterConfig = configure?.Invoke(clusterConfig) ?? clusterConfig;
 
-            var remote = new SelfHostedRemote(new ActorSystem(), remoteConfig);
+            var system = new ActorSystem();
 
-            var cluster = new Cluster(remote, clusterConfig);
+            var remote = new SelfHostedRemote(system, remoteConfig);
+
+            var cluster = new Cluster(system, clusterConfig);
 
             await cluster.StartMemberAsync();
             return cluster;
@@ -82,7 +84,7 @@
         {
             try
             {
-                await Task.WhenAll(Members?.Select(cluster => cluster.ShutdownAsync()) ?? new[] {Task.CompletedTask});
+                await Task.WhenAll(Members?.Select(cluster => cluster.ShutdownAsync()) ?? new[] { Task.CompletedTask });
             }
             catch (Exception e)
             {

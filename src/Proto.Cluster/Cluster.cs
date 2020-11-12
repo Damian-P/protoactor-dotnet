@@ -13,20 +13,23 @@ using Microsoft.Extensions.Logging;
 using Proto.Cluster.IdentityLookup;
 using Proto.Cluster.Partition;
 using Proto.Remote;
+using Proto.Extensions;
 
 namespace Proto.Cluster
 {
     [PublicAPI]
-    public class Cluster
+    public class Cluster : IActorSystemExtension<Cluster>
     {
         private ClusterHeartBeat _clusterHeartBeat;
 
-        public Cluster(IRemote remote, ClusterConfig config)
+        public Cluster(ActorSystem system, ClusterConfig config)
         {
+            system.Extensions.Register(this);
+
             Id = Guid.NewGuid();
             PidCache = new PidCache();
-            Remote = remote;
-            System = remote.System;
+            System = system;
+            Remote = system.Extensions.Get<IRemote>();
             Config = config;
             Config.RemoteConfig.WithProtoMessages(ProtosReflection.Descriptor);
 

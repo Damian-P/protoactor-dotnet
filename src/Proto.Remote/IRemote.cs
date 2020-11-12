@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Proto.Remote
 {
-    public interface IRemote
+    public interface IRemote: Extensions.IActorSystemExtension<IRemote>
     {
         RemoteConfig Config { get; }
         ActorSystem System { get; }
