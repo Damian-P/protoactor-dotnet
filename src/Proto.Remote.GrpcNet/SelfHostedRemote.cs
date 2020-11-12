@@ -35,6 +35,7 @@ namespace Proto.Remote
             System = system;
             Config = config;
             _config = config;
+            System.Extensions.Register(this);
         }
         public Task StartAsync()
         {

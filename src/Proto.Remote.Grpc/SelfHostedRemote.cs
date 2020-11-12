@@ -31,6 +31,7 @@ namespace Proto.Remote
             System = system;
             Config = config;
             _config = config;
+            System.Extensions.Register(this);
         }
         public bool Started { get; private set; }
         public RemoteConfig Config { get; }

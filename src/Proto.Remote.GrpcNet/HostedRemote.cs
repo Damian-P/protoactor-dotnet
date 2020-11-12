@@ -30,6 +30,7 @@ namespace Proto.Remote
             _config = config;
             _endpointManager = endpointManager;
             _logger = logger;
+            System.Extensions.Register(this);
         }
         public bool Started { get; private set; }
         public Task StartAsync()
