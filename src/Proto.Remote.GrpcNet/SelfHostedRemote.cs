@@ -35,9 +35,6 @@ namespace Proto.Remote
             System = system;
             Config = config;
             _config = config;
-            // Allows tu use Grpc.Net over http
-            if (!config.UseHttps)
-                AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
         }
         public Task StartAsync()
         {

@@ -30,9 +30,6 @@ namespace Proto.Remote
             _config = config;
             _endpointManager = endpointManager;
             _logger = logger;
-            // Allows tu use Grpc.Net over http
-            if (!_config.UseHttps)
-                AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
         }
         public bool Started { get; private set; }
         public Task StartAsync()
@@ -41,13 +38,14 @@ namespace Proto.Remote
             {
                 if (Started)
                     return Task.CompletedTask;
-                var uri = ServerAddressesFeature?.Addresses.Where(a => a.Contains(Config.Host)).Select(address => new Uri(address)).FirstOrDefault();
+                var uri = ServerAddressesFeature?.Addresses.Select(address => new Uri(address)).FirstOrDefault();
                 var boundPort = uri?.Port ?? Config.Port;
-                System.SetAddress(Config.AdvertisedHost ?? Config.Host,
+                var host = uri?.Host ?? Config.Host;
+                System.SetAddress(Config.AdvertisedHost ?? host,
                         Config.AdvertisedPort ?? boundPort
                     );
                 _endpointManager.Start();
-                _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", Config.Host, boundPort, System.Address);
+                _logger.LogInformation("Starting Proto.Actor server on {Host}:{Port} ({Address})", host, boundPort, System.Address);
                 Started = true;
                 return Task.CompletedTask;
             }

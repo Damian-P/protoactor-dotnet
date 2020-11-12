@@ -75,8 +75,7 @@ namespace Proto.Cluster
         public bool RemoveByVal(ClusterIdentity clusterIdentity, PID pid)
         {
             var key = clusterIdentity;
-            if (_cacheDict.TryGetValue(key, out var existingPid) && existingPid.Id == pid.Id &&
-                existingPid.Address == pid.Address)
+            if (_cacheDict.TryGetValue(key, out var existingPid))
             {
                 return _cacheCollection.Remove(new KeyValuePair<ClusterIdentity, PID>(key, existingPid));
             }
