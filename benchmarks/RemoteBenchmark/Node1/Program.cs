@@ -17,11 +17,11 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        // Log.SetLoggerFactory(LoggerFactory.Create(c => c
-        //     .SetMinimumLevel(LogLevel.Information)
-        //     .AddFilter("Proto.EventStream", LogLevel.None)
-        //     .AddConsole()
-        // ));
+        Log.SetLoggerFactory(LoggerFactory.Create(c => c
+            .SetMinimumLevel(LogLevel.Information)
+            .AddFilter("Proto.EventStream", LogLevel.None)
+            .AddConsole()
+        ));
         var system = new ActorSystem();
         var context = new RootContext(system);
 
@@ -29,7 +29,7 @@ class Program
             GrpcNetRemoteConfig.BindToLocalhost(12001).WithProtoMessages(ProtosReflection.Descriptor));
         await remote.StartAsync();
 
-        var messageCount = 1000000;
+        var messageCount = 3000000;
         var cancellationTokenSource = new CancellationTokenSource();
         _ = Task.Run(async () =>
         {
