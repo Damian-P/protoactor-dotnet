@@ -86,7 +86,7 @@ namespace Proto.Cluster.Consul
 
         public async Task StartMemberAsync(Cluster cluster)
         {
-            var (host,port) = cluster.System.GetAddress();
+            var (host, port) = cluster.System.GetAddress();
             var kinds = cluster.GetClusterKinds();
             SetState(cluster, cluster.Config.ClusterName, host, port, kinds, cluster.MemberList);
             await RegisterMemberAsync();
@@ -97,7 +97,7 @@ namespace Proto.Cluster.Consul
 
         private void SetState(Cluster cluster, string clusterName, string host, int port, string[] kinds, MemberList memberList)
         {
-            
+
             _cluster = cluster;
             _consulServiceInstanceId = $"{clusterName}-{_cluster.Id}@{host}:{port}";
             _consulServiceName = clusterName;
@@ -110,11 +110,11 @@ namespace Proto.Cluster.Consul
 
         public Task StartClientAsync(Cluster cluster)
         {
-            var (host,port) = cluster.System.GetAddress();
+            var (host, port) = cluster.System.GetAddress();
             SetState(cluster, cluster.Config.ClusterName, host, port, null, cluster.MemberList);
-            
+
             StartMonitorMemberStatusChangesLoop();
-            
+
             return Task.CompletedTask;
         }
 
@@ -160,33 +160,40 @@ namespace Proto.Cluster.Consul
                     var waitIndex = 0ul;
                     while (!_shutdown)
                     {
-                        var statuses = await _client.Health.Service(_consulServiceName, null, false, new QueryOptions
+                        try
+                        {
+                            var statuses = await _client.Health.Service(_consulServiceName, null, false, new QueryOptions
                             {
                                 WaitIndex = waitIndex,
                                 WaitTime = _blockingWaitTime
                             }
-                        );
-                        if (_deregistered)
-                        {
-                            break;
+                            ).ConfigureAwait(false);
+                            if (_deregistered)
+                            {
+                                break;
+                            }
+
+                            _logger.LogDebug("Got status updates from Consul");
+
+                            waitIndex = statuses.LastIndex;
+
+                            var currentMembers =
+                                statuses
+                                    .Response
+                                    .Where(v => IsAlive(v.Checks)) //only include members that are alive
+                                    .Select(ToMember)
+                                    .ToArray();
+
+                            //why is this not updated via the ClusterTopologyEvents?
+                            //because following events is messy
+                            _memberList.UpdateClusterTopology(currentMembers, waitIndex);
+                            var res = new ClusterTopologyEvent(currentMembers);
+                            _cluster.System.EventStream.Publish(res);
                         }
-
-                        _logger.LogDebug("Got status updates from Consul");
-
-                        waitIndex = statuses.LastIndex;
-
-                        var currentMembers =
-                            statuses
-                                .Response
-                                .Where(v => IsAlive(v.Checks)) //only include members that are alive
-                                .Select(ToMember)
-                                .ToArray();
-
-                        //why is this not updated via the ClusterTopologyEvents?
-                        //because following events is messy
-                        _memberList.UpdateClusterTopology(currentMembers, waitIndex);
-                        var res = new ClusterTopologyEvent(currentMembers);
-                        _cluster.System.EventStream.Publish(res);
+                        catch (Exception e)
+                        {
+                            _logger.LogError(e, "Error");
+                        }
                     }
                 }
             );
@@ -213,8 +220,15 @@ namespace Proto.Cluster.Consul
                 {
                     while (!_shutdown)
                     {
-                        await _client.Agent.PassTTL("service:" + _consulServiceInstanceId, "");
-                        await Task.Delay(_refreshTtl);
+                        try
+                        {
+                            await _client.Agent.PassTTL("service:" + _consulServiceInstanceId, "", new CancellationTokenSource(3000).Token).ConfigureAwait(false);
+                            await Task.Delay(_refreshTtl).ConfigureAwait(false);
+                        }
+                        catch (System.Exception e)
+                        {
+                            _logger.LogError(e, "Error");
+                        }
                     }
 
                     _logger.LogInformation("Exiting TTL loop");
@@ -243,11 +257,11 @@ namespace Proto.Cluster.Consul
                         _consulLeaderKey = leaderKey;
 
                         var json = JsonConvert.SerializeObject(new ConsulLeader
-                            {
-                                Host = _host,
-                                Port = _port,
-                                MemberId = _cluster.Id
-                            }
+                        {
+                            Host = _host,
+                            Port = _port,
+                            MemberId = _cluster.Id
+                        }
                         );
                         var kvp = new KVPair(leaderKey)
                         {
@@ -270,11 +284,11 @@ namespace Proto.Cluster.Consul
                                 var isLeader = aquired.Response;
 
                                 var res = await _client.KV.Get(leaderKey, new QueryOptions
-                                    {
-                                        Consistency = ConsistencyMode.Default,
-                                        WaitIndex = waitIndex,
-                                        WaitTime = TimeSpan.FromSeconds(3)
-                                    }
+                                {
+                                    Consistency = ConsistencyMode.Default,
+                                    WaitIndex = waitIndex,
+                                    WaitTime = TimeSpan.FromSeconds(3)
+                                }
                                 );
 
 
@@ -345,7 +359,7 @@ namespace Proto.Cluster.Consul
                     {"id", _cluster.Id.ToString()}
                 }
             };
-            await _client.Agent.ServiceRegister(s);
+            await _client.Agent.ServiceRegister(s).ConfigureAwait(false);
         }
 
 

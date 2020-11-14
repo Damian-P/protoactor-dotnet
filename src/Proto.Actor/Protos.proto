@@ -15,6 +15,9 @@ message DeadLetterResponse {
     PID Target = 1;
 }
 
+message TimeoutResponse {
+}
+
 //system messages
 message Watch {
     PID Watcher = 1;

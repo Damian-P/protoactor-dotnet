@@ -52,7 +52,7 @@ namespace Proto.Cluster.Tests
             await system.Root.StopAsync(deadPid);
 
             var dummyIdentityLookup = new DummyIdentityLookup(alivePid);
-            var pidCache = new PidCache();
+            var pidCache = new PidCache(system);
 
             var logger = Log.CreateLogger("dummylog");
             var clusterIdentity = new ClusterIdentity {Identity = "identity", Kind = "kind"};

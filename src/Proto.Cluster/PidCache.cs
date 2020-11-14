@@ -9,11 +9,19 @@ namespace Proto.Cluster
     {
         private readonly ConcurrentDictionary<ClusterIdentity, PID> _cacheDict;
         private readonly ICollection<KeyValuePair<ClusterIdentity, PID>> _cacheCollection;
+        private readonly ActorSystem _system;
+        private PID? _pidCacheUpdater;
 
-        public PidCache()
+        public PidCache(ActorSystem system)
         {
             _cacheDict = new ConcurrentDictionary<ClusterIdentity, PID>();
             _cacheCollection = _cacheDict;
+            _system = system;
+        }
+
+        public void StartWatch()
+        {
+            _pidCacheUpdater = _system.Root.SpawnNamed(Props.FromProducer(() => new PidCacheWatcher(this)), "PidCacheUpdater");
         }
 
         public bool TryGet(ClusterIdentity clusterIdentity, out PID pid)
@@ -38,7 +46,8 @@ namespace Proto.Cluster
             {
                 throw new ArgumentNullException(nameof(pid));
             }
-            
+            if(_pidCacheUpdater is not null)
+                _system.Root.Send(_pidCacheUpdater, new Activation { ClusterIdentity = clusterIdentity, Pid = pid });
             return _cacheDict.TryAdd(clusterIdentity, pid);
         }
 
@@ -58,7 +67,10 @@ namespace Proto.Cluster
             {
                 throw new ArgumentNullException(nameof(existingPid));
             }
-            
+
+            if(_pidCacheUpdater is not null)
+                _system.Root.Send(_pidCacheUpdater, new Activation { ClusterIdentity = clusterIdentity, Pid = existingPid });
+
             return _cacheDict.TryUpdate(clusterIdentity, newPid, existingPid);
         }
 
@@ -75,8 +87,7 @@ namespace Proto.Cluster
         public bool RemoveByVal(ClusterIdentity clusterIdentity, PID pid)
         {
             var key = clusterIdentity;
-            if (_cacheDict.TryGetValue(key, out var existingPid) && existingPid.Id == pid.Id &&
-                existingPid.Address == pid.Address)
+            if (_cacheDict.TryGetValue(key, out var existingPid))
             {
                 return _cacheCollection.Remove(new KeyValuePair<ClusterIdentity, PID>(key, existingPid));
             }

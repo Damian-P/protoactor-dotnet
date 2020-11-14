@@ -27,7 +27,7 @@ namespace Proto.Cluster
             system.Extensions.Register(this);
 
             Id = Guid.NewGuid();
-            PidCache = new PidCache();
+            PidCache = new PidCache(system);
             System = system;
             Config = config;
             Config.RemoteConfig.WithProtoMessages(ProtosReflection.Descriptor);
@@ -98,6 +98,7 @@ namespace Proto.Cluster
             var kinds = GetClusterKinds();
             await IdentityLookup.SetupAsync(this, kinds, client);
             await _clusterHeartBeat.StartAsync();
+            PidCache.StartWatch();
         }
 
         public async Task ShutdownAsync(bool graceful = true)

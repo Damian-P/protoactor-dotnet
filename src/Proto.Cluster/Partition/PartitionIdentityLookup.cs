@@ -40,7 +40,7 @@ namespace Proto.Cluster.Partition
                     )
                     : await _cluster.System.Root.RequestAsync<ActivationResponse>(remotePid, req, ct);
 
-                return resp.Pid;
+                return resp?.Pid;
             }
             //TODO: decide if we throw or return null
             catch (TimeoutException)
@@ -50,7 +50,7 @@ namespace Proto.Cluster.Partition
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error occured requesting remote PID {@Request}", req);
+                _logger.LogDebug(e, "Error occured requesting remote PID {@Request}", req);
                 return null;
             }
         }
