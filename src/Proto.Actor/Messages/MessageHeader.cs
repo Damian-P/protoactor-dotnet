@@ -15,7 +15,7 @@ namespace Proto
     [PublicAPI]
     public record MessageHeader : IReadOnlyDictionary<string, string>
     {
-        public static readonly MessageHeader Empty = new MessageHeader(ImmutableDictionary<string, string>.Empty);
+        public static readonly MessageHeader Empty = new(ImmutableDictionary<string, string>.Empty);
 
         private ImmutableDictionary<string, string> Inner { get; init; }
         
@@ -24,15 +24,18 @@ namespace Proto
             Inner = headers.ToImmutableDictionary();
         }
 
-        public IEnumerator<KeyValuePair<string, string>> GetEnumerator() => Inner.GetEnumerator();
+        public IEnumerator<KeyValuePair<string, string>> GetEnumerator() => 
+            Inner.GetEnumerator();
 
-        IEnumerator IEnumerable.GetEnumerator() => Inner.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => 
+            Inner.GetEnumerator();
 
         public int Count => Inner.Count;
 
         public bool ContainsKey(string key) => Inner.ContainsKey(key);
 
-        public bool TryGetValue(string key, out string value) => Inner.TryGetValue(key, out value);
+        public bool TryGetValue(string key, out string value) => 
+            Inner.TryGetValue(key, out value);
 
         public string this[string key] => Inner[key];
 
