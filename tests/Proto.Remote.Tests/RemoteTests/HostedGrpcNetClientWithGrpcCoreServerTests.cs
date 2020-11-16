@@ -23,8 +23,8 @@ namespace Proto.Remote.Tests
             public override async Task DisposeAsync()
             {
                 await _clientHost.StopAsync();
-                await ServerRemote.ShutdownAsync();
                 _clientHost.Dispose();
+                await ServerRemote.ShutdownAsync();
             }
         }
         public HostedGrpcNetClientWithGrpcCoreServerTests(HostedGrpcNetClientWithGrpcCoreServerFixture fixture) : base(fixture)

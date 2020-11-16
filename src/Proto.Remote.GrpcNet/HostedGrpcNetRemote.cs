@@ -23,6 +23,7 @@ namespace Proto.Remote.GrpcNet
             _endpointManager = endpointManager;
             _logger = logger;
             System.Extensions.Register(this);
+            System.Extensions.Register(config.Serialization);
         }
         public bool Started { get; private set; }
         public Task StartAsync()

@@ -49,8 +49,7 @@
             var config = ClusterConfig.Setup(
                 clusterName,
                 GetClusterProvider(),
-                GetIdentityLookup(clusterName),
-                remoteConfig
+                GetIdentityLookup(clusterName)
             ).WithClusterKinds(ClusterKinds);
 
             config = configure?.Invoke(config) ?? config;
