@@ -104,11 +104,9 @@ namespace Proto.Cluster.Kubernetes
             
             Logger.LogInformation("Using Kubernetes port: " + _port);
 
-            var protoKinds = new List<string>();
-
-            protoKinds.AddRange(_kinds);
-
-            var labels = new Dictionary<string, string>(pod.Metadata.Labels)
+            var existingLabels = pod.Metadata.Labels;
+            
+            var labels = new Dictionary<string, string>
             {
                 [LabelCluster] = _clusterName,
                 [LabelPort] = _port.ToString(),
@@ -117,7 +115,14 @@ namespace Proto.Cluster.Kubernetes
 
             foreach (var kind in _kinds)
             {
-                labels.Add($"{LabelKind}-{kind}","true");
+                var labelKey = $"{LabelKind}-{kind}";
+                labels.TryAdd(labelKey,"true");
+            }
+
+            //add existing labels back
+            foreach (var existing in existingLabels)
+            {
+                labels.TryAdd(existing.Key, existing.Value);
             }
 
             try
@@ -163,10 +168,19 @@ namespace Proto.Cluster.Kubernetes
             
             foreach (var kind in _kinds)
             {
-                pod.SetLabel($"{LabelKind}-{kind}", null);
+                try
+                {
+                    var labelKey = $"{LabelKind}-{kind}";
+                    pod.SetLabel(labelKey, null);
+                }
+                catch(Exception x)
+                {
+                    Logger.LogError(x, "Failed to remove label");
+                }
             }
             
             pod.SetLabel(LabelCluster, null);
+            
             await _kubernetes.ReplacePodLabels(_podName, kubeNamespace, pod.Labels());
 
             cluster.System.Root.Send(_clusterMonitor, new DeregisterMember());
