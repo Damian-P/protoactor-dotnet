@@ -80,7 +80,7 @@ class Program
                     Console.WriteLine("Elapsed {0}", elapsed);
 
                     var t = messageCount * 2.0 / elapsed.TotalMilliseconds * 1000;
-                    // Console.Clear();
+                    Console.Clear();
                     Console.WriteLine("Throughput {0} msg / sec", t);
                     await context.StopAsync(remotePid);
                 }
