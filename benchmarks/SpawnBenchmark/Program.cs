@@ -46,7 +46,7 @@ namespace SpawnBenchmark
                     _replyTo = context.Sender;
                     for (var i = 0; i < r.Div; i++)
                     {
-                        var child = _system.Root.Spawn(Props(_system));
+                        var child = context.Spawn(Props(_system));
                         context.Request(child, new Request
                         {
                             Num = r.Num + i * (r.Size / r.Div),
@@ -75,7 +75,7 @@ namespace SpawnBenchmark
 
     internal class Program
     {
-        private static void Main()
+        private static async Task Main()
         {
             var system = new ActorSystem();
             var context = new RootContext(system);
@@ -85,18 +85,16 @@ namespace SpawnBenchmark
 
                 var pid = context.Spawn(MyActor.Props(system));
                 var sw = Stopwatch.StartNew();
-                var t = context.RequestAsync<long>(pid, new Request
+                var res = await context.RequestAsync<long>(pid, new Request
                 {
                     Num = 0,
                     Size = 1000000,
                     Div = 10
-                });
-                t.ConfigureAwait(false);
-                var res = t.Result;
+                }).ConfigureAwait(false);
                 Console.WriteLine(sw.Elapsed);
                 Console.WriteLine(res);
-                context.StopAsync(pid).Wait();
-                Task.Delay(500).Wait();
+                await context.StopAsync(pid);
+                await Task.Delay(500);
             }
             //   Console.ReadLine();
         }
