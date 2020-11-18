@@ -21,7 +21,6 @@ class Program
     {
         Log.SetLoggerFactory(LoggerFactory.Create(c => c
             .SetMinimumLevel(LogLevel.Information)
-            .AddFilter("Proto.EventStream", LogLevel.None)
             .AddConsole()));
 #if NETCORE
         AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);

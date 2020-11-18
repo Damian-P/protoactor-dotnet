@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Threading.Tasks;
 using Divergic.Logging.Xunit;
 using Microsoft.AspNetCore.Builder;
@@ -14,7 +15,7 @@ using Xunit.Abstractions;
 
 namespace Proto.Remote.Tests
 {
-    public interface IRemoteFixture: IAsyncLifetime
+    public interface IRemoteFixture : IAsyncLifetime
     {
         string RemoteAddress { get; }
         IRemote Remote { get; }
@@ -73,7 +74,6 @@ namespace Proto.Remote.Tests
             .ConfigureServices(services =>
             {
                 services.AddGrpc();
-                services.AddSingleton<ILoggerFactory>(Log.GetLoggerFactory());
                 services.AddSingleton(sp => new ActorSystem());
                 services.AddRemote(config.WithAdvertisedHost("localhost"));
             })
@@ -81,7 +81,7 @@ namespace Proto.Remote.Tests
             {
                 webBuilder.ConfigureKestrel(kestrelServerOptions =>
                 {
-                    kestrelServerOptions.ListenAnyIP(config.Port, listenOption =>
+                    kestrelServerOptions.Listen(IPAddress.Parse(config.Host), config.Port, listenOption =>
                     {
                         listenOption.Protocols = HttpProtocols.Http2;
                     });
