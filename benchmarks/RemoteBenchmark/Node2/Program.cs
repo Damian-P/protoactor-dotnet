@@ -44,6 +44,7 @@ namespace Node2
         {
             Log.SetLoggerFactory(LoggerFactory.Create(c => c
             .SetMinimumLevel(LogLevel.Information)
+            // .AddFilter("Proto.EventStream", LogLevel.None)
             .AddConsole()));
 
 #if NETCORE
@@ -62,6 +63,7 @@ namespace Node2
             {
                 var remoteConfig = GrpcCoreRemoteConfig
                 .BindToLocalhost(12000)
+                .WithEndpointWriterMaxRetries(0)
                 .WithProtoMessages(ProtosReflection.Descriptor)
                 .WithRemoteKind("echo", Props.FromProducer(() => new EchoActor()));
                 remote = new GrpcCoreRemote(system, remoteConfig);
@@ -70,6 +72,7 @@ namespace Node2
             {
                 var remoteConfig = GrpcNetRemoteConfig
                 .BindToLocalhost(12000)
+                .WithEndpointWriterMaxRetries(0)
                 .WithProtoMessages(ProtosReflection.Descriptor)
                 .WithRemoteKind("echo", Props.FromProducer(() => new EchoActor()));
                 remote = new GrpcNetRemote(system, remoteConfig);

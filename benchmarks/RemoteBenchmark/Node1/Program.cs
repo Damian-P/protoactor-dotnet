@@ -14,6 +14,7 @@ using ProtosReflection = Messages.ProtosReflection;
 using Proto.Remote.GrpcCore;
 using Microsoft.Extensions.Logging;
 using Proto.Remote.GrpcNet;
+using System.Diagnostics;
 
 class Program
 {
@@ -21,6 +22,7 @@ class Program
     {
         Log.SetLoggerFactory(LoggerFactory.Create(c => c
             .SetMinimumLevel(LogLevel.Information)
+            // .AddFilter("Proto.EventStream", LogLevel.None)
             .AddConsole()));
 #if NETCORE
         AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
@@ -39,6 +41,7 @@ class Program
         {
             var remoteConfig = GrpcCoreRemoteConfig
             .BindToLocalhost(0)
+            .WithEndpointWriterMaxRetries(0)
             .WithProtoMessages(ProtosReflection.Descriptor);
             remote = new GrpcCoreRemote(system, remoteConfig);
         }
@@ -46,6 +49,7 @@ class Program
         {
             var remoteConfig = GrpcNetRemoteConfig
             .BindToLocalhost(0)
+            .WithEndpointWriterMaxRetries(0)
             .WithProtoMessages(ProtosReflection.Descriptor);
             remote = new GrpcNetRemote(system, remoteConfig);
         }
@@ -62,26 +66,37 @@ class Program
                 var props = Props.FromProducer(() => new LocalActor(0, messageCount, semaphore));
 
                 var pid = context.Spawn(props);
-                var actorPidResponse = await remote.SpawnAsync("127.0.0.1:12000", "echo", TimeSpan.FromSeconds(3));
-                if (actorPidResponse.StatusCode == (int)ResponseStatusCode.OK)
+                try
                 {
-                    var remotePid = actorPidResponse.Pid;
-                    await context.RequestAsync<Start>(remotePid, new StartRemote { Sender = pid }, cancellationTokenSource.Token);
-                    var start = DateTime.Now;
-                    Console.WriteLine("Starting to send");
-                    var msg = new Ping();
-                    for (var i = 0; i < messageCount; i++)
+                    var actorPidResponse = await remote.SpawnAsync("127.0.0.1:12000", "echo", TimeSpan.FromSeconds(10));
+                    if (actorPidResponse.StatusCode == (int)ResponseStatusCode.OK)
                     {
-                        context.Send(remotePid, msg);
-                    }
-                    await semaphore.WaitAsync(cancellationTokenSource.Token);
-                    var elapsed = DateTime.Now - start;
-                    Console.WriteLine("Elapsed {0}", elapsed);
+                        var remotePid = actorPidResponse.Pid;
+                        await context.RequestAsync<Start>(remotePid, new StartRemote { Sender = pid }, TimeSpan.FromSeconds(10));
+                        var stopWatch = new Stopwatch();
+                        stopWatch.Start();
+                        Console.WriteLine("Starting to send");
+                        var msg = new Ping();
+                        for (var i = 0; i < messageCount; i++)
+                        {
+                            context.Send(remotePid, msg);
+                        }
+                        var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token, new CancellationTokenSource(5000).Token);
+                        await semaphore.WaitAsync(linkedTokenSource.Token);
+                        stopWatch.Stop();
+                        var elapsed = stopWatch.Elapsed;
+                        Console.WriteLine("Elapsed {0}", elapsed);
 
-                    var t = messageCount * 2.0 / elapsed.TotalMilliseconds * 1000;
-                    Console.Clear();
-                    Console.WriteLine("Throughput {0} msg / sec", t);
-                    await context.StopAsync(remotePid);
+                        var t = messageCount * 2.0 / elapsed.TotalMilliseconds * 1000;
+                        Console.Clear();
+                        Console.WriteLine("Throughput {0} msg / sec", t);
+                        await context.StopAsync(remotePid);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                    await Task.Delay(2000);
                 }
                 await context.StopAsync(pid);
             }

@@ -18,6 +18,7 @@ namespace Proto.Remote
     {
         private static readonly ILogger Logger = Log.CreateLogger<EndpointManager>();
         private readonly ConcurrentDictionary<string, PID> _connections = new ConcurrentDictionary<string, PID>();
+        private readonly ConcurrentDictionary<string, PID> _terminatedConnections = new ConcurrentDictionary<string, PID>();
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private readonly ActorSystem _system;
         private readonly EventStreamSubscription<object>? _endpointConnectedEvnSub;
@@ -56,8 +57,6 @@ namespace Proto.Remote
                 _system.EventStream.Unsubscribe(_endpointConnectedEvnSub);
                 _system.EventStream.Unsubscribe(_endpointErrorEvnSub);
 
-                _cancellationTokenSource.Cancel();
-
                 var stopEndpointTasks = new List<Task>();
                 foreach (var endpoint in _connections.Values)
                 {
@@ -65,6 +64,8 @@ namespace Proto.Remote
                 }
 
                 Task.WhenAll(stopEndpointTasks).GetAwaiter().GetResult();
+
+                _cancellationTokenSource.Cancel();
 
                 _connections.Clear();
 
@@ -79,6 +80,10 @@ namespace Proto.Remote
             lock (_synLock)
             {
                 var endpoint = GetEndpoint(evt.Address);
+                if (endpoint is null)
+                {
+                    return;
+                }
                 endpoint.SendSystemMessage(_system, evt);
             }
         }
@@ -92,6 +97,12 @@ namespace Proto.Remote
                 {
                     _system.Root.StopAsync(endpoint).GetAwaiter().GetResult();
                 }
+                if (_terminatedConnections.TryAdd(evt.Address, endpoint))
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(3000);
+                        _terminatedConnections.TryRemove(evt.Address, out var _);
+                    });
             }
         }
 
@@ -100,6 +111,10 @@ namespace Proto.Remote
             lock (_synLock)
             {
                 var endpoint = GetEndpoint(evt.Address);
+                if (endpoint is null)
+                {
+                    return;
+                }
                 endpoint.SendSystemMessage(_system, evt);
             }
         }
@@ -109,6 +124,10 @@ namespace Proto.Remote
             lock (_synLock)
             {
                 var endpoint = GetEndpoint(msg.Watchee.Address);
+                if (endpoint is null)
+                {
+                    return;
+                }
                 _system.Root.Send(endpoint, msg);
             }
         }
@@ -118,6 +137,11 @@ namespace Proto.Remote
             lock (_synLock)
             {
                 var endpoint = GetEndpoint(msg.Watchee.Address);
+                if (endpoint is null)
+                {
+                    _system.Root.Send(msg.Watcher, new Terminated { AddressTerminated = true, Who = msg.Watchee });
+                    return;
+                }
                 _system.Root.Send(endpoint, msg);
             }
         }
@@ -127,6 +151,10 @@ namespace Proto.Remote
             lock (_synLock)
             {
                 var endpoint = GetEndpoint(msg.Watchee.Address);
+                if (endpoint is null)
+                {
+                    return;
+                }
                 _system.Root.Send(endpoint, msg);
             }
         }
@@ -143,19 +171,31 @@ namespace Proto.Remote
             lock (_synLock)
             {
                 var endpoint = GetEndpoint(msg.Target.Address);
-                Logger.LogDebug(
-                    "[EndpointManager] Forwarding message {Message} from {From} for {Address} through EndpointWriter {Writer}",
-                    msg.Message?.GetType(), msg.Sender?.Address, msg.Target?.Address, endpoint
-                );
-                _system.Root.Send(endpoint, msg);
+                if (endpoint is null)
+                {
+                    _system.EventStream.Publish(new DeadLetterEvent(msg.Target, msg.Message, msg.Sender));
+                    return;
+                }
+                else
+                {
+                    Logger.LogDebug(
+                        "[EndpointManager] Forwarding message {Message} from {From} for {Address} through EndpointWriter {Writer}",
+                        msg.Message?.GetType(), msg.Sender?.Address, msg.Target?.Address, endpoint
+                    );
+                    _system.Root.Send(endpoint, msg);
+                }
             }
         }
 
-        private PID GetEndpoint(string address)
+        private PID? GetEndpoint(string address)
         {
             if (string.IsNullOrWhiteSpace(address))
             {
                 throw new ArgumentNullException(nameof(address));
+            }
+            if (_terminatedConnections.ContainsKey(address) || _cancellationTokenSource.IsCancellationRequested)
+            {
+                return null;
             }
             return _connections.GetOrAdd(address, v =>
             {
