@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Net;
 using System.Threading.Tasks;
-using Divergic.Logging.Xunit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -11,7 +10,6 @@ using Microsoft.Extensions.Logging;
 using Proto.Remote.GrpcCore;
 using Proto.Remote.GrpcNet;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Proto.Remote.Tests
 {
@@ -25,6 +23,10 @@ namespace Proto.Remote.Tests
 
     public abstract class RemoteFixture : IRemoteFixture
     {
+        static RemoteFixture()
+        {
+            // Log.SetLoggerFactory(LoggerFactory.Create(c => c.AddConsole()));
+        }
         public string RemoteAddress => ServerRemote.System.Address;
 
         public IRemote Remote { get; protected set; }
@@ -75,6 +77,7 @@ namespace Proto.Remote.Tests
             {
                 services.AddGrpc();
                 services.AddSingleton(sp => new ActorSystem());
+                services.AddSingleton(Log.GetLoggerFactory());
                 services.AddRemote(config.WithAdvertisedHost("localhost"));
             })
             .ConfigureWebHostDefaults(webBuilder =>

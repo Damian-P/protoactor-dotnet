@@ -77,15 +77,12 @@ namespace Proto.Remote
 
         private void OnEndpointError(EndpointErrorEvent evt)
         {
-            lock (_synLock)
+            var endpoint = GetEndpoint(evt.Address);
+            if (endpoint is null)
             {
-                var endpoint = GetEndpoint(evt.Address);
-                if (endpoint is null)
-                {
-                    return;
-                }
-                endpoint.SendSystemMessage(_system, evt);
+                return;
             }
+            endpoint.SendSystemMessage(_system, evt);
         }
 
         private void OnEndpointTerminated(EndpointTerminatedEvent evt)
@@ -108,113 +105,39 @@ namespace Proto.Remote
 
         private void OnEndpointConnected(EndpointConnectedEvent evt)
         {
-            lock (_synLock)
+            var endpoint = GetEndpoint(evt.Address);
+            if (endpoint is null)
             {
-                var endpoint = GetEndpoint(evt.Address);
-                if (endpoint is null)
-                {
-                    return;
-                }
-                endpoint.SendSystemMessage(_system, evt);
-            }
-        }
-
-        public void RemoteTerminate(RemoteTerminate msg)
-        {
-            lock (_synLock)
-            {
-                var endpoint = GetEndpoint(msg.Watchee.Address);
-                if (endpoint is null)
-                {
-                    return;
-                }
-                _system.Root.Send(endpoint, msg);
-            }
-        }
-
-        public void RemoteWatch(RemoteWatch msg)
-        {
-            lock (_synLock)
-            {
-                var endpoint = GetEndpoint(msg.Watchee.Address);
-                if (endpoint is null)
-                {
-                    _system.Root.Send(msg.Watcher, new Terminated { AddressTerminated = true, Who = msg.Watchee });
-                    return;
-                }
-                _system.Root.Send(endpoint, msg);
-            }
-        }
-
-        public void RemoteUnwatch(RemoteUnwatch msg)
-        {
-            lock (_synLock)
-            {
-                var endpoint = GetEndpoint(msg.Watchee.Address);
-                if (endpoint is null)
-                {
-                    return;
-                }
-                _system.Root.Send(endpoint, msg);
-            }
-        }
-
-        public void RemoteDeliver(RemoteDeliver msg)
-        {
-            if (string.IsNullOrWhiteSpace(msg.Target.Address))
-                throw new ArgumentOutOfRangeException("Target");
-            if (CancellationToken.IsCancellationRequested)
-            {
-                _system.EventStream.Publish(new DeadLetterEvent(msg.Target, msg.Message, msg.Sender));
                 return;
-            };
-            lock (_synLock)
-            {
-                var endpoint = GetEndpoint(msg.Target.Address);
-                if (endpoint is null)
-                {
-                    _system.EventStream.Publish(new DeadLetterEvent(msg.Target, msg.Message, msg.Sender));
-                    return;
-                }
-                else
-                {
-                    Logger.LogDebug(
-                        "[EndpointManager] Forwarding message {Message} from {From} for {Address} through EndpointWriter {Writer}",
-                        msg.Message?.GetType(), msg.Sender?.Address, msg.Target?.Address, endpoint
-                    );
-                    _system.Root.Send(endpoint, msg);
-                }
             }
+            endpoint.SendSystemMessage(_system, evt);
         }
 
-        private PID? GetEndpoint(string address)
+        internal PID? GetEndpoint(string address)
         {
             if (string.IsNullOrWhiteSpace(address))
             {
                 throw new ArgumentNullException(nameof(address));
             }
-            if (_terminatedConnections.ContainsKey(address) || _cancellationTokenSource.IsCancellationRequested)
+            lock (_synLock)
             {
-                return null;
-            }
-            return _connections.GetOrAdd(address, v =>
-            {
-                Logger.LogDebug("[EndpointManager] Requesting new endpoint for {Address}", v);
-                var props = Props
-                    .FromProducer(() => new EndpointActor(v, this, _remoteConfig, _channelProvider))
-                    .WithMailbox(() => new EndpointWriterMailbox(_system, _remoteConfig.EndpointWriterOptions.EndpointWriterBatchSize, v))
-                    .WithGuardianSupervisorStrategy(new EndpointSupervisorStrategy(v, _remoteConfig, _system));
-                var endpointActorPid = _system.Root.SpawnNamed(props, $"endpoint-{v}");
-                Logger.LogDebug("[EndpointManager] Created new endpoint for {Address}", v);
-                return endpointActorPid;
-            });
-        }
+                if (_terminatedConnections.ContainsKey(address) || _cancellationTokenSource.IsCancellationRequested)
+                {
+                    return null;
+                }
 
-        public void SendMessage(PID pid, object msg, int serializerId)
-        {
-            var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
-            var env = new RemoteDeliver(header!, message, pid, sender!, serializerId);
-            RemoteDeliver(env);
+                return _connections.GetOrAdd(address, v =>
+                {
+                    Logger.LogDebug("[EndpointManager] Requesting new endpoint for {Address}", v);
+                    var props = Props
+                        .FromProducer(() => new EndpointActor(v, _remoteConfig, _channelProvider))
+                        .WithMailbox(() => new EndpointWriterMailbox(_system, _remoteConfig.EndpointWriterOptions.EndpointWriterBatchSize, v))
+                        .WithGuardianSupervisorStrategy(new EndpointSupervisorStrategy(v, _remoteConfig, _system));
+                    var endpointActorPid = _system.Root.SpawnNamed(props, $"endpoint-{v}");
+                    Logger.LogDebug("[EndpointManager] Created new endpoint for {Address}", v);
+                    return endpointActorPid;
+                });
+            }
         }
 
         private void SpawnActivator()

@@ -104,10 +104,5 @@ namespace Proto.Remote.GrpcCore
                 await _server.KillAsync();
             }
         }
-
-        public void SendMessage(PID pid, object msg, int serializerId)
-        {
-            _endpointManager.SendMessage(pid, msg, serializerId);
-        }
     }
 }

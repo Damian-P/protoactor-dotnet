@@ -22,7 +22,7 @@ class Program
     {
         Log.SetLoggerFactory(LoggerFactory.Create(c => c
             .SetMinimumLevel(LogLevel.Information)
-            // .AddFilter("Proto.EventStream", LogLevel.None)
+            .AddFilter("Proto.EventStream", LogLevel.None)
             .AddConsole()));
 #if NETCORE
         AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
@@ -68,11 +68,11 @@ class Program
                 var pid = context.Spawn(props);
                 try
                 {
-                    var actorPidResponse = await remote.SpawnAsync("127.0.0.1:12000", "echo", TimeSpan.FromSeconds(10));
+                    var actorPidResponse = await remote.SpawnAsync("127.0.0.1:12000", "echo", TimeSpan.FromSeconds(1));
                     if (actorPidResponse.StatusCode == (int)ResponseStatusCode.OK)
                     {
                         var remotePid = actorPidResponse.Pid;
-                        await context.RequestAsync<Start>(remotePid, new StartRemote { Sender = pid }, TimeSpan.FromSeconds(10));
+                        await context.RequestAsync<Start>(remotePid, new StartRemote { Sender = pid }, TimeSpan.FromSeconds(1));
                         var stopWatch = new Stopwatch();
                         stopWatch.Start();
                         Console.WriteLine("Starting to send");
@@ -81,7 +81,7 @@ class Program
                         {
                             context.Send(remotePid, msg);
                         }
-                        var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token, new CancellationTokenSource(5000).Token);
+                        var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token, new CancellationTokenSource(2000).Token);
                         await semaphore.WaitAsync(linkedTokenSource.Token);
                         stopWatch.Stop();
                         var elapsed = stopWatch.Elapsed;
@@ -93,9 +93,8 @@ class Program
                         await context.StopAsync(remotePid);
                     }
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    Console.WriteLine(e.Message);
                     await Task.Delay(2000);
                 }
                 await context.StopAsync(pid);
