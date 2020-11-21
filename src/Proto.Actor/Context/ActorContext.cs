@@ -199,12 +199,7 @@ namespace Proto.Context
             var msg = _messageOrEnvelope;
             var cont = new Continuation(() => action(target), msg);
 
-            Task.Run(async () =>
-                {
-                    await target;
-                    Self.SendSystemMessage(System, cont);
-                }
-                , CancellationToken.None);
+            ScheduleContinuation(target, cont);
         }
 
         public void ReenterAfter(Task target, Action action)
@@ -219,14 +214,18 @@ namespace Proto.Context
                 }, msg
             );
 
-            Task.Run(async () =>
+            ScheduleContinuation(target, cont);
+        }
+
+        private void ScheduleContinuation(Task target, Continuation cont) =>
+            _ = Task.Run(async () =>
                 {
                     await target;
                     Self.SendSystemMessage(System, cont);
                 }
-                , CancellationToken.None);
-        }
-
+                , CancellationToken.None
+            );
+        
         public Task Receive(MessageEnvelope envelope)
         {
             _messageOrEnvelope = envelope;
@@ -287,7 +286,7 @@ namespace Proto.Context
                     Terminated t => HandleTerminatedAsync(t),
                     Watch w => HandleWatch(w),
                     Unwatch uw => HandleUnwatch(uw),
-                    Failure f => HandleFailure(f),
+                    Failure f => HandleFailureAsync(f),
                     Restart _ => HandleRestartAsync(),
                     SuspendMailbox _ => Task.CompletedTask,
                     ResumeMailbox _ => Task.CompletedTask,
@@ -343,13 +342,19 @@ namespace Proto.Context
                 //special handle non completed tasks that need to reset ReceiveTimout
                 if (!res.IsCompleted)
                 {
-                    return res.ContinueWith(_ => _extras?.ResetReceiveTimeoutTimer(ReceiveTimeout));
+                    return ContinueAfter();
                 }
 
                 _extras?.ResetReceiveTimeoutTimer(ReceiveTimeout);
             }
 
             return res;
+
+            async Task ContinueAfter()
+            {
+                await res;
+                _extras?.ResetReceiveTimeoutTimer(ReceiveTimeout);
+            }
         }
 
         public IImmutableSet<PID> Children => _extras?.Children ?? EmptyChildren;
@@ -363,11 +368,10 @@ namespace Proto.Context
 
         private ActorContextExtras EnsureExtras()
         {
-            if (_extras is null)
-            {
-                var context = _props.ContextDecoratorChain?.Invoke(this) ?? this;
-                _extras = new ActorContextExtras(context);
-            }
+            if (_extras is not null) return _extras;
+            
+            var context = _props.ContextDecoratorChain?.Invoke(this) ?? this;
+            _extras = new ActorContextExtras(context);
 
             return _extras;
         }
@@ -376,8 +380,8 @@ namespace Proto.Context
         private Task DefaultReceive() =>
             Message switch
             {
-                PoisonPill _ => HandlePoisonPill(),
-                _ => Actor!.ReceiveAsync(_props.ContextDecoratorChain is not null ? EnsureExtras().Context : this)
+                PoisonPill => HandlePoisonPill(),
+                _          => Actor!.ReceiveAsync(_props.ContextDecoratorChain is not null ? EnsureExtras().Context : this)
             };
 
         private Task HandlePoisonPill()
@@ -411,7 +415,7 @@ namespace Proto.Context
             var result = await future.Task;
             switch (result)
             {
-                case DeadLetterResponse _:
+                case DeadLetterResponse:
                     throw new DeadLetterException(target);
                 case null:
                 case T:
@@ -425,15 +429,15 @@ namespace Proto.Context
 
         private void SendUserMessage(PID target, object message)
         {
-            if (_props.SenderMiddlewareChain is not null)
-            {
-                //slow path
-                _props.SenderMiddlewareChain(EnsureExtras().Context, target, MessageEnvelope.Wrap(message));
-            }
-            else
+            if (_props.SenderMiddlewareChain is null)
             {
                 //fast path, 0 alloc
                 target.SendUserMessage(System, message);
+            }
+            else
+            {
+                //slow path
+                _props.SenderMiddlewareChain(EnsureExtras().Context, target, MessageEnvelope.Wrap(message));
             }
         }
 
@@ -471,7 +475,7 @@ namespace Proto.Context
             return Task.CompletedTask;
         }
 
-        private Task HandleFailure(Failure msg)
+        private Task HandleFailureAsync(Failure msg)
         {
             switch (Actor)
             {
