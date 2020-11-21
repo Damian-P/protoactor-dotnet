@@ -23,10 +23,6 @@ namespace Proto.Remote.Tests
 
     public abstract class RemoteFixture : IRemoteFixture
     {
-        static RemoteFixture()
-        {
-            // Log.SetLoggerFactory(LoggerFactory.Create(c => c.AddConsole()));
-        }
         public string RemoteAddress => ServerRemote.System.Address;
 
         public IRemote Remote { get; protected set; }
@@ -78,7 +74,7 @@ namespace Proto.Remote.Tests
                 services.AddGrpc();
                 services.AddSingleton(sp => new ActorSystem());
                 services.AddSingleton(Log.GetLoggerFactory());
-                services.AddRemote(config.WithAdvertisedHost("localhost"));
+                services.AddRemote(config);
             })
             .ConfigureWebHostDefaults(webBuilder =>
             {
