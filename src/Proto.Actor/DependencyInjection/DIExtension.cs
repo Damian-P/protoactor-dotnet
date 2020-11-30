@@ -1,7 +1,6 @@
 using System;
 using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Proto.Extensions;
 
 namespace Proto.DependencyInjection
@@ -28,28 +27,22 @@ namespace Proto.DependencyInjection
             return actorSystem;
         }
 
-        /// <summary>
-        /// Register ProtoActor in the service collection
-        /// </summary>
-        /// <param name="services">The service collection</param>
-        /// <param name="registerAction">Actor factory props registration</param>
         public static IServiceCollection AddProtoActor(this IServiceCollection services,
             Action<ActorPropsRegistry>? configureProps = null)
         {
             var registry = new ActorPropsRegistry();
             configureProps?.Invoke(registry);
             services.AddSingleton(registry);
-            services.AddSingleton<IDependencyResolver, DependencyResolver>();
-            services.AddSingleton<DIExtension>();
-            services.AddSingleton(new ActorSystem());
+            services.AddSingleton(sp =>
+            {
+                var system = new ActorSystem();
+                var dependencyResolver = new DependencyResolver(sp, system, registry);
+                _ = new DIExtension(system, dependencyResolver);
+                return system;
+            });
             return services;
         }
 
-        /// <summary>
-        /// Register ProtoActor in the service collection
-        /// </summary>
-        /// <param name="services">The service collection</param>
-        /// <param name="registerAction">Actor factory props registration</param>
         public static IServiceCollection AddProtoActor(this IServiceCollection services,
             ActorSystemConfig config,
             Action<ActorPropsRegistry>? configureProps = null)
@@ -57,9 +50,13 @@ namespace Proto.DependencyInjection
             var registry = new ActorPropsRegistry();
             configureProps?.Invoke(registry);
             services.AddSingleton(registry);
-            services.AddSingleton<IDependencyResolver, DependencyResolver>();
-            services.AddSingleton<DIExtension>();
-            services.AddSingleton(new ActorSystem(config));
+            services.AddSingleton(sp =>
+            {
+                var system = new ActorSystem(config);
+                var dependencyResolver = new DependencyResolver(sp, system, registry);
+                _ = new DIExtension(system, dependencyResolver);
+                return system;
+            });
             return services;
         }
 

@@ -81,9 +81,7 @@ namespace Proto.DependencyInjection
             where T : IActor
         {
             if (!_actorPropsRegistry.RegisteredProps.TryGetValue(typeof(T), out var props))
-            {
                 props = x => x;
-            }
 
             var props2 = props(producer());
             if (parent == null)
