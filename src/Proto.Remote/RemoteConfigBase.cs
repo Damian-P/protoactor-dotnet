@@ -16,7 +16,7 @@ namespace Proto.Remote
         public const string AllInterfaces = "0.0.0.0";
         public const string Localhost = "127.0.0.1";
         public const int AnyFreePort = 0;
-        
+
         protected RemoteConfigBase(string host, int port)
         {
             Host = host;
@@ -62,6 +62,9 @@ namespace Proto.Remote
 
         public Serialization Serialization { get; init; } = new();
 
-        public TimeSpan? WaitAfterEndpointTerminationTimeSpan { get; init; } = TimeSpan.FromSeconds(3);
+        /// <summary>
+        ///     Gets or sets the duration the remote is getting blacklisted.
+        /// </summary>
+        public TimeSpan? BlackListingDuration { get; init; } = TimeSpan.FromSeconds(3);
     }
 }

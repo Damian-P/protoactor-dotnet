@@ -22,8 +22,7 @@ namespace Proto.Remote
         private readonly ConcurrentDictionary<string, DateTime> _blackList = new ConcurrentDictionary<string, DateTime>();
         private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
         private readonly ActorSystem _system;
-        private readonly EventStreamSubscription<object>? _endpointConnectedEvnSub;
-        private readonly EventStreamSubscription<object>? _endpointTerminatedEvnSub;
+        private readonly EventStreamSubscription<object> _endpointTerminatedEvnSub;
         private readonly RemoteConfigBase _remoteConfig;
         private readonly IChannelProvider _channelProvider;
         public CancellationToken CancellationToken => _cancellationTokenSource.Token;
@@ -49,7 +48,6 @@ namespace Proto.Remote
             Logger.LogDebug("Stopping");
 
             _system.EventStream.Unsubscribe(_endpointTerminatedEvnSub);
-            _system.EventStream.Unsubscribe(_endpointConnectedEvnSub);
 
             _cancellationTokenSource.Cancel();
             foreach (var endpoint in _connections.Values)
@@ -65,16 +63,16 @@ namespace Proto.Remote
 
         private async Task OnEndpointTerminated(EndpointTerminatedEvent evt)
         {
+            if (_remoteConfig.BlackListingDuration.HasValue && _blackList.TryAdd(evt.Address, DateTime.UtcNow))
+            {
+                _ = Task.Run(() =>
+                {
+                    Task.Delay(_remoteConfig.BlackListingDuration.Value, CancellationToken).ConfigureAwait(false);
+                    _blackList.TryRemove(evt.Address, out var _);
+                }, CancellationToken).ConfigureAwait(false);
+            }
             if (_connections.TryRemove(evt.Address, out var endpoint))
             {
-                if (_remoteConfig.WaitAfterEndpointTerminationTimeSpan.HasValue && _blackList.TryAdd(evt.Address, DateTime.UtcNow))
-                {
-                    _ = Task.Run(() =>
-                    {
-                        Task.Delay(_remoteConfig.WaitAfterEndpointTerminationTimeSpan.Value, CancellationToken).ConfigureAwait(false);
-                        _blackList.TryRemove(evt.Address, out var _);
-                    }, CancellationToken).ConfigureAwait(false);
-                }
                 await endpoint.DisposeAsync().ConfigureAwait(false);
             }
         }
@@ -85,9 +83,9 @@ namespace Proto.Remote
             return _connections.GetOrAdd(address, v =>
             {
                 Logger.LogDebug("Requesting new endpoint for {Address}", v);
-                var endpointActorPid = new Endpoint(_system, v, _remoteConfig, _channelProvider);
+                var endpoint = new Endpoint(_system, v, _remoteConfig, _channelProvider);
                 Logger.LogDebug("Created new endpoint for {Address}", v);
-                return endpointActorPid;
+                return endpoint;
             });
         }
 
