@@ -39,19 +39,32 @@ namespace Proto.Remote
 
         private void SendMessage(object msg)
         {
-            _endpointManager.SendMessage(_pid, msg, -1);
+            var endpoint = _endpointManager.GetEndpoint(_pid.Address);
+            if (endpoint is null)
+            {
+                (object message, PID ? sender, Proto.MessageHeader _) = Proto.MessageEnvelope.Unwrap(msg);
+                System.EventStream.Publish(new DeadLetterEvent(_pid, message, sender));
+                return;
+            }
+            endpoint.SendMessage(_pid, msg, -1);
         }
 
         private void Unwatch(Unwatch uw)
         {
             var ruw = new RemoteUnwatch(uw.Watcher, _pid);
-            _endpointManager.RemoteUnwatch(ruw);
+            _endpointManager.GetEndpoint(_pid.Address)?.RemoteUnwatch(ruw);
         }
 
         private void Watch(Watch w)
         {
+            var endpoint = _endpointManager.GetEndpoint(_pid.Address);
+            if (endpoint is null)
+            {
+                w.Watcher.SendSystemMessage(System, new Terminated { Who = _pid, Why = TerminatedReason.AddressTerminated });
+                return;
+            }
             var rw = new RemoteWatch(w.Watcher, _pid);
-            _endpointManager.RemoteWatch(rw);
+            endpoint.RemoteWatch(rw);
         }
     }
 }

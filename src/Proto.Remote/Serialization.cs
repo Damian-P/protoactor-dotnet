@@ -54,9 +54,9 @@ namespace Proto.Remote
             if (obj is JsonMessage jsonMessage)
                 return jsonMessage.TypeName;
 
-            if (obj is IMessage message) 
+            if (obj is IMessage message)
                 return message.Descriptor.File.Package + "." + message.Descriptor.Name;
-            
+
             throw new ArgumentException("obj must be of type IMessage", nameof(obj));
         }
     }
@@ -85,9 +85,10 @@ namespace Proto.Remote
 
         public string GetTypeName(object obj)
         {
-            if (obj is IMessage message) 
-                return $"{message.Descriptor.File.Package}.{message.Descriptor.Name}";
-            
+            if (obj is IMessage message)
+                return message.Descriptor.FullName;
+            // return $"{message.Descriptor.File.Package}.{message.Descriptor.Name}";
+
             throw new ArgumentException("obj must be of type IMessage", nameof(obj));
         }
     }
@@ -105,7 +106,7 @@ namespace Proto.Remote
             RegisterSerializer(new JsonSerializer(this));
         }
 
-        public static int DefaultSerializerId { get; set; }
+        public int DefaultSerializerId { get; set; }
 
         public void RegisterSerializer(ISerializer serializer, bool makeDefault = false)
         {

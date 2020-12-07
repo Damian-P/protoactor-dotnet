@@ -82,7 +82,7 @@ namespace Proto.Remote.GrpcCore
             {
                 if (graceful)
                 {
-                    _endpointManager.Stop();
+                    await _endpointManager.StopAsync();
                     await _server.KillAsync();
                 }
                 else
@@ -103,11 +103,6 @@ namespace Proto.Remote.GrpcCore
                 );
                 await _server.KillAsync();
             }
-        }
-
-        public void SendMessage(PID pid, object msg, int serializerId)
-        {
-            _endpointManager.SendMessage(pid, msg, serializerId);
         }
     }
 }
