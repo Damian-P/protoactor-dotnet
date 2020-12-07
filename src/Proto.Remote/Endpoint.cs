@@ -21,10 +21,10 @@ namespace Proto.Remote
     {
         private readonly ILogger Logger = Log.CreateLogger<Endpoint>();
         private readonly Channel<RemoteDeliver> _remoteDelivers = Channel.CreateUnbounded<RemoteDeliver>();
-        private readonly Channel<IEnumerable<RemoteDeliver>> _stashedMessages = Channel.CreateUnbounded<IEnumerable<RemoteDeliver>>();
+        private readonly ConcurrentStack<IEnumerable<RemoteDeliver>> _stashedMessages = new();
         private readonly ActorSystem _system;
         private readonly RemoteConfigBase _remoteConfig;
-        private readonly ConcurrentDictionary<string, HashSet<PID>> _watchedActors = new ConcurrentDictionary<string, HashSet<PID>>();
+        private readonly ConcurrentDictionary<string, HashSet<PID>> _watchedActors = new();
         private readonly string _address;
         private readonly IChannelProvider _channelProvider;
         private readonly CancellationTokenSource _tokenSource;
@@ -38,6 +38,7 @@ namespace Proto.Remote
         private readonly Random _random = new();
         private readonly TimeSpan? _withinTimeSpan;
         private readonly Task _runner;
+        private bool _disposed;
         public Endpoint(ActorSystem system, string address, RemoteConfigBase remoteConfig, IChannelProvider channelProvider)
         {
             _system = system;
@@ -56,11 +57,11 @@ namespace Proto.Remote
             Logger.LogDebug("Stopping {Address}", _address);
             _tokenSource.Cancel();
             TerminateEndpoint();
-            Flush();
+            FlushRemainingRemoteDeliveries();
             _remoteDelivers.Writer.Complete();
-            _stashedMessages.Writer.Complete();
             await ShutdownChannel().ConfigureAwait(false);
             await _runner;
+            _disposed = true;
             Logger.LogDebug("Stopped {Address}", _address);
         }
         private async Task ShutdownChannel()
@@ -75,20 +76,20 @@ namespace Proto.Remote
                 await _channel.ShutdownAsync().ConfigureAwait(false);
             }
         }
-        private void Flush()
+        private void FlushRemainingRemoteDeliveries()
         {
             int droppedMessageCount = 0;
-            while (_stashedMessages.Reader.TryRead(out var messages))
+            while (_stashedMessages.TryPop(out var messages))
             {
                 foreach (var rd in messages)
                 {
-                    HandleMessage(rd);
+                    OnRemoteDeliveryFlushed(rd);
                     droppedMessageCount++;
                 }
             }
             while (_remoteDelivers.Reader.TryRead(out var rd))
             {
-                HandleMessage(rd);
+                OnRemoteDeliveryFlushed(rd);
                 droppedMessageCount++;
             }
             if (droppedMessageCount > 0)
@@ -120,7 +121,7 @@ namespace Proto.Remote
             }
             _watchedActors.Clear();
         }
-        private void HandleMessage(RemoteDeliver rd)
+        private void OnRemoteDeliveryFlushed(RemoteDeliver rd)
         {
             if (rd.Message is Watch watch)
             {
@@ -146,18 +147,18 @@ namespace Proto.Remote
                     if (!_connected)
                         await Connect();
                     rs.Reset();
-                    if (_stashedMessages.Reader.TryRead(out var stashedMessages))
+                    if (_stashedMessages.TryPop(out var stashedMessages))
                         await Send(stashedMessages).ConfigureAwait(false);
-
+                    var messages = new List<RemoteDeliver>();
                     while (await _remoteDelivers.Reader.WaitToReadAsync(_token).ConfigureAwait(false))
                     {
-                        var messages = new List<RemoteDeliver>();
                         while (_remoteDelivers.Reader.TryRead(out var remoteDeliver))
                         {
                             messages.Add(remoteDeliver);
                             if (messages.Count > _remoteConfig.EndpointWriterOptions.EndpointWriterBatchSize) break;
                         }
                         await Send(messages).ConfigureAwait(false);
+                        messages.Clear();
                     }
                 }
                 catch (OperationCanceledException)
@@ -171,6 +172,7 @@ namespace Proto.Remote
                         Logger.LogError("Stopping connection to address {Address} after retries expired because of {Reason}", _address, e.GetType().Name);
                         var terminated = new EndpointTerminatedEvent { Address = _address! };
                         _system.EventStream.Publish(terminated);
+                        return;
                     }
                     else
                     {
@@ -256,7 +258,7 @@ namespace Proto.Remote
             }
             catch (Exception)
             {
-                _stashedMessages.Writer.TryWrite(messages);
+                _stashedMessages.Append(messages);
                 throw;
             }
         }
@@ -335,6 +337,14 @@ namespace Proto.Remote
         }
         public void RemoteWatch(RemoteWatch msg)
         {
+            if (_disposed)
+            {
+                msg.Watcher.SendSystemMessage(_system, new Terminated
+                {
+                    Why = TerminatedReason.AddressTerminated,
+                    Who = msg.Watchee
+                });
+            }
             if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
             {
                 pidSet.Add(msg.Watchee);
@@ -349,6 +359,10 @@ namespace Proto.Remote
         }
         public void RemoteUnwatch(RemoteUnwatch msg)
         {
+            if (_disposed)
+            {
+                return;
+            }
             if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
             {
                 pidSet.Remove(msg.Watchee);
@@ -364,6 +378,7 @@ namespace Proto.Remote
         }
         public void SendMessage(PID pid, object msg, int serializerId)
         {
+            if (_disposed) { }
             var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
             var env = new RemoteDeliver(header!, message, pid, sender!, serializerId);
             RemoteDeliver(env);
