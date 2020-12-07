@@ -166,7 +166,6 @@ namespace Proto.Remote
                 }
                 catch (Exception e)
                 {
-                    rs.Fail();
                     if (ShouldStop(rs))
                     {
                         Logger.LogError("Stopping connection to address {Address} after retries expired because of {Reason}", _address, e.GetType().Name);
