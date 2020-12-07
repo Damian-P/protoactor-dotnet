@@ -54,7 +54,7 @@ namespace Proto.Remote
             IServerStreamWriter<Unit> responseStream, ServerCallContext context
         )
         {
-            Logger.LogInformation("Stream opened by {Remote}", context.Peer);
+            Logger.LogDebug("Stream opened by {Remote}", context.Peer);
             using var cancellationTokenRegistration = _endpointManager.CancellationToken.Register(() =>
             {
                 Logger.LogDebug("[EndpointReader] Telling to {Address} to stop", context.Peer);
