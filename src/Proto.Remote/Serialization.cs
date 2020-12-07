@@ -86,8 +86,7 @@ namespace Proto.Remote
         public string GetTypeName(object obj)
         {
             if (obj is IMessage message)
-                return message.Descriptor.FullName;
-            // return $"{message.Descriptor.File.Package}.{message.Descriptor.Name}";
+                return $"{message.Descriptor.File.Package}.{message.Descriptor.Name}";
 
             throw new ArgumentException("obj must be of type IMessage", nameof(obj));
         }
