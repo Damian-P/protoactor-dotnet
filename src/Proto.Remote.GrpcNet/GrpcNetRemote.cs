@@ -110,7 +110,11 @@ namespace Proto.Remote.GrpcNet
                 using (_host)
                 {
                     if (graceful)
-                        await _endpointManager.StopAsync();
+                    {
+                        await _endpointManager.StopAsync().ConfigureAwait(false);
+                        if (_host is not null)
+                            await _host.StopAsync().ConfigureAwait(false);
+                    }
                 }
                 _logger.LogInformation(
                         "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
