@@ -37,10 +37,7 @@ namespace Proto.Remote
             _endpointTerminatedEvnSub = _system.EventStream.Subscribe<EndpointTerminatedEvent>(OnEndpointTerminated);
         }
 
-        public void Start()
-        {
-            SpawnActivator();
-        }
+        public void Start() => SpawnActivator();
 
         public async Task StopAsync()
         {

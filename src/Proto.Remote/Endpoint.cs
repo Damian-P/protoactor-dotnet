@@ -19,7 +19,7 @@ namespace Proto.Remote
 {
     public class Endpoint : IAsyncDisposable
     {
-        private readonly ILogger Logger = Log.CreateLogger<Endpoint>();
+        private readonly ILogger _logger = Log.CreateLogger<Endpoint>();
         private readonly Channel<RemoteDeliver> _remoteDelivers = Channel.CreateUnbounded<RemoteDeliver>();
         private readonly ConcurrentStack<IEnumerable<RemoteDeliver>> _stashedMessages = new();
         private readonly ActorSystem _system;
@@ -54,31 +54,22 @@ namespace Proto.Remote
         }
         public async ValueTask DisposeAsync()
         {
-            Logger.LogDebug("Stopping {Address}", _address);
+            _logger.LogDebug("Stopping {Address}", _address);
             _tokenSource.Cancel();
             TerminateEndpoint();
             FlushRemainingRemoteDeliveries();
             _remoteDelivers.Writer.Complete();
-            await ShutdownChannel().ConfigureAwait(false);
+            if (_stream != null)
+                await _stream.RequestStream.CompleteAsync().ConfigureAwait(false);
+            if (_channel != null)
+                await _channel.ShutdownAsync().ConfigureAwait(false);
             await _runner;
             _disposed = true;
-            Logger.LogDebug("Stopped {Address}", _address);
-        }
-        private async Task ShutdownChannel()
-        {
-            if (_stream != null)
-            {
-                await _stream.RequestStream.CompleteAsync().ConfigureAwait(false);
-
-            }
-            if (_channel != null)
-            {
-                await _channel.ShutdownAsync().ConfigureAwait(false);
-            }
+            _logger.LogDebug("Stopped {Address}", _address);
         }
         private void FlushRemainingRemoteDeliveries()
         {
-            int droppedMessageCount = 0;
+            var droppedMessageCount = 0;
             while (_stashedMessages.TryPop(out var messages))
             {
                 foreach (var rd in messages)
@@ -93,7 +84,7 @@ namespace Proto.Remote
                 droppedMessageCount++;
             }
             if (droppedMessageCount > 0)
-                Logger.LogInformation("Dropped {count} messages for {address}", droppedMessageCount, _address);
+                _logger.LogInformation("Dropped {count} messages for {address}", droppedMessageCount, _address);
         }
         private void TerminateEndpoint()
         {
@@ -168,18 +159,18 @@ namespace Proto.Remote
                 {
                     if (ShouldStop(rs))
                     {
-                        Logger.LogError("Stopping connection to address {Address} after retries expired because of {Reason}", _address, e.GetType().Name);
+                        _logger.LogError("Stopping connection to address {Address} after retries expired because of {Reason}", _address, e.GetType().Name);
                         var terminated = new EndpointTerminatedEvent { Address = _address! };
                         _system.EventStream.Publish(terminated);
                         return;
                     }
                     else
                     {
-                        var backoff = rs.FailureCount * (int)_backoff.TotalMilliseconds;
+                        var backoff = rs.FailureCount * (int) _backoff.TotalMilliseconds;
                         var noise = _random.Next(500);
                         var duration = TimeSpan.FromMilliseconds(backoff + noise);
                         await Task.Delay(duration);
-                        Logger.LogWarning("Restarting endpoint connection {Actor} after {Duration} because of {Reason}", _address, duration, e.GetType().Name);
+                        _logger.LogWarning("Restarting endpoint connection {Actor} after {Duration} because of {Reason}", _address, duration, e.GetType().Name);
                     }
                 }
             }
@@ -255,33 +246,35 @@ namespace Proto.Remote
                     throw new ArgumentNullException("Endpoint not ready");
                 await _stream.RequestStream.WriteAsync(batch).ConfigureAwait(false);
             }
-            catch (Exception)
+            catch (Exception x)
             {
+                _logger.LogError(x, "Failed to send to address {Address}, reason {Message}", _address,
+                    x.Message
+                );
                 _stashedMessages.Append(messages);
                 throw;
             }
         }
         private async Task Connect()
         {
-            Logger.LogDebug("Connecting to address {Address}", _address);
+            _logger.LogDebug("Connecting to address {Address}", _address);
             _channel = _channelProvider.GetChannel(_address);
             var client = new Remoting.RemotingClient(_channel);
 
-            Logger.LogDebug("Created channel and client for address {Address}", _address);
+            _logger.LogDebug("Created channel and client for address {Address}", _address);
 
             var res = await client.ConnectAsync(new ConnectRequest(), cancellationToken: _token);
             _serializerId = res.DefaultSerializerId;
             _stream = client.Receive(_remoteConfig.CallOptions);
 
-            Logger.LogDebug("Connected client for address {Address}", _address);
+            _logger.LogDebug("Connected client for address {Address}", _address);
 
             _ = Task.Run(
-                async () =>
-                {
+                async () => {
                     try
                     {
                         await _stream.ResponseStream.MoveNext().ConfigureAwait(false);
-                        Logger.LogDebug("{Address} disconnected", _address);
+                        _logger.LogDebug("{Address} disconnected", _address);
                         var terminated = new EndpointTerminatedEvent
                         {
                             Address = _address
@@ -292,7 +285,7 @@ namespace Proto.Remote
                     }
                     catch (Exception x)
                     {
-                        Logger.LogError("Lost connection to address {Address}", _address);
+                        _logger.LogError("Lost connection to address {Address}", _address);
                         var endpointError = new EndpointErrorEvent
                         {
                             Address = _address,
@@ -304,7 +297,7 @@ namespace Proto.Remote
                 }
             , _token);
 
-            Logger.LogDebug("Created reader for address {Address}", _address);
+            _logger.LogDebug("Created reader for address {Address}", _address);
 
             var connected = new EndpointConnectedEvent
             {
@@ -314,7 +307,7 @@ namespace Proto.Remote
 
             _connected = true;
 
-            Logger.LogDebug("Connected to address {Address}", _address);
+            _logger.LogDebug("Connected to address {Address}", _address);
         }
         public void RemoteTerminate(RemoteTerminate msg)
         {
@@ -380,11 +373,12 @@ namespace Proto.Remote
             if (_disposed) { }
             var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
             var env = new RemoteDeliver(header!, message, pid, sender!, serializerId);
-            RemoteDeliver(env);
-        }
-        private void RemoteDeliver(RemoteDeliver msg)
-        {
-            _remoteDelivers.Writer.TryWrite(msg);
+#if DEBUG
+            _logger.LogDebug("Forwarding message {Message} from {From} to {Target}",
+                env.Message, env.Sender, env.Target
+            );
+#endif
+            _ = _remoteDelivers.Writer.TryWrite(env);
         }
     }
 }

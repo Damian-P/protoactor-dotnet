@@ -42,7 +42,7 @@ namespace Proto.Remote
             var endpoint = _endpointManager.GetEndpoint(_pid.Address);
             if (endpoint is null)
             {
-                (object message, PID ? sender, Proto.MessageHeader _) = Proto.MessageEnvelope.Unwrap(msg);
+                (var message, var sender, var _) = Proto.MessageEnvelope.Unwrap(msg);
                 System.EventStream.Publish(new DeadLetterEvent(_pid, message, sender));
                 return;
             }
