@@ -121,12 +121,14 @@ namespace Proto.Remote
                     Why = TerminatedReason.AddressTerminated,
                     Who = rd.Target
                 });
-            }
-            else if (rd.Sender != null)
-            {
-                _system.Root.Send(rd.Sender, new DeadLetterResponse { Target = rd.Target });
+                return;
             }
             _system.EventStream.Publish(new DeadLetterEvent(rd.Target, rd.Message, rd.Sender));
+            if (rd.Sender is not null)
+                _system.Root.Send(rd.Sender, rd.Message is PoisonPill
+                ? new Terminated { Who = rd.Target, Why = TerminatedReason.AddressTerminated }
+                : new DeadLetterResponse { Target = rd.Target }
+            );
         }
         public async Task Run()
         {
@@ -375,6 +377,11 @@ namespace Proto.Remote
             if (_disposed)
             {
                 _system.EventStream.Publish(new DeadLetterEvent(pid, message, sender));
+                if (sender is not null)
+                    _system.Root.Send(sender, msg is PoisonPill
+                    ? new Terminated { Who = pid, Why = TerminatedReason.AddressTerminated }
+                    : new DeadLetterResponse { Target = pid }
+                );
                 return;
             }
             var env = new RemoteDeliver(header!, message, pid, sender!, serializerId);
