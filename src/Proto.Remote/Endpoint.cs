@@ -138,7 +138,7 @@ namespace Proto.Remote
                     if (!_connected)
                         await Connect();
                     rs.Reset();
-                    if (_stashedMessages.TryPop(out var stashedMessages))
+                    while (_stashedMessages.TryPop(out var stashedMessages))
                         await Send(stashedMessages).ConfigureAwait(false);
                     var messages = new List<RemoteDeliver>();
                     while (await _remoteDelivers.Reader.WaitToReadAsync(_token).ConfigureAwait(false))
@@ -154,6 +154,7 @@ namespace Proto.Remote
                 }
                 catch (OperationCanceledException)
                 {
+                    _logger.LogDebug("RemoteDeliver channel closed for {address}", _address);
                 }
                 catch (Exception e)
                 {
@@ -370,8 +371,12 @@ namespace Proto.Remote
         }
         public void SendMessage(PID pid, object msg, int serializerId)
         {
-            if (_disposed) { }
             var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
+            if (_disposed)
+            {
+                _system.EventStream.Publish(new DeadLetterEvent(pid, message, sender));
+                return;
+            }
             var env = new RemoteDeliver(header!, message, pid, sender!, serializerId);
 #if DEBUG
             _logger.LogDebug("Forwarding message {Message} from {From} to {Target}",
