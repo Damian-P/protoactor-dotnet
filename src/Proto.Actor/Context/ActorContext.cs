@@ -510,6 +510,8 @@ namespace Proto.Context
         private async Task FinalizeStopAsync()
         {
             System.ProcessRegistry.Remove(Self);
+            if(Parent is null)
+                System.RootActors.Remove(Self);
             //This is intentional
             await InvokeUserMessageAsync(Stopped.Instance);
 

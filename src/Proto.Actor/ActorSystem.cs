@@ -4,6 +4,7 @@
 // </copyright>
 // -----------------------------------------------------------------------
 using System;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Proto.Extensions;
 
@@ -24,7 +25,7 @@ namespace Proto
         public ActorSystem(ActorSystemConfig config)
         {
             Config = config ?? throw new ArgumentNullException(nameof(config));
-            ProcessRegistry = new ProcessRegistry(this);
+             ProcessRegistry = new ProcessRegistry(this);
             Root = new RootContext(this);
             DeadLetter = new DeadLetterProcess(this);
             Guardians = new Guardians(this);
@@ -32,7 +33,10 @@ namespace Proto
             var eventStreamProcess = new EventStreamProcess(this);
             ProcessRegistry.TryAdd("eventstream", eventStreamProcess);
             Extensions = new ActorSystemExtensions(this);
+            RootActors = new();
         }
+
+        public Task StopAsync() => RootActors.StopAllAsync(Root);
 
         public string Address { get; private set; } = NoHost;
 
@@ -41,6 +45,7 @@ namespace Proto
         public ProcessRegistry ProcessRegistry { get; }
 
         public RootContext Root { get; }
+        public RootActors RootActors { get; }
 
         public Guardians Guardians { get; }
 

@@ -45,7 +45,7 @@ namespace SpawnBenchmark
                     _replyTo = context.Sender;
                     for (var i = 0; i < r.Div; i++)
                     {
-                        var child = _system.Root.Spawn(Props(_system));
+                        var child = context.Spawn(Props(_system));
                         context.Request(child, new Request
                             {
                                 Num = r.Num + i * (r.Size / r.Div),
