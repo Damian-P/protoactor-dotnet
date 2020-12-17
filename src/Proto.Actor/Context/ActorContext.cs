@@ -566,7 +566,6 @@ namespace Proto.Context
         {
             if (_extras?.ReceiveTimeoutTimer is null) return;
 
-            CancelReceiveTimeout();
             Send(Self, Proto.ReceiveTimeout.Instance);
         }
     }
