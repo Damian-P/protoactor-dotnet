@@ -65,6 +65,10 @@ namespace Proto.Remote
             return remoteConfig;
         }
 
+        public static TRemoteConfig WithBlackListingDuration<TRemoteConfig>(this TRemoteConfig remoteConfig, TimeSpan backListingDuration)
+        where TRemoteConfig : RemoteConfigBase =>
+            remoteConfig with { BlackListingDuration = backListingDuration};
+
         public static TRemoteConfig WithEndpointWriterRetryBackOff<TRemoteConfig>(this TRemoteConfig remoteConfig, TimeSpan endpointWriterRetryBackoff)
         where TRemoteConfig : RemoteConfigBase
         {
