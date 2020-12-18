@@ -6,6 +6,7 @@ using Grpc.HealthCheck;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -48,41 +49,40 @@ namespace Proto.Remote.GrpcNet
 
                 _host = new WebHostBuilder()
                     .UseKestrel()
-                    .ConfigureKestrel(serverOptions =>
-                        {
-                            if (_config.ConfigureKestrel == null)
-                                serverOptions.Listen(ipAddress, Config.Port,
-                                    listenOptions => { listenOptions.Protocols = HttpProtocols.Http2; }
-                                );
-                            else
-                                serverOptions.Listen(ipAddress, Config.Port,
-                                    listenOptions => _config.ConfigureKestrel(listenOptions)
-                                );
-                        }
+                    .ConfigureKestrel(serverOptions => {
+                        if (_config.ConfigureKestrel == null)
+                            serverOptions.Listen(ipAddress, Config.Port,
+                                listenOptions => {
+                                    listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+                                    listenOptions.UseHttps();
+                                }
+                            );
+                        else
+                            serverOptions.Listen(ipAddress, Config.Port,
+                                listenOptions => _config.ConfigureKestrel(listenOptions)
+                            );
+                    }
                     )
-                    .ConfigureServices((serviceCollection) =>
-                        {
-                            serviceCollection.AddSingleton<ILoggerFactory>(Log.GetLoggerFactory());
-                            serviceCollection.AddGrpc(options =>
-                            {
-                                options.MaxReceiveMessageSize = null;
-                                options.EnableDetailedErrors = true;
-                            });
-                            serviceCollection.AddSingleton<Remoting.RemotingBase>(_endpointReader);
-                            serviceCollection.AddSingleton<Grpc.Health.V1.Health.HealthBase>(_healthCheck);
-                            serviceCollection.AddSingleton<IRemote>(this);
-                        }
-                    ).Configure(app =>
-                        {
-                            app.UseRouting();
-                            app.UseEndpoints(endpoints =>
-                            {
-                                endpoints.MapGrpcService<Remoting.RemotingBase>();
-                                endpoints.MapGrpcService<Grpc.Health.V1.Health.HealthBase>();
-                            });
+                    .ConfigureServices((serviceCollection) => {
+                        serviceCollection.AddSingleton<ILoggerFactory>(Log.GetLoggerFactory());
+                        serviceCollection.AddGrpc(options => {
+                            options.MaxReceiveMessageSize = null;
+                            options.EnableDetailedErrors = true;
+                        });
+                        serviceCollection.AddSingleton<Remoting.RemotingBase>(_endpointReader);
+                        serviceCollection.AddSingleton<Grpc.Health.V1.Health.HealthBase>(_healthCheck);
+                        serviceCollection.AddSingleton<IRemote>(this);
+                    }
+                    ).Configure(app => {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => {
+                            endpoints.MapGrpcService<Remoting.RemotingBase>();
+                            endpoints.MapGrpcService<Grpc.Health.V1.Health.HealthBase>();
+                            endpoints.MapGet("/", async httpContext => await httpContext.Response.WriteAsJsonAsync(app.ApplicationServices.GetRequiredService<IRemote>().System.RootActors.ToList()));
+                        });
 
-                            serverAddressesFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
-                        }
+                        serverAddressesFeature = app.ServerFeatures.Get<IServerAddressesFeature>();
+                    }
                     )
                     .Start();
                 var uri = serverAddressesFeature!.Addresses.Select(address => new Uri(address)).First();

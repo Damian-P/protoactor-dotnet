@@ -5,6 +5,7 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Net.Http;
 using Grpc.Net.Client;
 using JetBrains.Annotations;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -20,12 +21,17 @@ namespace Proto.Remote.GrpcNet
         }
         public static GrpcNetRemoteConfig BindToAllInterfaces(string advertisedHost, int port = 0) =>
             new GrpcNetRemoteConfig(AllInterfaces, port).WithAdvertisedHost(advertisedHost);
-        
+
         public static GrpcNetRemoteConfig BindToLocalhost(int port = 0) => new GrpcNetRemoteConfig(Localhost, port);
-        
+
         public static GrpcNetRemoteConfig BindTo(string host, int port = 0) => new GrpcNetRemoteConfig(host, port);
-        public bool UseHttps { get; init; }
-        public GrpcChannelOptions ChannelOptions { get; init; } = new GrpcChannelOptions();
+        public GrpcChannelOptions ChannelOptions { get; init; } = new GrpcChannelOptions()
+        {
+            HttpHandler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            }
+        };
         public Action<ListenOptions>? ConfigureKestrel { get; init; }
     }
 }
