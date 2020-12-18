@@ -53,8 +53,15 @@ namespace Proto.Remote.GrpcNet
                         if (_config.ConfigureKestrel == null)
                             serverOptions.Listen(ipAddress, Config.Port,
                                 listenOptions => {
-                                    listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
-                                    listenOptions.UseHttps();
+                                    if (_config.UseHttps)
+                                    {
+                                        listenOptions.UseHttps();
+                                        listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+                                    }
+                                    else
+                                    {
+                                        listenOptions.Protocols = HttpProtocols.Http2;
+                                    }
                                 }
                             );
                         else

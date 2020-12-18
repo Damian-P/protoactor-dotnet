@@ -25,6 +25,7 @@ namespace Proto.Remote.GrpcNet
         public static GrpcNetRemoteConfig BindToLocalhost(int port = 0) => new GrpcNetRemoteConfig(Localhost, port);
 
         public static GrpcNetRemoteConfig BindTo(string host, int port = 0) => new GrpcNetRemoteConfig(host, port);
+        public bool UseHttps { get; init; }
         public GrpcChannelOptions ChannelOptions { get; init; } = new GrpcChannelOptions()
         {
             HttpHandler = new HttpClientHandler
