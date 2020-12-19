@@ -56,7 +56,7 @@ namespace Proto.Remote.GrpcNet
             try
             {
                 await _endpointManager.StopAsync();
-                _logger.LogDebug(
+                _logger.LogInformation(
                     "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
                     System.Address, graceful
                 );

@@ -6,21 +6,19 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Proto.Mailbox;
 
 namespace Proto.Remote
 {
     public class EndpointManager
     {
         private static readonly ILogger Logger = Log.CreateLogger<EndpointManager>();
-        private readonly ConcurrentDictionary<string, Endpoint> _connections = new ConcurrentDictionary<string, Endpoint>();
-        private readonly ConcurrentDictionary<string, DateTime> _blackList = new ConcurrentDictionary<string, DateTime>();
-        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private readonly ConcurrentDictionary<string, IEndpoint> _connections = new();
+        private readonly ConcurrentDictionary<string, DateTime> _blackList = new();
+        private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly ActorSystem _system;
         private readonly EventStreamSubscription<object> _endpointTerminatedEvnSub;
         private readonly RemoteConfigBase _remoteConfig;
@@ -47,10 +45,9 @@ namespace Proto.Remote
             _system.EventStream.Unsubscribe(_endpointTerminatedEvnSub);
 
             _cancellationTokenSource.Cancel();
-            foreach (var endpoint in _connections.Values)
-            {
-                await endpoint.DisposeAsync().ConfigureAwait(false);
-            }
+
+            await Task.WhenAll(_connections.Values.Select(async endpoint => await endpoint.DisposeAsync().ConfigureAwait(false)));
+
             _connections.Clear();
 
             StopActivator();
@@ -62,10 +59,12 @@ namespace Proto.Remote
         {
             if (_remoteConfig.BlackListingDuration.HasValue && _blackList.TryAdd(evt.Address, DateTime.UtcNow))
             {
-                _ = Task.Run(() =>
-                {
-                    Task.Delay(_remoteConfig.BlackListingDuration.Value, CancellationToken).ConfigureAwait(false);
+                Logger.LogDebug("Blacklisting {address} for {duration} s", evt.Address, _remoteConfig.BlackListingDuration.Value.TotalSeconds);
+                _ = Task.Run(async () => {
+
+                    await Task.Delay(_remoteConfig.BlackListingDuration.Value, CancellationToken).ConfigureAwait(false);
                     _blackList.TryRemove(evt.Address, out var _);
+                    Logger.LogDebug("Removed {address} from blacklist after {duration} s", evt.Address, _remoteConfig.BlackListingDuration.Value.TotalSeconds);
                 }, CancellationToken).ConfigureAwait(false);
             }
             if (_connections.TryRemove(evt.Address, out var endpoint))
@@ -74,11 +73,10 @@ namespace Proto.Remote
             }
         }
 
-        public Endpoint? GetEndpoint(string address)
+        public IEndpoint? GetEndpoint(string address)
         {
-            if (IsBlackListed(address)) return null;
-            return _connections.GetOrAdd(address, v =>
-            {
+            if (CancellationToken.IsCancellationRequested || IsBlackListed(address)) return null;
+            return _connections.GetOrAdd(address, v => {
                 Logger.LogDebug("Requesting new endpoint for {Address}", v);
                 var endpoint = new Endpoint(_system, v, _remoteConfig, _channelProvider);
                 Logger.LogDebug("Created new endpoint for {Address}", v);

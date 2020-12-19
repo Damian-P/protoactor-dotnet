@@ -17,7 +17,15 @@ using Channel = System.Threading.Channels.Channel;
 
 namespace Proto.Remote
 {
-    public class Endpoint : IAsyncDisposable
+    public interface IEndpoint: IAsyncDisposable
+    {
+        void RemoteTerminate(RemoteTerminate msg);
+        void RemoteUnwatch(RemoteUnwatch msg);
+        void RemoteWatch(RemoteWatch msg);
+        void SendMessage(PID pid, object msg, int serializerId);
+    }
+
+    public class Endpoint : IEndpoint
     {
         private readonly ILogger _logger = Log.CreateLogger<Endpoint>();
         private readonly Channel<RemoteDeliver> _remoteDelivers = Channel.CreateUnbounded<RemoteDeliver>();
@@ -54,17 +62,21 @@ namespace Proto.Remote
         }
         public async ValueTask DisposeAsync()
         {
+            lock (this)
+            {
+                if (_disposed) return;
+                _disposed = true;
+            }
             _logger.LogDebug("Stopping {Address}", _address);
-            _tokenSource.Cancel();
             TerminateEndpoint();
             FlushRemainingRemoteDeliveries();
+            _tokenSource.Cancel();
             _remoteDelivers.Writer.Complete();
+            await _runner;
             if (_stream != null)
                 await _stream.RequestStream.CompleteAsync().ConfigureAwait(false);
             if (_channel != null)
                 await _channel.ShutdownAsync().ConfigureAwait(false);
-            await _runner;
-            _disposed = true;
             _logger.LogDebug("Stopped {Address}", _address);
         }
         private void FlushRemainingRemoteDeliveries()
@@ -130,7 +142,7 @@ namespace Proto.Remote
                 : new DeadLetterResponse { Target = rd.Target }
             );
         }
-        public async Task Run()
+        private async Task Run()
         {
             var rs = new RestartStatistics(0, null);
             while (!_token.IsCancellationRequested)
@@ -339,6 +351,7 @@ namespace Proto.Remote
                     Why = TerminatedReason.AddressTerminated,
                     Who = msg.Watchee
                 });
+                return;
             }
             if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
             {
