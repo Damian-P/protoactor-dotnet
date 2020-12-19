@@ -75,6 +75,7 @@ namespace Proto.Remote
 
         public IEndpoint? GetEndpoint(string address)
         {
+            if (string.IsNullOrWhiteSpace(address)) throw new ArgumentNullException(nameof(address));
             if (CancellationToken.IsCancellationRequested || IsBlackListed(address)) return null;
             return _connections.GetOrAdd(address, v => {
                 Logger.LogDebug("Requesting new endpoint for {Address}", v);
