@@ -69,6 +69,7 @@ namespace Proto.Remote
             }
             if (_connections.TryRemove(evt.Address, out var endpoint))
             {
+                Logger.LogDebug("Endpoint {Address} terminated, removing from connections", evt.Address);
                 await endpoint.DisposeAsync().ConfigureAwait(false);
             }
         }
