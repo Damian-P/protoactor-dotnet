@@ -17,7 +17,7 @@ using Channel = System.Threading.Channels.Channel;
 
 namespace Proto.Remote
 {
-    public interface IEndpoint: IAsyncDisposable
+    public interface IEndpoint : IAsyncDisposable
     {
         void RemoteTerminate(RemoteTerminate msg);
         void RemoteUnwatch(RemoteUnwatch msg);
@@ -100,29 +100,32 @@ namespace Proto.Remote
         }
         private void TerminateEndpoint()
         {
-            foreach (var (id, pidSet) in _watchedActors)
+            lock (this)
             {
-                var watcherPid = PID.FromAddress(_system.Address, id);
-                var watcherRef = _system.ProcessRegistry.Get(watcherPid);
-
-                if (watcherRef == _system.DeadLetter)
+                foreach (var (id, pidSet) in _watchedActors)
                 {
-                    continue;
-                }
+                    var watcherPid = PID.FromAddress(_system.Address, id);
+                    var watcherRef = _system.ProcessRegistry.Get(watcherPid);
 
-                foreach (var t in pidSet.Select(
-                    pid => new Terminated
+                    if (watcherRef == _system.DeadLetter)
                     {
-                        Who = pid,
-                        Why = TerminatedReason.AddressTerminated
+                        continue;
                     }
-                ))
-                {
-                    //send the address Terminated event to the Watcher
-                    watcherPid.SendSystemMessage(_system, t);
+
+                    foreach (var t in pidSet.Select(
+                        pid => new Terminated
+                        {
+                            Who = pid,
+                            Why = TerminatedReason.AddressTerminated
+                        }
+                    ))
+                    {
+                        //send the address Terminated event to the Watcher
+                        watcherPid.SendSystemMessage(_system, t);
+                    }
                 }
+                _watchedActors.Clear();
             }
-            _watchedActors.Clear();
         }
         private void OnRemoteDeliveryFlushed(RemoteDeliver rd)
         {
@@ -135,12 +138,12 @@ namespace Proto.Remote
                 });
                 return;
             }
-            _system.EventStream.Publish(new DeadLetterEvent(rd.Target, rd.Message, rd.Sender));
             if (rd.Sender is not null)
                 _system.Root.Send(rd.Sender, rd.Message is PoisonPill
                 ? new Terminated { Who = rd.Target, Why = TerminatedReason.AddressTerminated }
-                : new DeadLetterResponse { Target = rd.Target }
-            );
+                : new DeadLetterResponse { Target = rd.Target });
+            else
+                _system.EventStream.Publish(new DeadLetterEvent(rd.Target, rd.Message, rd.Sender));
         }
         private async Task Run()
         {
@@ -326,13 +329,16 @@ namespace Proto.Remote
         }
         public void RemoteTerminate(RemoteTerminate msg)
         {
-            if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
+            lock (this)
             {
-                pidSet.Remove(msg.Watchee);
-
-                if (pidSet.Count == 0)
+                if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
                 {
-                    _watchedActors.TryRemove(msg.Watcher.Id, out _);
+                    pidSet.Remove(msg.Watchee);
+
+                    if (pidSet.Count == 0)
+                    {
+                        _watchedActors.TryRemove(msg.Watcher.Id, out _);
+                    }
                 }
             }
 
@@ -353,13 +359,16 @@ namespace Proto.Remote
                 });
                 return;
             }
-            if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
+            lock (this)
             {
-                pidSet.Add(msg.Watchee);
-            }
-            else
-            {
-                _watchedActors[msg.Watcher.Id] = new HashSet<PID> { msg.Watchee };
+                if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
+                {
+                    pidSet.Add(msg.Watchee);
+                }
+                else
+                {
+                    _watchedActors[msg.Watcher.Id] = new HashSet<PID> { msg.Watchee };
+                }
             }
 
             var w = new Watch(msg.Watcher);
@@ -371,13 +380,17 @@ namespace Proto.Remote
             {
                 return;
             }
-            if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
-            {
-                pidSet.Remove(msg.Watchee);
 
-                if (pidSet.Count == 0)
+            lock (this)
+            {
+                if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
                 {
-                    _watchedActors.TryRemove(msg.Watcher.Id, out _);
+                    pidSet.Remove(msg.Watchee);
+
+                    if (pidSet.Count == 0)
+                    {
+                        _watchedActors.TryRemove(msg.Watcher.Id, out _);
+                    }
                 }
             }
 
@@ -389,12 +402,12 @@ namespace Proto.Remote
             var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
             if (_disposed)
             {
-                _system.EventStream.Publish(new DeadLetterEvent(pid, message, sender));
                 if (sender is not null)
                     _system.Root.Send(sender, msg is PoisonPill
                     ? new Terminated { Who = pid, Why = TerminatedReason.AddressTerminated }
-                    : new DeadLetterResponse { Target = pid }
-                );
+                    : new DeadLetterResponse { Target = pid });
+                else
+                    _system.EventStream.Publish(new DeadLetterEvent(pid, message, sender));
                 return;
             }
             var env = new RemoteDeliver(header!, message, pid, sender!, serializerId);

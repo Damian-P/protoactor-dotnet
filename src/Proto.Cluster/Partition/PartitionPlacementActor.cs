@@ -23,7 +23,7 @@ namespace Proto.Cluster.Partition
         //eventId -> the cluster wide eventId when this actor was created
         private readonly Dictionary<ClusterIdentity, (PID pid, ulong eventId)> _myActors =
             new();
-
+        private readonly Dictionary<PID, ClusterIdentity> _reverseLookup = new();
         private readonly Rendezvous _rdv = new();
 
         //cluster wide eventId.
@@ -65,8 +65,8 @@ namespace Proto.Cluster.Partition
 
         private Task Terminated(IContext context, Terminated msg)
         {
-            //TODO: if this turns out to be perf intensive, lets look at optimizations for reverse lookups
-            var (clusterIdentity, (pid, eventId)) = _myActors.FirstOrDefault(kvp => kvp.Value.pid.Equals(msg.Who));
+            var clusterIdentity = _reverseLookup[msg.Who];
+            var (pid, eventId) = _myActors[clusterIdentity];
 
             var activationTerminated = new ActivationTerminated
             {
@@ -80,6 +80,7 @@ namespace Proto.Cluster.Partition
 
             context.Send(ownerPid, activationTerminated);
             _myActors.Remove(clusterIdentity);
+            _reverseLookup.Remove(pid);
             return Task.CompletedTask;
         }
 
@@ -154,9 +155,10 @@ namespace Proto.Cluster.Partition
                     //as this id is unique for this activation (id+counter)
                     //we cannot get ProcessNameAlreadyExists exception here
                     var clusterProps = props.WithClusterInit(_cluster, msg.ClusterIdentity);
-                    var pid = context.SpawnPrefix(clusterProps, msg.ClusterIdentity.Identity);
+                    var pid = context.SpawnPrefix(clusterProps, $"{msg.ClusterIdentity.Kind}-{msg.ClusterIdentity.Identity}");
 
                     _myActors[msg.ClusterIdentity] = (pid, _eventId);
+                    _reverseLookup[pid] = msg.ClusterIdentity;
 
                     var response = new ActivationResponse
                     {

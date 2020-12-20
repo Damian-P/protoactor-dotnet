@@ -43,12 +43,12 @@ namespace Proto.Remote
             if (endpoint is null)
             {
                 (var message, var sender, var _) = Proto.MessageEnvelope.Unwrap(msg);
-                System.EventStream.Publish(new DeadLetterEvent(_pid, message, sender));
                 if (sender is not null)
                     System.Root.Send(sender, message is PoisonPill
                     ? new Terminated { Who = _pid, Why = TerminatedReason.AddressTerminated }
-                    : new DeadLetterResponse { Target = _pid }
-                );
+                    : new DeadLetterResponse { Target = _pid });
+                else
+                    System.EventStream.Publish(new DeadLetterEvent(_pid, message, sender));
                 return;
             }
             endpoint.SendMessage(_pid, msg, -1);
