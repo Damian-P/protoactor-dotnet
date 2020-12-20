@@ -74,6 +74,10 @@ namespace Proto.Cluster
                         pid = await _identityLookup.GetAsync(clusterIdentity, ct);
                         if (pid is null)
                         {
+                            if (context.System.Shutdown.IsCancellationRequested)
+                            {
+                                return default!;
+                            }
                             _logger.LogDebug(
                                 "Requesting {Identity}-{Kind} Message {Message} - Did not get PID from IdentityLookup",
                                 clusterIdentity.Identity, clusterIdentity.Kind, message

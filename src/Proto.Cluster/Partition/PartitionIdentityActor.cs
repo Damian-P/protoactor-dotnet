@@ -285,7 +285,7 @@ Statistics: Removed {removedSpawns} spawns", _partitionLookup.Count, _reverseLoo
             if (string.IsNullOrWhiteSpace(ownerAddress))
             {
                 _logger.LogWarning("No members currently available for kind {Kind}", msg.Kind);
-                context.Send(context.Self!, msg);
+                context.Respond(new ActivationResponse {Pid = null});
                 return Task.CompletedTask;
             }
             if (ownerAddress != _myAddress)
