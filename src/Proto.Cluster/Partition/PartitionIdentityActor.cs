@@ -304,18 +304,18 @@ Statistics: Removed {removedSpawns} spawns", _partitionLookup.Count, _reverseLoo
                 return Task.CompletedTask;
             }
 
-            // if (_mode == ProcessingMode.Waiting)
-            // {
-            //     if (_resumeProcessing is null)
-            //         _logger.LogCritical("Reenter task was null in wait mode!");
-            //     else
-            //     {
-            //         _logger.LogDebug("");
+            if (_mode == ProcessingMode.Waiting)
+            {
+                if (_resumeProcessing is null)
+                    _logger.LogCritical("Reenter task was null in wait mode!");
+                else
+                {
+                    _logger.LogDebug("");
 
-            //         context.ReenterAfter(_resumeProcessing, () => GetOrSpawn(msg, context));
-            //         return Task.CompletedTask;
-            //     }
-            // }
+                    context.ReenterAfter(_resumeProcessing, () => GetOrSpawn(msg, context));
+                    return Task.CompletedTask;
+                }
+            }
 
             //Get activator
             var activatorAddress = _cluster.MemberList.GetActivator(msg.Kind, context.Sender.Address)?.Address;
