@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using ClusterExperiment1.Messages;
 using Microsoft.Extensions.Logging;
 using Proto;
+using Proto.Interactive;
 
 namespace ClusterExperiment1
 {
@@ -24,14 +25,19 @@ namespace ClusterExperiment1
 
             if (args.Length > 0)
             {
+                
                 var worker = await Configuration.SpawnMember();
+                AppDomain.CurrentDomain.ProcessExit += (sender, args) => {
+                    worker.ShutdownAsync(true).Wait();
+                };
                 Thread.Sleep(Timeout.Infinite);
                 return;
             }
 
             Console.WriteLine("1) Run single process - graceful exit");
             Console.WriteLine("2) Run single process");
-            Console.WriteLine("3) Run multi process");
+            Console.WriteLine("3) Run multi process - graceful exit");
+            Console.WriteLine("4) Run multi process");
 
             var res1 = Console.ReadLine();
 
@@ -79,6 +85,9 @@ namespace ClusterExperiment1
                     RunWorkers(() => new RunMemberInProc());
                     break;
                 case "3":
+                    RunWorkers(() => new RunMemberExternalProcGraceful());
+                    break;
+                case "4":
                     RunWorkers(() => new RunMemberExternalProc());
                     break;
             }
@@ -102,7 +111,7 @@ namespace ClusterExperiment1
         private static void RunFireForgetClient()
         {
             var logger = Log.CreateLogger(nameof(Program));
-            ThreadPoolStats.Run(TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(500), t => {
+            ThreadPoolStats.Run(TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(200), t => {
                     logger.LogCritical("Threadpool is flooded");
                 }
             );
@@ -110,25 +119,20 @@ namespace ClusterExperiment1
             _ = Task.Run(async () => {
                     await Task.Delay(5000);
 
+                    var semaphore = new AsyncSemaphore(50);
                     var cluster = await Configuration.SpawnClient();
                     var rnd = new Random();
 
                     while (true)
                     {
-                        try
-                        {
-                            for (var i = 0; i < 1000; i++)
+                        var id = "myactor" + rnd.Next(0, ActorCount);
+                        semaphore.Wait(() => 
                             {
-                                var id = "myactor" + rnd.Next(0, ActorCount);
-                                var request = cluster.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
-                                    new CancellationTokenSource(TimeSpan.FromSeconds(15)).Token
+                                return cluster.RequestAsync<HelloResponse>(id, "hello", new HelloRequest(),
+                                    new CancellationTokenSource(TimeSpan.FromSeconds(5)).Token
                                 ).ContinueWith(_ => Console.Write("."));
                             }
-                        }
-                        catch (Exception x)
-                        {
-                            logger.LogError(x, "Error...");
-                        }
+                        );
                     }
                 }
             );

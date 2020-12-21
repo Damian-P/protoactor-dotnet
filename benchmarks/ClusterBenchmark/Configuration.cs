@@ -76,8 +76,9 @@ namespace ClusterExperiment1
                 Environment.GetEnvironmentVariable("MONGO") ?? "mongodb://127.0.0.1:27017/ProtoMongo";
             var url = MongoUrl.Create(connectionString);
             var settings = MongoClientSettings.FromUrl(url);
-            settings.WaitQueueSize = 10000;
-            settings.WaitQueueTimeout = TimeSpan.FromSeconds(10);
+            // settings.WaitQueueSize = 10000;
+            // settings.WaitQueueTimeout = TimeSpan.FromSeconds(10);
+
             // settings.WriteConcern = WriteConcern.Acknowledged;
             // settings.ReadConcern = ReadConcern.Majority;
             var client = new MongoClient(settings);

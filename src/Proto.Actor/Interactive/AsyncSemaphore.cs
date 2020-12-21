@@ -3,6 +3,7 @@
 //      Copyright (C) 2015-2020 Asynkron AB All rights reserved
 // </copyright>
 // -----------------------------------------------------------------------
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,13 +21,14 @@ namespace Proto.Interactive
             );
         }
 
-        public async Task<T> WaitAsync<T>(Task<T> task)
+        public async Task<T> WaitAsync<T>(Func<Task<T>> producer)
         {
 
             await _semaphore.WaitAsync();
 
             try
             {
+                var task = producer();
                 var result = await task;
                 return result;
             }
@@ -36,18 +38,39 @@ namespace Proto.Interactive
             }
         }
 
-        public async Task WaitAsync(Task task)
+        public async Task WaitAsync(Func<Task> producer)
         {
             await _semaphore.WaitAsync();
 
             try
             {
+                var task = producer();
                 await task;
             }
             finally
             {
                 _semaphore.Release();
             }
+        }
+        
+        public void Wait(Func<Task> producer)
+        {
+            //block caller
+            _semaphore.Wait();
+
+            Task.Run(async () => {
+                    try
+                    {
+                        var task = producer();
+                        await task;
+                    }
+                    finally
+                    {
+                        //release once the async flow is done
+                        _semaphore.Release();
+                    }
+                }
+            );
         }
     }
 }
