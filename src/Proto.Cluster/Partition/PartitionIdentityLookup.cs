@@ -34,27 +34,13 @@ namespace Proto.Cluster.Partition
             _logger.LogDebug("Requesting remote PID from {Partition}:{Remote} {@Request}", identityOwner, remotePid, req
             );
 
-            try
-            {
-                var resp = ct == CancellationToken.None
-                    ? await _cluster.System.Root.RequestAsync<ActivationResponse>(remotePid, req,
-                        _cluster.Config!.TimeoutTimespan
-                    )
-                    : await _cluster.System.Root.RequestAsync<ActivationResponse>(remotePid, req, ct);
+            var resp = ct == CancellationToken.None
+                ? await _cluster.System.Root.RequestAsync<ActivationResponse>(remotePid, req,
+                    _cluster.Config!.TimeoutTimespan
+                )
+                : await _cluster.System.Root.RequestAsync<ActivationResponse>(remotePid, req, ct);
 
-                return resp.Pid;
-            }
-            //TODO: decide if we throw or return null
-            catch (TimeoutException)
-            {
-                _logger.LogDebug("Remote PID request timeout {@Request}", req);
-                return null;
-            }
-            catch (Exception e)
-            {
-                _logger.LogError(e, "Error occured requesting remote PID {@Request}", req);
-                return null;
-            }
+            return resp.Pid;
         }
 
         public Task RemovePidAsync(PID pid, CancellationToken ct) => Task.CompletedTask;

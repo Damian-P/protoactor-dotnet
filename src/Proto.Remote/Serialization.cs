@@ -51,13 +51,15 @@ namespace Proto.Remote
 
         public string GetTypeName(object obj)
         {
-            if (obj is JsonMessage jsonMessage)
-                return jsonMessage.TypeName;
-
-            if (obj is IMessage message) 
-                return message.Descriptor.File.Package + "." + message.Descriptor.Name;
-            
-            throw new ArgumentException("obj must be of type IMessage", nameof(obj));
+            switch (obj)
+            {
+                case JsonMessage jsonMessage:
+                    return jsonMessage.TypeName;
+                case IMessage message:
+                    return message.Descriptor.FullName;
+                default:
+                    throw new ArgumentException("obj must be of type IMessage", nameof(obj));
+            }
         }
     }
 
@@ -85,10 +87,11 @@ namespace Proto.Remote
 
         public string GetTypeName(object obj)
         {
-            if (obj is IMessage message) 
-                return $"{message.Descriptor.File.Package}.{message.Descriptor.Name}";
-            
-            throw new ArgumentException("obj must be of type IMessage", nameof(obj));
+            return obj switch
+            {
+                IMessage message => message.Descriptor.FullName,
+                _ => throw new ArgumentException("obj must be of type IMessage", nameof(obj))
+            };
         }
     }
 
@@ -105,7 +108,7 @@ namespace Proto.Remote
             RegisterSerializer(new JsonSerializer(this));
         }
 
-        public static int DefaultSerializerId { get; set; }
+        public int DefaultSerializerId { get; set; }
 
         public void RegisterSerializer(ISerializer serializer, bool makeDefault = false)
         {
@@ -120,8 +123,7 @@ namespace Proto.Remote
         {
             foreach (var msg in fd.MessageTypes)
             {
-                var name = $"{fd.Package}.{msg.Name}";
-                TypeLookup.Add(name, msg.Parser);
+                TypeLookup.Add(msg.FullName, msg.Parser);
             }
         }
 

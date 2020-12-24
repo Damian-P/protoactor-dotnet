@@ -8,7 +8,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Grpc.Core;
-using Grpc.Core.Utils;
 using Microsoft.Extensions.Logging;
 using Proto.Mailbox;
 
@@ -32,19 +31,19 @@ namespace Proto.Remote
         {
             if (_endpointManager.CancellationToken.IsCancellationRequested)
             {
-                Logger.LogWarning("[EndpointReader] Attempt to connect to the suspended reader has been rejected");
+                Logger.LogWarning("Attempt to connect to the suspended reader has been rejected");
 
                 throw new RpcException(Status.DefaultCancelled, "Suspended");
             }
 
-            Logger.LogDebug("[EndpointReader] Accepted connection request from {Remote} to {Local}", context.Peer,
+            Logger.LogDebug("Accepted connection request from {Remote} to {Local}", context.Peer,
                 context.Host
             );
 
             return Task.FromResult(
                 new ConnectResponse
                 {
-                    DefaultSerializerId = Serialization.DefaultSerializerId
+                    DefaultSerializerId = _serialization.DefaultSerializerId
                 }
             );
         }
@@ -54,21 +53,21 @@ namespace Proto.Remote
             IServerStreamWriter<Unit> responseStream, ServerCallContext context
         )
         {
-            using var cancellationTokenRegistration = _endpointManager.CancellationToken.Register(() =>
-            {
-                Logger.LogDebug("[EndpointReader] Telling to {Address} to stop", context.Peer);
+            Logger.LogDebug("Stream opened by {Remote}", context.Peer);
+            using var cancellationTokenRegistration = _endpointManager.CancellationToken.Register(() => {
+                Logger.LogDebug("Asking {Address} to close the connection", context.Peer);
                 try
                 {
                     responseStream.WriteAsync(new Unit());
                 }
                 catch (Exception e)
                 {
-                    Logger.LogError(e, "[EndpointReader] Didn't tell to {Address} to stop", context.Peer);
+                    Logger.LogError(e, "Unable to ask {Address} to close the connection", context.Peer);
                 }
             });
 
             var targets = new PID[100];
-            while (await requestStream.MoveNext(context.CancellationToken))
+            while (await requestStream.MoveNext(context.CancellationToken).ConfigureAwait(false))
             {
                 if (_endpointManager.CancellationToken.IsCancellationRequested)
                 {
@@ -77,10 +76,6 @@ namespace Proto.Remote
                 }
 
                 var batch = requestStream.Current;
-
-                Logger.LogDebug("[EndpointReader] Received a batch of {Count} messages from {Remote}",
-                        batch.TargetNames.Count, context.Peer
-                    );
 
                 //only grow pid lookup if needed
                 if (batch.TargetNames.Count > targets.Length)
@@ -119,11 +114,11 @@ namespace Proto.Remote
                     }
                     catch (Exception e)
                     {
-                        Logger.LogError(e, "Failed to receive {Type} from {Remote}", typeName, context.Peer);
+                        Logger.LogError(e, "Failed to receive {Type} from {peer}", typeName, context.Peer);
                     }
                 }
             }
-            Logger.LogDebug("[EndpointReader] Stream closed by {Remote}", context.Peer);
+            Logger.LogDebug("Stream closed by {peer}", context.Peer);
         }
 
         private void ReceiveMessages(MessageEnvelope envelope, object message, PID target)
@@ -134,30 +129,33 @@ namespace Proto.Remote
             {
                 header = new Proto.MessageHeader(envelope.MessageHeader.HeaderData);
             }
-
-            Logger.LogDebug("[EndpointReader] Forwarding remote user message {@Message}", message);
+#if DEBUG
+            Logger.LogDebug("Forwarding remote user message {@Message}", message);
+#endif
             var localEnvelope = new Proto.MessageEnvelope(message, envelope.Sender, header);
             _system.Root.Send(target, localEnvelope);
         }
 
         private void SystemMessage(SystemMessage sys, PID target)
         {
+#if DEBUG
             Logger.LogDebug(
-                "[EndpointReader] Forwarding remote system message {@MessageType}:{@Message}",
+                "Forwarding remote system message {@MessageType}:{@Message}",
                 sys.GetType().Name, sys
             );
-
+#endif
             target.SendSystemMessage(_system, sys);
         }
 
         private void Terminated(Terminated msg, PID target)
         {
+#if DEBUG
             Logger.LogDebug(
-                "[EndpointReader] Forwarding remote endpoint termination request for {Who}", msg.Who
+                "Forwarding remote endpoint termination request for {Who}", msg.Who
             );
-
+#endif
             var rt = new RemoteTerminate(target, msg.Who);
-            _endpointManager.RemoteTerminate(rt);
+            _endpointManager.GetEndpoint(msg.Who.Address)?.RemoteTerminate(rt);
         }
     }
 }

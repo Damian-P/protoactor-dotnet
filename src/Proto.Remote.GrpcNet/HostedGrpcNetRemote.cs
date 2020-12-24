@@ -23,6 +23,7 @@ namespace Proto.Remote.GrpcNet
             _endpointManager = endpointManager;
             _logger = logger;
             System.Extensions.Register(this);
+            System.Extensions.Register(config.Serialization);
         }
         public bool Started { get; private set; }
         public Task StartAsync()
@@ -44,36 +45,30 @@ namespace Proto.Remote.GrpcNet
             }
         }
 
-        public Task ShutdownAsync(bool graceful = true)
+        public async Task ShutdownAsync(bool graceful = true)
         {
             lock (this)
             {
                 if (!Started)
-                    return Task.CompletedTask;
-                try
-                {
-                    _endpointManager.Stop();
-                    _logger.LogDebug(
-                        "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
-                        System.Address, graceful
-                    );
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(
-                        ex, "Proto.Actor server stopped on {Address} with error: {Message}",
-                        System.Address, ex.Message
-                    );
-                    throw;
-                }
+                    return;
                 Started = false;
-                return Task.CompletedTask;
             }
-        }
-
-        public void SendMessage(PID pid, object msg, int serializerId)
-        {
-            _endpointManager.SendMessage(pid, msg, serializerId);
+            try
+            {
+                await _endpointManager.StopAsync();
+                _logger.LogInformation(
+                    "Proto.Actor server stopped on {Address}. Graceful: {Graceful}",
+                    System.Address, graceful
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex, "Proto.Actor server stopped on {Address} with error: {Message}",
+                    System.Address, ex.Message
+                );
+                throw;
+            }
         }
     }
 }
