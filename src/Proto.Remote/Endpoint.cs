@@ -257,7 +257,9 @@ namespace Proto.Remote
 
                 batch.Envelopes.Add(envelope);
             }
-
+#if DEBUG
+            _logger.LogDebug("Sending {Count} envelopes for {Address}", batch.Envelopes.Count, _address);
+#endif
             try
             {
                 if (_stream is null)
