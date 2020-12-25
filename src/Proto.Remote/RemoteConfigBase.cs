@@ -63,7 +63,7 @@ namespace Proto.Remote
         public Serialization Serialization { get; init; } = new();
 
         /// <summary>
-        ///     Gets or sets the duration a remote node is getting blacklisted.
+        ///     Gets or sets the duration terminated remote nodes gets blacklisted.
         /// </summary>
         public TimeSpan? BlackListingDuration { get; init; } = TimeSpan.FromSeconds(3);
     }

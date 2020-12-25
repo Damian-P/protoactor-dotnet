@@ -76,7 +76,11 @@ namespace Proto.Remote
                 }
 
                 var batch = requestStream.Current;
-
+#if DEBUG
+                Logger.LogDebug("Received a batch of {Count} messages from {peer}",	
+                        batch.TargetNames.Count, context.Peer	
+                    );
+#endif
                 //only grow pid lookup if needed
                 if (batch.TargetNames.Count > targets.Length)
                 {
