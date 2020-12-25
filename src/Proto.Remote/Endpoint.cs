@@ -177,7 +177,7 @@ namespace Proto.Remote
                 {
                     if (ShouldStop(rs))
                     {
-                        _logger.LogError("Stopping connection to address {Address} after retries expired because of {Reason}", _address, e.GetType().Name);
+                        _logger.LogError(e, "Stopping connection to address {Address} after retries expired because of {Reason}", _address, e.GetType().Name);
                         var terminated = new EndpointTerminatedEvent { Address = _address! };
                         _system.EventStream.Publish(terminated);
                         return;
@@ -188,7 +188,7 @@ namespace Proto.Remote
                         var noise = _random.Next(500);
                         var duration = TimeSpan.FromMilliseconds(backoff + noise);
                         await Task.Delay(duration);
-                        _logger.LogWarning("Restarting endpoint connection {Actor} after {Duration} because of {Reason}", _address, duration, e.GetType().Name);
+                        _logger.LogWarning(e, "Restarting endpoint connection {Actor} after {Duration} because of {Reason}", _address, duration, e.GetType().Name);
                     }
                 }
             }
