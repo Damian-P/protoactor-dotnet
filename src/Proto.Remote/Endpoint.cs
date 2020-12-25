@@ -352,7 +352,11 @@ namespace Proto.Remote
         {
             if (_disposed)
             {
-                Terminated(_system, msg);
+                msg.Watcher.SendSystemMessage(_system, new Terminated
+                {
+                    Why = TerminatedReason.AddressTerminated,
+                    Who = msg.Watchee
+                });
                 return;
             }
             lock (this)
@@ -398,7 +402,12 @@ namespace Proto.Remote
             var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
             if (_disposed)
             {
-                SendToDeadLetter(_system, pid, message, sender);
+                if (sender is not null)
+                    _system.Root.Send(sender, message is PoisonPill
+                    ? new Terminated { Who = pid, Why = TerminatedReason.AddressTerminated }
+                    : new DeadLetterResponse { Target = pid });
+                else
+                    _system.EventStream.Publish(new DeadLetterEvent(pid, message, sender));
                 return;
             }
             var env = new RemoteDeliver(header!, message, pid, sender!, -1);
@@ -409,23 +418,5 @@ namespace Proto.Remote
 #endif
             _ = _remoteDelivers.Writer.TryWrite(env);
         }
-
-        internal static void SendToDeadLetter(ActorSystem system, PID pid, object message, PID? sender)
-        {
-            if (sender is not null)
-                system.Root.Send(sender, message is PoisonPill
-                ? new Terminated { Who = pid, Why = TerminatedReason.AddressTerminated }
-                : new DeadLetterResponse { Target = pid });
-            else
-                system.EventStream.Publish(new DeadLetterEvent(pid, message, sender));
-            return;
-        }
-
-        internal static void Terminated(ActorSystem system, RemoteWatch msg) => msg.Watcher.SendSystemMessage(system, new Terminated
-        {
-            Why = TerminatedReason.AddressTerminated,
-            Who = msg.Watchee
-        });
-
     }
 }
