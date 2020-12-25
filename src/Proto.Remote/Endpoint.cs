@@ -22,7 +22,7 @@ namespace Proto.Remote
         void RemoteTerminate(RemoteTerminate msg);
         void RemoteUnwatch(RemoteUnwatch msg);
         void RemoteWatch(RemoteWatch msg);
-        void SendMessage(PID pid, object msg, int serializerId);
+        void SendMessage(PID pid, object msg);
     }
 
     public class Endpoint : IEndpoint
@@ -352,7 +352,7 @@ namespace Proto.Remote
         {
             if (_disposed)
             {
-                NewMethod(_system, msg);
+                Terminated(_system, msg);
                 return;
             }
             lock (this)
@@ -368,9 +368,8 @@ namespace Proto.Remote
             }
 
             var w = new Watch(msg.Watcher);
-            SendMessage(msg.Watchee, w, -1);
+            SendMessage(msg.Watchee, w);
         }
-
         public void RemoteUnwatch(RemoteUnwatch msg)
         {
             if (_disposed)
@@ -392,9 +391,9 @@ namespace Proto.Remote
             }
 
             var w = new Unwatch(msg.Watcher);
-            SendMessage(msg.Watchee, w, -1);
+            SendMessage(msg.Watchee, w);
         }
-        public void SendMessage(PID pid, object msg, int serializerId)
+        public void SendMessage(PID pid, object msg)
         {
             var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
             if (_disposed)
@@ -402,7 +401,7 @@ namespace Proto.Remote
                 SendToDeadLetter(_system, pid, message, sender);
                 return;
             }
-            var env = new RemoteDeliver(header!, message, pid, sender!, serializerId);
+            var env = new RemoteDeliver(header!, message, pid, sender!, -1);
 #if DEBUG
             _logger.LogDebug("Forwarding message {Message} from {From} to {Target}",
                 env.Message, env.Sender, env.Target
@@ -422,7 +421,7 @@ namespace Proto.Remote
             return;
         }
 
-        internal static void NewMethod(ActorSystem system, RemoteWatch msg) => msg.Watcher.SendSystemMessage(system, new Terminated
+        internal static void Terminated(ActorSystem system, RemoteWatch msg) => msg.Watcher.SendSystemMessage(system, new Terminated
         {
             Why = TerminatedReason.AddressTerminated,
             Who = msg.Watchee

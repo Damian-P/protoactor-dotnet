@@ -41,7 +41,7 @@ namespace Proto.Remote
         {
             var endpoint = _endpointManager.GetEndpoint(_pid.Address);
             if (endpoint is not null)
-                endpoint.SendMessage(_pid, msg, -1);
+                endpoint.SendMessage(_pid, msg);
             else
             {
                 var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
@@ -60,7 +60,7 @@ namespace Proto.Remote
             var endpoint = _endpointManager.GetEndpoint(_pid.Address);
             var rw = new RemoteWatch(w.Watcher, _pid);
             if (endpoint is null)
-                Endpoint.NewMethod(System, rw);
+                Endpoint.Terminated(System, rw);
             else
                 endpoint.RemoteWatch(rw);
         }
