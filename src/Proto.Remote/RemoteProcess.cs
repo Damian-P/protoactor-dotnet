@@ -39,19 +39,41 @@ namespace Proto.Remote
 
         private void SendMessage(object msg)
         {
-            _endpointManager.SendMessage(_pid, msg, -1);
+            var endpoint = _endpointManager.GetEndpoint(_pid.Address);
+            if (endpoint is null)
+            {
+                var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
+                if (sender is not null)
+                    System.Root.Send(sender, message is PoisonPill
+                    ? new Terminated { Who = _pid, Why = TerminatedReason.AddressTerminated }
+                    : new DeadLetterResponse { Target = _pid });
+                else
+                    System.EventStream.Publish(new DeadLetterEvent(_pid, message, sender));
+            }
+            else
+                endpoint.SendMessage(_pid, msg);
         }
 
         private void Unwatch(Unwatch uw)
         {
             var ruw = new RemoteUnwatch(uw.Watcher, _pid);
-            _endpointManager.RemoteUnwatch(ruw);
+            _endpointManager.GetEndpoint(_pid.Address)?.RemoteUnwatch(ruw);
         }
 
         private void Watch(Watch w)
         {
-            var rw = new RemoteWatch(w.Watcher, _pid);
-            _endpointManager.RemoteWatch(rw);
+            var endpoint = _endpointManager.GetEndpoint(_pid.Address);
+            if (endpoint is null)
+                w.Watcher.SendSystemMessage(System, new Terminated
+                {
+                    Why = TerminatedReason.AddressTerminated,
+                    Who = _pid
+                });
+            else
+            {
+                var rw = new RemoteWatch(w.Watcher, _pid);
+                endpoint.RemoteWatch(rw);
+            }
         }
     }
 }
