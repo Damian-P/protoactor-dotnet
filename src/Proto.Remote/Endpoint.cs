@@ -47,6 +47,7 @@ namespace Proto.Remote
         private readonly TimeSpan? _withinTimeSpan;
         private readonly Task _runner;
         private bool _disposed;
+        private readonly object _synLock = new();
         public Endpoint(ActorSystem system, string address, RemoteConfigBase remoteConfig, IChannelProvider channelProvider)
         {
             _system = system;
@@ -58,11 +59,11 @@ namespace Proto.Remote
             _backoff = remoteConfig.EndpointWriterOptions.RetryBackOff;
             _tokenSource = new CancellationTokenSource();
             _token = _tokenSource.Token;
-            _runner = Task.Run(Run);
+            _runner = Task.Factory.StartNew(Run, TaskCreationOptions.None);
         }
         public async ValueTask DisposeAsync()
         {
-            lock (this)
+            lock (_synLock)
             {
                 if (_disposed) return;
                 _disposed = true;
@@ -100,7 +101,7 @@ namespace Proto.Remote
         }
         private void TerminateEndpoint()
         {
-            lock (this)
+            lock (_synLock)
             {
                 foreach (var (id, pidSet) in _watchedActors)
                 {
@@ -331,7 +332,7 @@ namespace Proto.Remote
         }
         public void RemoteTerminate(RemoteTerminate msg)
         {
-            lock (this)
+            lock (_synLock)
             {
                 if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
                 {
@@ -342,27 +343,26 @@ namespace Proto.Remote
                         _watchedActors.TryRemove(msg.Watcher.Id, out _);
                     }
                 }
+                //create a terminated event for the Watched actor
+                var t = new Terminated { Who = msg.Watchee };
+
+                //send the address Terminated event to the Watcher
+                msg.Watcher.SendSystemMessage(_system, t);
             }
-
-            //create a terminated event for the Watched actor
-            var t = new Terminated { Who = msg.Watchee };
-
-            //send the address Terminated event to the Watcher
-            msg.Watcher.SendSystemMessage(_system, t);
         }
         public void RemoteWatch(RemoteWatch msg)
         {
-            if (_disposed)
+            lock (_synLock)
             {
-                msg.Watcher.SendSystemMessage(_system, new Terminated
+                if (_disposed)
                 {
-                    Why = TerminatedReason.AddressTerminated,
-                    Who = msg.Watchee
-                });
-                return;
-            }
-            lock (this)
-            {
+                    msg.Watcher.SendSystemMessage(_system, new Terminated
+                    {
+                        Why = TerminatedReason.AddressTerminated,
+                        Who = msg.Watchee
+                    });
+                    return;
+                }
                 if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
                 {
                     pidSet.Add(msg.Watchee);
@@ -371,20 +371,19 @@ namespace Proto.Remote
                 {
                     _watchedActors[msg.Watcher.Id] = new HashSet<PID> { msg.Watchee };
                 }
+                var watch = new Watch(msg.Watcher);
+                var env = new RemoteDeliver(null!, watch, msg.Watchee, null!, -1);
+                _remoteDelivers.Writer.TryWrite(env);
             }
-
-            var w = new Watch(msg.Watcher);
-            SendMessage(msg.Watchee, w);
         }
         public void RemoteUnwatch(RemoteUnwatch msg)
         {
-            if (_disposed)
+            lock (_synLock)
             {
-                return;
-            }
-
-            lock (this)
-            {
+                if (_disposed)
+                {
+                    return;
+                }
                 if (_watchedActors.TryGetValue(msg.Watcher.Id, out var pidSet))
                 {
                     pidSet.Remove(msg.Watchee);
@@ -394,31 +393,34 @@ namespace Proto.Remote
                         _watchedActors.TryRemove(msg.Watcher.Id, out _);
                     }
                 }
+                var unwatch = new Unwatch(msg.Watcher);
+                var env = new RemoteDeliver(null!, unwatch, msg.Watchee, null!, -1);
+                _remoteDelivers.Writer.TryWrite(env);
             }
-
-            var w = new Unwatch(msg.Watcher);
-            SendMessage(msg.Watchee, w);
         }
         public void SendMessage(PID pid, object msg)
         {
-            var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
-            if (_disposed)
+            lock (_synLock)
             {
-                if (sender is not null)
-                    _system.Root.Send(sender, message is PoisonPill
-                    ? new Terminated { Who = pid, Why = TerminatedReason.AddressTerminated }
-                    : new DeadLetterResponse { Target = pid });
-                else
-                    _system.EventStream.Publish(new DeadLetterEvent(pid, message, sender));
-                return;
-            }
-            var env = new RemoteDeliver(header!, message, pid, sender!, -1);
+                var (message, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
+                if (_disposed)
+                {
+                    if (sender is not null)
+                        _system.Root.Send(sender, message is PoisonPill
+                        ? new Terminated { Who = pid, Why = TerminatedReason.AddressTerminated }
+                        : new DeadLetterResponse { Target = pid });
+                    else
+                        _system.EventStream.Publish(new DeadLetterEvent(pid, message, sender));
+                    return;
+                }
+                var env = new RemoteDeliver(header!, message, pid, sender!, -1);
 #if DEBUG
-            _logger.LogDebug("Forwarding message {Message} from {From} to {Target}",
-                env.Message, env.Sender, env.Target
-            );
+                _logger.LogDebug("Forwarding message {Message} from {From} to {Target}",
+                    env.Message, env.Sender, env.Target
+                );
 #endif
-            _ = _remoteDelivers.Writer.TryWrite(env);
+                _remoteDelivers.Writer.TryWrite(env);
+            }
         }
     }
 }
