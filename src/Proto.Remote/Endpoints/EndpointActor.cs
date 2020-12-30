@@ -22,15 +22,18 @@ namespace Proto.Remote
         private AsyncDuplexStreamingCall<MessageBatch, Unit>? _stream;
         private Remoting.RemotingClient? _client;
         private int _serializerId;
+        private string? _systemId;
         private readonly Dictionary<string, HashSet<PID>> _watchedActors = new();
         private readonly string _address;
         private readonly IChannelProvider _channelProvider;
-        public EndpointActor(string address, RemoteConfigBase remoteConfig, IChannelProvider channelProvider)
+        private readonly EndpointManager _endpointManager;
+        public EndpointActor(string address, RemoteConfigBase remoteConfig, IChannelProvider channelProvider, EndpointManager endpointManager)
         {
             _address = address;
             _remoteConfig = remoteConfig;
             _behavior = new Behavior(ConnectingAsync);
             _channelProvider = channelProvider;
+            _endpointManager = endpointManager;
         }
         private static Task Ignore => Task.CompletedTask;
         public Task ReceiveAsync(IContext context) => _behavior.ReceiveAsync(context);
@@ -52,8 +55,14 @@ namespace Proto.Remote
                 Restarting _ => EndpointTerminated(context),
                 Stopped _ => EndpointTerminated(context),
                 IEnumerable<RemoteDeliver> m => RemoteDeliver(m, context),
+                Connection connection => Connection(connection, context),
                 _ => Ignore
             };
+        private Task Connection(Connection connection, IContext context)
+        {
+            return Task.CompletedTask;
+        }
+
         private async Task ConnectAsync(IContext context)
         {
             Logger.LogDebug("[EndpointActor] Connecting to address {Address}", _address);
@@ -71,15 +80,24 @@ namespace Proto.Remote
 
             Logger.LogDebug("[EndpointActor] Created channel and client for address {Address}", _address);
 
-            var res = await _client.ConnectAsync(new ConnectRequest());
+            var res = await _client.ConnectAsync(new ConnectRequest { SystemId = context.System.Id, Address = context.System.Address });
             _serializerId = res.DefaultSerializerId;
+            _systemId = res.SystemId;
+
+            _endpointManager.AddressToSystemIdMappings.AddOrUpdate(_address, _systemId, (x, y) => _systemId);
+
             _stream = _client.Receive(_remoteConfig.CallOptions);
+
+
+            var c = new Connection { SystemId = context.System.Id, Address = context.System.Address };
+            var rd = new RemoteDeliver(null!, c, PID.FromAddress(_address, $"endpoint-{context.System.Address}"), context.Self!, -1);
+            var l = new List<RemoteDeliver> { rd };
+            await RemoteDeliver(l, context);
 
             Logger.LogDebug("[EndpointActor] Connected client for address {Address}", _address);
 
             _ = Task.Run(
-                async () =>
-                {
+                async () => {
                     try
                     {
                         await _stream.ResponseStream.MoveNext();
@@ -275,19 +293,11 @@ namespace Proto.Remote
         }
         private async Task SendEnvelopesAsync(MessageBatch batch, IContext context)
         {
-            if (_stream == null || _stream.RequestStream == null)
-            {
-                Logger.LogError(
-                    "[EndpointActor] gRPC Failed to send to address {Address}, reason No Connection available"
-                    , _address
-                );
-                return;
-            }
             try
             {
                 // Logger.LogDebug("[EndpointActor] Writing batch to {Address}", _address);
 
-                await _stream.RequestStream.WriteAsync(batch).ConfigureAwait(false);
+                await _stream!.RequestStream.WriteAsync(batch).ConfigureAwait(false);
             }
             catch (Exception x)
             {

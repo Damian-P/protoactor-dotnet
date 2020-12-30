@@ -36,10 +36,19 @@ message ActorPidResponse {
 
 message Unit {}
 
-message ConnectRequest {}
+message Connection {
+  string systemId = 1;
+  string address = 2;
+}
+
+message ConnectRequest {
+  string systemId = 1;
+  string address = 2;
+}
 
 message ConnectResponse {
   int32 default_serializer_id = 1;
+  string systemId = 2;
 }
 
 service Remoting {

@@ -46,16 +46,12 @@ namespace Proto.Remote
         public void PostUserMessage(object msg)
         {
             _userMessages.Push(msg);
-
-            Logger.LogDebug("[EndpointWriterMailbox] received User Message {@Message}", msg);
             Schedule();
         }
 
         public void PostSystemMessage(object msg)
         {
             _systemMessages.Push(msg);
-
-            Logger.LogDebug("[EndpointWriterMailbox] received System Message {@Message}", msg);
             Schedule();
         }
 
@@ -75,17 +71,12 @@ namespace Proto.Remote
 
             try
             {
-                Logger.LogDebug(
-                    "[EndpointWriterMailbox] Running Mailbox Loop HasSystemMessages: {HasSystemMessages} HasUserMessages: {HasUserMessages} Suspended: {Suspended}",
-                    _systemMessages.HasMessages, _userMessages.HasMessages, _suspended
-                );
                 var _ = _dispatcher!.Throughput; //not used for batch mailbox
                 var batch = new List<RemoteDeliver>(_batchSize);
                 var sys = _systemMessages.Pop();
 
                 if (sys is not null)
                 {
-                    Logger.LogDebug("[EndpointWriterMailbox] Processing System Message {@Message}", sys);
 
                     _suspended = sys switch
                     {
@@ -109,7 +100,6 @@ namespace Proto.Remote
 
                     if (sys is Stop)
                     {
-                        // Logger.LogWarning("Endpoint writer is stopping...");
                         //Dump messages from user messages queue to deadletter and inform watchers about termination
                         object? usrMsg;
                         int droppedRemoteDeliverCount = 0;
@@ -150,13 +140,13 @@ namespace Proto.Remote
 
                     while ((msg = _userMessages.Pop()) is not null)
                     {
-                        Logger.LogDebug("[EndpointWriterMailbox] Processing User Message {@Message}", msg);
 
                         switch (msg)
                         {
                             case RemoteWatch _:
                             case RemoteUnwatch _:
                             case RemoteTerminate _:
+                            case Proto.MessageEnvelope _:
                                 await _invoker!.InvokeUserMessageAsync(msg);
                                 continue;
                         }
@@ -172,21 +162,12 @@ namespace Proto.Remote
                     if (batch.Count > 0)
                     {
                         m = batch;
-                        Logger.LogDebug("[EndpointWriterMailbox] Calling message invoker");
                         await _invoker!.InvokeUserMessageAsync(batch);
                     }
                 }
             }
             catch (Exception x)
             {
-                // if (x is RpcException rpc && rpc.Status.StatusCode == StatusCode.Unavailable)
-                // {
-                //     Logger.LogError( "Endpoint writer failed, status unavailable");
-                // }
-                // else
-                // {
-                //     Logger.LogError(x, "Endpoint writer failed");
-                // }
 
                 _suspended = true;
                 _invoker!.EscalateFailure(x, m);

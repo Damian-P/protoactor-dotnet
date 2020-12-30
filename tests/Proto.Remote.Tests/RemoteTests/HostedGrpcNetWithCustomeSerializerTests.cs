@@ -38,10 +38,10 @@ namespace Proto.Remote.Tests
 
             public Fixture()
             {
-                var clientConfig = ConfigureClientRemoteConfig(GrpcNetRemoteConfig.BindToLocalhost())
+                var clientConfig = ConfigureClientRemoteConfig(GrpcNetRemoteConfig.BindToLocalhost(5000))
                     .WithSerializer(new CustomSerializer(), true);
                 (_clientHost, Remote) = GetHostedGrpcNetRemote(clientConfig);
-                var serverConfig = ConfigureServerRemoteConfig(GrpcNetRemoteConfig.BindToLocalhost())
+                var serverConfig = ConfigureServerRemoteConfig(GrpcNetRemoteConfig.BindToLocalhost(5001))
                     .WithSerializer(new CustomSerializer(), true);
                 (_serverHost, ServerRemote) = GetHostedGrpcNetRemote(serverConfig);
             }

@@ -30,12 +30,10 @@ namespace Proto.Remote
             return o;
         }
 
-        public string GetTypeName(object obj)
+        public string GetTypeName(object obj) => obj switch
         {
-            if (obj is IMessage message) 
-                return $"{message.Descriptor.File.Package}.{message.Descriptor.Name}";
-            
-            throw new ArgumentException("obj must be of type IMessage", nameof(obj));
-        }
+            IMessage message => message.Descriptor.FullName,
+            _ => throw new ArgumentException("obj must be of type IMessage", nameof(obj))
+        };
     }
 }

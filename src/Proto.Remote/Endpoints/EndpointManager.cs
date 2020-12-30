@@ -7,6 +7,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -17,8 +19,10 @@ namespace Proto.Remote
     public class EndpointManager
     {
         private static readonly ILogger Logger = Log.CreateLogger<EndpointManager>();
-        private readonly ConcurrentDictionary<string, PID> _connections = new();
-        private readonly ConcurrentDictionary<string, PID> _terminatedConnections = new();
+        internal ConcurrentDictionary<string, PID> Connections { get; } = new();
+        internal ConcurrentDictionary<string, string> AddressToSystemIdMappings { get; } = new();
+        internal ConcurrentDictionary<string, string> BannedSystems { get; } = new();
+        internal ConcurrentDictionary<string, string> BannedHosts { get; } = new();
         private readonly CancellationTokenSource _cancellationTokenSource = new();
         private readonly ActorSystem _system;
         private readonly EventStreamSubscription<object>? _endpointConnectedEvnSub;
@@ -34,6 +38,7 @@ namespace Proto.Remote
         public EndpointManager(ActorSystem system, RemoteConfigBase remoteConfig, IChannelProvider channelProvider)
         {
             _system = system;
+            // _system.Shutdown.Register(() => Stop());
             _system.ProcessRegistry.RegisterHostResolver(pid => new RemoteProcess(_system, this, pid));
             _remoteConfig = remoteConfig;
             _channelProvider = channelProvider;
@@ -73,6 +78,7 @@ namespace Proto.Remote
             {
                 if (CancellationToken.IsCancellationRequested) return;
                 Logger.LogDebug("[EndpointManager] Stopping");
+                LogStats();
 
                 _system.EventStream.Unsubscribe(_endpointTerminatedEvnSub);
                 _system.EventStream.Unsubscribe(_endpointConnectedEvnSub);
@@ -80,7 +86,7 @@ namespace Proto.Remote
                 _system.EventStream.Unsubscribe(_deadLetterEvnSub);
 
                 var stopEndpointTasks = new List<Task>();
-                foreach (var endpoint in _connections.Values)
+                foreach (var endpoint in Connections.Values)
                 {
                     stopEndpointTasks.Add(_system.Root.StopAsync(endpoint));
                 }
@@ -89,7 +95,7 @@ namespace Proto.Remote
 
                 _cancellationTokenSource.Cancel();
 
-                _connections.Clear();
+                Connections.Clear();
 
                 StopActivator();
 
@@ -99,7 +105,7 @@ namespace Proto.Remote
 
         private void OnEndpointError(EndpointErrorEvent evt)
         {
-            if (_connections.TryGetValue(evt.Address, out var endpoint))
+            if (Connections.TryGetValue(evt.Address, out var endpoint))
                 endpoint.SendSystemMessage(_system, evt);
         }
 
@@ -108,25 +114,41 @@ namespace Proto.Remote
             Logger.LogDebug("[EndpointManager] Endpoint {Address} terminated removing from connections", evt.Address);
             lock (_synLock)
             {
-                if (_connections.TryRemove(evt.Address, out var endpoint))
+                if (AddressToSystemIdMappings.TryGetValue(evt.Address, out var systemId))
+                {
+                    BannedSystems.TryAdd(systemId, evt.Address);
+                    AddressToSystemIdMappings.TryRemove(evt.Address, out _);
+                }
+
+                if (Connections.TryRemove(evt.Address, out var endpoint))
                 {
                     _system.Root.StopAsync(endpoint).GetAwaiter().GetResult();
-                    if (_remoteConfig.WaitAfterEndpointTerminationTimeSpan.HasValue && _terminatedConnections.TryAdd(evt.Address, endpoint))
-                        _ = Task.Run(async () =>
-                        {
+                    if (_remoteConfig.WaitAfterEndpointTerminationTimeSpan.HasValue && BannedHosts.TryAdd(evt.Address, systemId))
+                        _ = Task.Run(async () => {
                             await Task.Delay(_remoteConfig.WaitAfterEndpointTerminationTimeSpan.Value);
-                            _terminatedConnections.TryRemove(evt.Address, out var _);
+                            BannedHosts.TryRemove(evt.Address, out var _);
+                            Logger.LogInformation("Connections : {Connections}\nBanned system : {BannedSystems}\nBanned hosts : {BannedHosts}\nMappings : {Mappings}", string.Join(", ", Connections.Keys), string.Join(", ", BannedSystems.Keys), string.Join(", ", BannedHosts.Keys), string.Join(", ", AddressToSystemIdMappings.Select(kvp => $"{kvp.Key}({kvp.Value})")));
                         });
                 }
             }
+            LogStats();
         }
 
+        private void LogStats([CallerMemberName] string caller = "", [CallerLineNumber] int sourceLineNumber = 0) => Logger.LogDebug(
+            "{CallerMethod}:{line}\nConnections : {Connections}\nBanned system : {BannedSystems}\nBanned hosts : {BannedHosts}\nMappings : {Mappings}",
+            caller,
+            sourceLineNumber,
+            string.Join(", ", Connections.Select(kvp => $"{kvp.Key}({kvp.Value})")),
+            string.Join(", ", BannedSystems.Select(kvp => $"{kvp.Key}({kvp.Value})")),
+            string.Join(", ", BannedHosts.Select(kvp => $"{kvp.Key}({kvp.Value})")),
+            string.Join(", ", AddressToSystemIdMappings.Select(kvp => $"{kvp.Key}({kvp.Value})")));
         private void OnEndpointConnected(EndpointConnectedEvent evt)
         {
             var endpoint = GetEndpoint(evt.Address);
             if (endpoint is null)
                 return;
             endpoint.SendSystemMessage(_system, evt);
+            LogStats();
         }
 
         internal PID? GetEndpoint(string address)
@@ -137,16 +159,15 @@ namespace Proto.Remote
             }
             lock (_synLock)
             {
-                if (_terminatedConnections.ContainsKey(address) || _cancellationTokenSource.IsCancellationRequested)
+                if (BannedHosts.ContainsKey(address) || _cancellationTokenSource.IsCancellationRequested)
                 {
                     return null;
                 }
 
-                return _connections.GetOrAdd(address, v =>
-                {
+                return Connections.GetOrAdd(address, v => {
                     Logger.LogDebug("[EndpointManager] Requesting new endpoint for {Address}", v);
                     var props = Props
-                        .FromProducer(() => new EndpointActor(v, _remoteConfig, _channelProvider))
+                        .FromProducer(() => new EndpointActor(v, _remoteConfig, _channelProvider, this))
                         .WithMailbox(() => new EndpointWriterMailbox(_system, _remoteConfig.EndpointWriterOptions.EndpointWriterBatchSize, v))
                         .WithGuardianSupervisorStrategy(new EndpointSupervisorStrategy(v, _remoteConfig, _system));
                     var endpointActorPid = _system.Root.SpawnNamed(props, $"endpoint-{v}");

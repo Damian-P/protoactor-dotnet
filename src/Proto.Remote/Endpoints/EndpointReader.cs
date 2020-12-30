@@ -36,6 +36,14 @@ namespace Proto.Remote
                 throw new RpcException(Status.DefaultCancelled, "Suspended");
             }
 
+            if (_endpointManager.BannedSystems.ContainsKey(request.SystemId))
+            {
+                Logger.LogWarning("[EndpointReader] Attempt to connect to the reader has been rejected");
+                throw new RpcException(Status.DefaultCancelled, "Banned");
+            }
+
+            _endpointManager.AddressToSystemIdMappings.AddOrUpdate(request.Address, request.SystemId, (x, y) => request.SystemId);
+
             Logger.LogDebug("[EndpointReader] Accepted connection request from {Remote} to {Local}", context.Peer,
                 context.Host
             );
@@ -43,7 +51,8 @@ namespace Proto.Remote
             return Task.FromResult(
                 new ConnectResponse
                 {
-                    DefaultSerializerId = _serialization.DefaultSerializerId
+                    DefaultSerializerId = _serialization.DefaultSerializerId,
+                    SystemId = _system.Id
                 }
             );
         }
@@ -53,8 +62,7 @@ namespace Proto.Remote
             IServerStreamWriter<Unit> responseStream, ServerCallContext context
         )
         {
-            using var cancellationTokenRegistration = _endpointManager.CancellationToken.Register(() =>
-            {
+            using var cancellationTokenRegistration = _endpointManager.CancellationToken.Register(() => {
                 Logger.LogDebug("[EndpointReader] Telling to {Address} to stop", context.Peer);
                 try
                 {
@@ -66,6 +74,8 @@ namespace Proto.Remote
                 }
             });
 
+            string? systemId, address = null;
+
             var targets = new PID[100];
             while (await requestStream.MoveNext(context.CancellationToken).ConfigureAwait(false))
             {
@@ -76,10 +86,6 @@ namespace Proto.Remote
                 }
 
                 var batch = requestStream.Current;
-
-                Logger.LogDebug("[EndpointReader] Received a batch of {Count} messages from {Remote}",
-                        batch.TargetNames.Count, context.Peer
-                    );
 
                 //only grow pid lookup if needed
                 if (batch.TargetNames.Count > targets.Length)
@@ -103,6 +109,9 @@ namespace Proto.Remote
 
                     switch (message)
                     {
+                        case Connection c:
+                            (systemId, address) = Connection(target, envelope, c);
+                            break;
                         case Terminated msg:
                             Terminated(msg, target);
                             break;
@@ -127,32 +136,30 @@ namespace Proto.Remote
             {
                 header = new Proto.MessageHeader(envelope.MessageHeader.HeaderData);
             }
-
-            // Logger.LogDebug("[EndpointReader] Forwarding remote user message {@Message}", message);
             var localEnvelope = new Proto.MessageEnvelope(message, envelope.Sender, header);
             _system.Root.Send(target, localEnvelope);
         }
 
         private void SystemMessage(SystemMessage sys, PID target)
         {
-            // Logger.LogDebug(
-            //     "[EndpointReader] Forwarding remote system message {@MessageType}:{@Message}",
-            //     sys.GetType().Name, sys
-            // );
-
             target.SendSystemMessage(_system, sys);
         }
 
         private void Terminated(Terminated msg, PID target)
         {
-            // Logger.LogDebug(
-            //     "[EndpointReader] Forwarding remote endpoint termination request for {Who}", msg.Who
-            // );
-
             var rt = new RemoteTerminate(target, msg.Who);
             var endpoint = _endpointManager.GetEndpoint(rt.Watchee.Address);
             if (endpoint is null) return;
             _system.Root.Send(endpoint, rt);
+        }
+        private (string, string) Connection(PID target, MessageEnvelope envelope, Connection message)
+        {
+            if (!_endpointManager.AddressToSystemIdMappings.TryGetValue(message.Address, out var systemId) || message.SystemId != systemId)
+            {
+                throw new RpcException(Status.DefaultCancelled, "Not connected");
+            }
+            return (systemId, message.Address);
+
         }
     }
 }
