@@ -50,6 +50,11 @@ namespace Proto.Cluster.Partition
                 _logger.LogDebug("Remote PID request timeout {@Request}", req);
                 return null;
             }
+            catch (DeadLetterException)
+            {
+                _logger.LogDebug("Remote PID request got deadletter {@Request}", req);
+                return null;
+            }
             catch (Exception e)
             {
                 _logger.LogError(e, "Error occured requesting remote PID {@Request}", req);

@@ -157,7 +157,7 @@ namespace Proto.Cluster.Partition
                 _logger.LogDebug("Requesting ownerships");
 
                 //built in timeout on each request above
-                var responses = await Task.WhenAll(requests);
+                var responses = await Task.Run(() => Task.WhenAll(requests), _cluster.System.Shutdown);
                 _logger.LogDebug("Got ownerships {EventId}", _eventId);
 
                 foreach (var response in responses)
@@ -200,7 +200,7 @@ namespace Proto.Cluster.Partition
             if (ownerAddress != _myAddress)
             {
                 var ownerPid = PartitionManager.RemotePartitionIdentityActor(ownerAddress);
-                _logger.LogWarning("Tried to terminate activation on wrong node, forwarding");
+                _logger.LogDebug("Tried to terminate activation on wrong node, forwarding");
                 context.Forward(ownerPid);
 
                 return Task.CompletedTask;
@@ -237,7 +237,7 @@ namespace Proto.Cluster.Partition
             if (ownerAddress != _myAddress)
             {
                 var ownerPid = PartitionManager.RemotePartitionIdentityActor(ownerAddress);
-                _logger.LogWarning("Tried to spawn on wrong node, forwarding");
+                _logger.LogDebug("Tried to spawn on wrong node, forwarding");
                 context.Forward(ownerPid);
 
                 return Task.CompletedTask;
@@ -294,72 +294,35 @@ namespace Proto.Cluster.Partition
                 res,
                 rst =>
                 {
-                    var response = res.Result;
-                    //TODO: as this is async, there might come in multiple ActivationRequests asking for this
-                    //Identity, causing multiple activations
-
-
-                    //Check if exist in current partition dictionary
-                    //This is necessary to avoid race condition during partition map transfer.
+                    _spawns.Remove(msg.ClusterIdentity);
                     if (_partitionLookup.TryGetValue(msg.ClusterIdentity, out info))
                     {
                         context.Respond(new ActivationResponse {Pid = info.pid});
                         return Task.CompletedTask;
                     }
-
-                    //Check if process is faulted
-                    if (rst.IsFaulted)
+                    if (rst.IsCompletedSuccessfully)
                     {
+                        var response = rst.Result;
+                        _partitionLookup[msg.ClusterIdentity] = (response.Pid, msg.Kind);
                         context.Respond(response);
-                        return Task.CompletedTask;
                     }
-
-
-                    _partitionLookup[msg.ClusterIdentity] = (response.Pid, msg.Kind);
-
-                    context.Respond(response);
-
-                    try
+                    else
                     {
-                        _spawns.Remove(msg.ClusterIdentity);
+                        context.Respond(new DeadLetterResponse());
                     }
-                    catch (Exception e)
-                    {
-                        //debugging hack
-                        _logger.LogInformation(e, "Failed while removing spawn {Id}", msg.Identity);
-                    }
-
                     return Task.CompletedTask;
                 }
             );
             return Task.CompletedTask;
         }
 
-        private async Task<ActivationResponse> SpawnRemoteActor(ActivationRequest req, string activator)
+        private Task<ActivationResponse> SpawnRemoteActor(ActivationRequest req, string address)
         {
-            try
-            {
-                _logger.LogDebug("Spawning Remote Actor {Activator} {Identity} {Kind}", activator, req.Identity,
-                    req.Kind
-                );
-                var result = await ActivateAsync(activator, req, _cluster.Config!.TimeoutTimespan);
-                return result;
-            }
-            catch
-            {
-                return null!;
-            }
-        }
-
-        //identical to Remote.SpawnNamedAsync, just using the special partition-activator for spawning
-        private async Task<ActivationResponse> ActivateAsync(string address, ActivationRequest req,
-            TimeSpan timeout)
-        {
+            _logger.LogDebug("Spawning Remote Actor {Activator} {Identity} {Kind}", address, req.Identity,
+                req.Kind
+            );
             var activator = PartitionManager.RemotePartitionPlacementActor(address);
-
-            var res = await _cluster.System.Root.RequestAsync<ActivationResponse>(activator, req, timeout);
-
-            return res;
+            return _cluster.System.Root.RequestAsync<ActivationResponse>(activator, req,  _cluster.Config!.TimeoutTimespan);
         }
 
         private enum ProcessingMode

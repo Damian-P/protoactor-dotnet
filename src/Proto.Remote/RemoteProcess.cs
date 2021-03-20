@@ -44,6 +44,8 @@ namespace Proto.Remote
                     var (m, sender, header) = Proto.MessageEnvelope.Unwrap(msg);
                     if (_endpoint is null)
                     {
+                        if (sender is not null)
+                            System.Root.Send(sender, new DeadLetterResponse { Target = _pid });
                         System.EventStream.Publish(new DeadLetterEvent(_pid, m, sender));
                         return;
                     }

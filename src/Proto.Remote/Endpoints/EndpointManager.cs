@@ -127,7 +127,6 @@ namespace Proto.Remote
                         _ = Task.Run(async () => {
                             await Task.Delay(_remoteConfig.WaitAfterEndpointTerminationTimeSpan.Value);
                             BannedHosts.TryRemove(evt.Address, out var _);
-                            Logger.LogInformation("Connections : {Connections}\nBanned system : {BannedSystems}\nBanned hosts : {BannedHosts}\nMappings : {Mappings}", string.Join(", ", Connections.Keys), string.Join(", ", BannedSystems.Keys), string.Join(", ", BannedHosts.Keys), string.Join(", ", AddressToSystemIdMappings.Select(kvp => $"{kvp.Key}({kvp.Value})")));
                         });
                 }
             }

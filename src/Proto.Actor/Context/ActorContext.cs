@@ -311,8 +311,14 @@ namespace Proto.Context
 
         private void ScheduleContinuation(Task target, Continuation cont) =>
             _ = Task.Run(async () => {
-                    await target;
-                    Self.SendSystemMessage(System, cont);
+                    try
+                    {
+                        await target;
+                    }
+                    finally
+                    {
+                        Self.SendSystemMessage(System, cont);
+                    }
                 }
                 , CancellationToken.None
             );

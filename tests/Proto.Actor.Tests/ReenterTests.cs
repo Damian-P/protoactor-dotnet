@@ -22,15 +22,15 @@ namespace Proto.Tests
         public async Task ReenterAfterCompletedTask()
         {
             var props = Props.FromFunc(ctx =>
+            {
+                if (ctx.Message is string str && str == "reenter")
                 {
-                    if (ctx.Message is string str && str == "reenter")
-                    {
-                        var delay = Task.Delay(500);
-                        ctx.ReenterAfter(delay, () => { ctx.Respond("response"); });
-                    }
-
-                    return Task.CompletedTask;
+                    var delay = Task.Delay(500);
+                    ctx.ReenterAfter(delay, () => { ctx.Respond("response"); });
                 }
+
+                return Task.CompletedTask;
+            }
             );
 
             var pid = Context.Spawn(props);
@@ -40,31 +40,66 @@ namespace Proto.Tests
         }
 
         [Fact]
+        public async Task ReenterAfterFailedTask()
+        {
+            var props = Props.FromFunc(ctx => {
+                if (ctx.Message is string str && str == "reenter")
+                {
+                    var delay = Task.Run(async () => {
+                        await Task.Delay(500);
+                        if (ctx.Message is string str && str == "reenter")
+                        {
+                            throw new NotSupportedException();
+                        }
+                        else
+                        {
+                            return new object();
+                        }
+                    });
+                    ctx.ReenterAfter<object>(delay, (rst) => {
+                        if (rst.IsCompletedSuccessfully)
+                            ctx.Respond("response");
+                        else
+                            ctx.Respond("faulted");
+                        return Task.CompletedTask;
+                    });
+                }
+
+                return Task.CompletedTask;
+            }
+            );
+
+            var pid = Context.Spawn(props);
+
+            var res = await Context.RequestAsync<string>(pid, "reenter", TimeSpan.FromSeconds(1));
+            Assert.Equal("faulted", res);
+
+        }
+
+        [Fact]
         public async Task ReenterAfterHonorsActorConcurrency()
         {
             var activeCount = 0;
             var correct = true;
             var counter = 0;
-            var props = Props.FromFunc(ctx =>
+            var props = Props.FromFunc(ctx => {
+                if (ctx.Message is string msg && msg == "reenter")
                 {
-                    if (ctx.Message is string msg && msg == "reenter")
-                    {
-                        //use ++ on purpose, any race condition would make the counter go out of sync
-                        counter++;
+                    //use ++ on purpose, any race condition would make the counter go out of sync
+                    counter++;
 
-                        var task = Task.Delay(0);
-                        ctx.ReenterAfter(task, () =>
-                            {
-                                var res = Interlocked.Increment(ref activeCount);
-                                if (res != 1) correct = false;
+                    var task = Task.Delay(0);
+                    ctx.ReenterAfter(task, () => {
+                        var res = Interlocked.Increment(ref activeCount);
+                        if (res != 1) correct = false;
 
-                                Interlocked.Decrement(ref activeCount);
-                            }
-                        );
+                        Interlocked.Decrement(ref activeCount);
                     }
-
-                    return Task.CompletedTask;
+                    );
                 }
+
+                return Task.CompletedTask;
+            }
             );
 
             var pid = Context.Spawn(props);
